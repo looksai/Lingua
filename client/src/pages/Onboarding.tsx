@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { trpc } from "@/lib/trpc";
 import {
   firstAccessTasks, interestLabels, tutorPersonaLabels,
@@ -13,6 +13,7 @@ export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
   const [name, setName] = useState("Seu tutor");
   const [persona, setPersona] = useState<TutorPersona>("welcoming");
   const [interest, setInterest] = useState<LearnerInterest>("curiosity");
+  const [allowAIFeedback, setAllowAIFeedback] = useState(false);
   const [answer, setAnswer] = useState("");
   const [lastReply, setLastReply] = useState("");
   const save = trpc.onboarding.saveProfile.useMutation();
@@ -25,11 +26,11 @@ export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
   const nextTask = snapshot.nextTask;
   const currentPosition = replies.length;
 
-  async function createProfile(event: React.FormEvent<HTMLFormElement>) {
+  async function createProfile(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       await save.mutateAsync({
-        ...supportedFirstAccessLanguages, tutorName: name.trim(), tutorPersona: persona, interest,
+        ...supportedFirstAccessLanguages, tutorName: name.trim(), tutorPersona: persona, interest, allowAIFeedback,
       });
       await utils.onboarding.me.invalidate();
     } catch { /* UI below shows the error */ }
@@ -98,7 +99,8 @@ export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
                 {Object.entries(interestLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </label>
-            <p className="text-xs leading-5 text-ink-muted">Vamos guardar as escolhas e as respostas da triagem na sua conta para você poder continuar depois. Não usaremos essas respostas para treinar modelos de IA por esta escolha.</p>
+            <p className="text-xs leading-5 text-ink-muted">Vamos guardar as escolhas e as respostas da triagem na sua conta para você continuar depois. Elas não serão usadas por nós para treinar modelos.</p>
+            <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1" checked={allowAIFeedback} onChange={e=>setAllowAIFeedback(e.target.checked)}/><span>Quero feedback curto com IA durante a triagem. Ao ativar, minha resposta textual e a pergunta serão enviadas à API da OpenAI para processar o feedback. Posso deixar desativado e continuar normalmente.</span></label>
             {error && <p role="alert" className="text-sm text-red-700">{error.message}</p>}
             <button disabled={busy || !name.trim()} className="w-full rounded-full bg-ink px-6 py-3 font-semibold text-white disabled:opacity-50">
               {busy ? "Salvando..." : "Conhecer meu tutor"}
