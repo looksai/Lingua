@@ -95,7 +95,7 @@ export const onboardingRouter = router({
       (existing.interfaceLocale !== input.interfaceLocale || existing.nativeLanguage !== input.nativeLanguage || existing.targetLanguage !== input.targetLanguage))
       throw new TRPCError({ code: "CONFLICT", message: "A troca de trilha após iniciar atividades exige um novo percurso." });
 
-    await db.insert(learnerProfiles).values({ userId: ctx.user.id, ...input, onboardingStatus: "started" })
+    await db.insert(learnerProfiles).values({ userId: ctx.user.id, ...input, allowAIFeedback: input.allowAIFeedback ? 1 : 0, onboardingStatus: "started" })
       .onDuplicateKeyUpdate({ set: {
         tutorName: input.tutorName, tutorPersona: input.tutorPersona, interest: input.interest,
         allowAIFeedback: input.allowAIFeedback ? 1 : 0,
