@@ -152,6 +152,7 @@ export const learnerProfiles = mysqlTable("learnerProfiles", {
   tutorName: varchar("tutorName", { length: 40 }).notNull().default("Seu tutor"),
   tutorPersona: mysqlEnum("tutorPersona", ["welcoming", "direct", "curious", "neutral"]).notNull().default("welcoming"),
   interest: mysqlEnum("interest", ["curiosity", "travel", "work", "technology", "everyday"]).notNull().default("curiosity"),
+  allowAIFeedback: int("allowAIFeedback").notNull().default(0),
   onboardingStatus: mysqlEnum("onboardingStatus", ["started", "deferred", "complete"]).notNull().default("started"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
