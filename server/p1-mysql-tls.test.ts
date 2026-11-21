@@ -49,6 +49,6 @@ describe("P1: external MySQL TLS configuration (no network)", () => {
     expect(() => buildMysqlPoolOptions("postgres://x:secret@localhost:5432/db", ca))
       .toThrow(/Invalid MySQL DATABASE_URL/);
     expect(() => buildMysqlPoolOptions("mysql://user:privatepassword@remote.test/db", undefined))
-      .toThrow(/DATABASE_SSL_CA_BASE64 required/);
+      .toThrow(/DATABASE_SSL_CA_BASE64 must contain Base64/);
   });
 });
