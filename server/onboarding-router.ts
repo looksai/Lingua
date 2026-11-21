@@ -2,7 +2,7 @@ import { and, asc, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { learnerProfiles, introductoryResponses } from "../drizzle/schema";
-import { firstAccessTasks, provisionalPath, supportedFirstAccessLanguages, tutorPersonaLabels, interestLabels } from "../shared/onboarding";
+import { firstAccessTasks, provisionalPath, supportedFirstAccessLanguages, tutorPersonaLabels } from "../shared/onboarding";
 import { checkRequestOrigin, rateLimit } from "./auth-local";
 import { getDb } from "./db";
 import { protectedProcedure, router } from "./_core/trpc";
@@ -14,6 +14,7 @@ const profileInput = z.object({
   tutorName: z.string().trim().min(1).max(40).regex(/^[^<>\r\n\t]+$/, "Escolha um nome sem caracteres especiais de marcação."),
   tutorPersona: z.enum(["welcoming", "direct", "curious", "neutral"]),
   interest: z.enum(["curiosity", "travel", "work", "technology", "everyday"]),
+  allowAIFeedback: z.boolean().default(false),
 });
 
 async function dbOrFail() {
@@ -30,11 +31,12 @@ function safeReply(tutorName: string) {
 async function generateReply(input: {
   tutorName: string;
   tutorPersona: keyof typeof tutorPersonaLabels;
+  allowAIFeedback: boolean;
   taskMessage: string;
   learnerAnswer: string;
 }) {
   const key = process.env.OPENAI_API_KEY;
-  if (!key) return safeReply(input.tutorName);
+  if (!key || !input.allowAIFeedback) return safeReply(input.tutorName);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 6000);
@@ -96,6 +98,7 @@ export const onboardingRouter = router({
     await db.insert(learnerProfiles).values({ userId: ctx.user.id, ...input, onboardingStatus: "started" })
       .onDuplicateKeyUpdate({ set: {
         tutorName: input.tutorName, tutorPersona: input.tutorPersona, interest: input.interest,
+        allowAIFeedback: input.allowAIFeedback ? 1 : 0,
       }});
     return { saved: true as const };
   }),
@@ -155,6 +158,7 @@ export const onboardingRouter = router({
     const reply = await generateReply({
       tutorName: outcome.profile.tutorName,
       tutorPersona: outcome.profile.tutorPersona,
+      allowAIFeedback: outcome.profile.allowAIFeedback === 1,
       taskMessage: task.message,
       learnerAnswer: input.answer,
     });
