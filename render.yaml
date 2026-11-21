@@ -1,0 +1,25 @@
+# P1 staging blueprint only: founder action is needed before any deployment.
+# Do not use production credentials, learning data, or secrets in this file.
+services:
+  - type: web
+    name: lingua-p1-staging
+    runtime: node
+    plan: free
+    branch: fix/p1-concorrencia-abas
+    autoDeployTrigger: 'off'
+    buildCommand: npm install --global pnpm@10.18.0 && pnpm install --frozen-lockfile && pnpm build
+    startCommand: node dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: DATABASE_URL
+        sync: false
+      - key: MANUS_JWT_SECRET
+        sync: false
+      - key: MANUS_PROJECT_ID
+        sync: false
+      - key: MANUS_OAUTH_API_URL
+        sync: false
