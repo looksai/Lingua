@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { publicPlatformConfig, publicPlatformScript } from "./_core/publicConfig";
 import { getSessionCookieOptions } from "./_core/cookies";
-import { sdk } from "./_core/sdk";
+import { issueSession, verifySession } from "./auth-local";
 import { listLLMModels } from "./_core/llm";
 import { generateImage } from "./_core/imageGeneration";
 import { COOKIE_NAME } from "../shared/const";
@@ -41,14 +41,11 @@ describe("current platform integration", () => {
   });
   it("uses a distinct secure app cookie behind the HTTPS Preview proxy", () => {
     expect(COOKIE_NAME).not.toBe("app_session_id");
-    expect(getSessionCookieOptions({ protocol: "http", headers: {} } as never)).toMatchObject({ secure: true, httpOnly: true, sameSite: "none" });
+    expect(getSessionCookieOptions({ protocol: "http", headers: {} } as never)).toMatchObject({ secure: true, httpOnly: true, sameSite: "lax" });
   });
-  it("binds signed app sessions to this project and accepts an empty display name", async () => {
-    vi.stubEnv("MANUS_PROJECT_ID", "project-test");
-    vi.stubEnv("MANUS_JWT_SECRET", "unit-test-signing-key-never-deployed");
-    const token = await sdk.signSession({ openId: "user-test", appId: "project-test", name: "" });
-    expect(await sdk.verifySession(token)).toMatchObject({ openId: "user-test" });
-    vi.stubEnv("MANUS_PROJECT_ID", "different-project");
-    expect(await sdk.verifySession(token)).toBeNull();
+  it("rejects sessions without a strong application-owned secret", async () => {
+    vi.stubEnv("SESSION_SECRET", "");
+    await expect(issueSession({ id: 1, openId: "local:test" } as never)).rejects.toThrow(/SESSION_SECRET/);
+    expect(await verifySession("invalid")).toBeNull();
   });
 });
