@@ -9,6 +9,7 @@ CREATE TABLE `learnerProfiles` (
   `tutorName` varchar(40) NOT NULL DEFAULT 'Seu tutor',
   `tutorPersona` enum('welcoming','direct','curious','neutral') NOT NULL DEFAULT 'welcoming',
   `interest` enum('curiosity','travel','work','technology','everyday') NOT NULL DEFAULT 'curiosity',
+  `allowAIFeedback` int NOT NULL DEFAULT 0,
   `onboardingStatus` enum('started','deferred','complete') NOT NULL DEFAULT 'started',
   `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updatedAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
