@@ -37,6 +37,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: '24'
+          package-manager-cache: false
       - name: pnpm 10.18
         uses: pnpm/action-setup@v4
         with:
