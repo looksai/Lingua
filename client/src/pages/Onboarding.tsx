@@ -1,3 +1,5 @@
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "../../../server/routers";
 import { useState, type FormEvent } from "react";
 import { trpc } from "@/lib/trpc";
 import {
@@ -6,7 +8,7 @@ import {
   type LearnerInterest, type TutorPersona,
 } from "@shared/onboarding";
 
-type Snapshot = NonNullable<ReturnType<typeof trpc.onboarding.me.useQuery>["data"]>;
+type Snapshot = inferRouterOutputs<AppRouter>["onboarding"]["me"];
 
 export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
   const utils = trpc.useUtils();
