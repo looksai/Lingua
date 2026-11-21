@@ -20,6 +20,14 @@ describe("P1: external MySQL TLS configuration (no network)", () => {
       rejectUnauthorized: true, ca: rootCertificates[0],
     });
   });
+  it("accepts wrapped CA Base64 copied into GitHub secrets without weakening TLS", () => {
+    const wrapped = " \n" + ca.slice(0, 120) + "\n" + ca.slice(120) + " \n";
+    const options = buildMysqlPoolOptions(url, wrapped);
+    expect(options.ssl).toMatchObject({ rejectUnauthorized: true, ca: rootCertificates[0] });
+  });
+  it("rejects non-Base64 CA secrets before networking", () => {
+    expect(() => buildMysqlPoolOptions(url, "ca.pem")).toThrow(/must contain Base64/);
+  });
   it("rejects invalid and expired CA data before opening any connection", () => {
     const malformed = Buffer.from("not a certificate").toString("base64");
     expect(() => buildMysqlPoolOptions(url, malformed)).toThrow(/Invalid database CA/);
