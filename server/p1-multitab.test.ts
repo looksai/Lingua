@@ -116,6 +116,20 @@ describe("P1 cross-tab integrity", () => {
     const added = await queued;
     expect(getPendingLearningOperations(101).map(op => op.id)).toEqual([added.id]);
   });
+  it("a newly mounted view retries after a coalesced replay was cancelled", async () => {
+    enqueueLearningOperation(303, { type: "review", knowledgeItemId: 7, rating: "good" });
+    let calls = 0;
+    const api = {
+      save: async () => 7,
+      review: async () => { calls++; },
+      remove: async () => {},
+    };
+    const cancelled = replayPendingLearningOperations(303, api, () => true);
+    const active = replayPendingLearningOperations(303, api, () => false);
+    expect(await cancelled).toEqual({ synced: false, remaining: 1 });
+    expect(await active).toEqual({ synced: true, remaining: 0 });
+    expect(calls).toBe(1);
+  });
   it("isolates locks by authenticated owner", async () => {
     const entered = deferred();
     const release = deferred();
