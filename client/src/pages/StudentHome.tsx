@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
@@ -14,6 +14,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   const [tutorName, setTutorName] = useState(profile.tutorName);
   const [tutorPersona, setTutorPersona] = useState<TutorPersona>(profile.tutorPersona);
   const [interest, setInterest] = useState<LearnerInterest>(profile.interest);
+  const [allowAIFeedback, setAllowAIFeedback] = useState(profile.allowAIFeedback === 1);
   const [saved, setSaved] = useState(false);
   const utils = trpc.useUtils();
   const preferences = trpc.onboarding.saveProfile.useMutation();
@@ -36,12 +37,12 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
     try { await resume.mutateAsync(); await utils.onboarding.me.invalidate(); } catch { /* show error */ }
   }
 
-  async function savePreferences(event: React.FormEvent<HTMLFormElement>) {
+  async function savePreferences(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaved(false);
     try {
       await preferences.mutateAsync({
-        ...supportedFirstAccessLanguages, tutorName: tutorName.trim(), tutorPersona, interest,
+        ...supportedFirstAccessLanguages, tutorName: tutorName.trim(), tutorPersona, interest, allowAIFeedback,
       });
       await utils.onboarding.me.invalidate();
       setSaved(true);
@@ -116,6 +117,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           <label className="block text-sm font-semibold">Nome<input required maxLength={40} value={tutorName} onChange={e => setTutorName(e.target.value)} className="mt-2 w-full rounded-lg border p-3 font-normal" /></label>
           <label className="block text-sm font-semibold">Tom<select value={tutorPersona} onChange={e=>setTutorPersona(e.target.value as TutorPersona)} className="mt-2 w-full rounded-lg border p-3 font-normal">{Object.entries(tutorPersonaLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
           <label className="block text-sm font-semibold">Interesse<select value={interest} onChange={e=>setInterest(e.target.value as LearnerInterest)} className="mt-2 w-full rounded-lg border p-3 font-normal">{Object.entries(interestLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
+          <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={allowAIFeedback} onChange={e=>setAllowAIFeedback(e.target.checked)}/><span>Autorizar envio de respostas textuais à OpenAI para feedback opcional por IA.</span></label>
           <p className="text-xs text-ink-muted">Idiomas desta primeira versão: interface pt-BR, explicação em português, aprendizado de inglês. Voz ainda não disponível no onboarding.</p>
           {preferences.error && <p role="alert" className="text-sm text-red-700">{preferences.error.message}</p>}
           {saved && <p role="status" className="text-sm text-teal">Preferências salvas.</p>}
