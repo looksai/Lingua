@@ -8,8 +8,8 @@ const url = "mysql://test_user:placeholder-secret@mysql.example.test:14403/testd
 
 describe("P1: external MySQL TLS configuration (no network)", () => {
   it("requires a CA for an external database even with ssl-mode=REQUIRED", () => {
-    expect(() => buildMysqlPoolOptions(url, undefined)).toThrow(/CA_BASE64 required/);
-    expect(() => buildMysqlPoolOptions(url, "")).toThrow(/CA_BASE64 required/);
+    expect(() => buildMysqlPoolOptions(url, undefined)).toThrow(/CA_BASE64 must contain Base64/);
+    expect(() => buildMysqlPoolOptions(url, "")).toThrow(/CA_BASE64 must contain Base64/);
   });
   it("verifies the server CA without insecure TLS bypass", () => {
     const options = buildMysqlPoolOptions(url, ca);
@@ -31,7 +31,7 @@ describe("P1: external MySQL TLS configuration (no network)", () => {
   it("rejects invalid and expired CA data before opening any connection", () => {
     const malformed = Buffer.from("not a certificate").toString("base64");
     expect(() => buildMysqlPoolOptions(url, malformed)).toThrow(/Invalid database CA/);
-    expect(() => buildMysqlPoolOptions(url, "%%")).toThrow(/CA_BASE64 required/);
+    expect(() => buildMysqlPoolOptions(url, "%%")).toThrow(/CA_BASE64 must contain Base64/);
   });
   it("rejects insecure connection modes even if a CA was given", () => {
     expect(() => buildMysqlPoolOptions(url.replace("REQUIRED", "DISABLED"), ca))
