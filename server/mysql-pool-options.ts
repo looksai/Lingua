@@ -46,9 +46,12 @@ export function buildMysqlPoolOptions(
   if (isLoopback && !caBase64) return options;
 
   // A missing/malformed CA must never silently downgrade external TLS.
-  if (!caBase64 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(caBase64))
-    throw new Error("DATABASE_SSL_CA_BASE64 required for verified MySQL TLS");
-  const ca = Buffer.from(caBase64, "base64").toString("utf8");
+  // GitHub Secrets and copied Base64 can contain wrapping/newline whitespace.
+  // Normalize only whitespace; refuse malformed encoding instead of downgrading TLS.
+  const encodedCa = caBase64?.replace(/\s+/g, "") ?? "";
+  if (!encodedCa || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encodedCa))
+    throw new Error("DATABASE_SSL_CA_BASE64 must contain Base64 of the Aiven PEM certificate");
+  const ca = Buffer.from(encodedCa, "base64").toString("utf8");
   if (!ca.includes("-----BEGIN CERTIFICATE-----") ||
       !ca.includes("-----END CERTIFICATE-----"))
     throw new Error("Invalid database CA certificate");
