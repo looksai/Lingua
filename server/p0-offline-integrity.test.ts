@@ -19,6 +19,10 @@ function setup() {
     removeItem: (key: string) => { storage.delete(key); },
   };
   vi.stubGlobal("window", { localStorage, dispatchEvent: () => true });
+  vi.stubGlobal("navigator", { locks: {
+    request: async (_name: string, _options: unknown, callback: (lock: unknown) => Promise<unknown>) =>
+      callback({ name: _name, mode: "exclusive" }),
+  } });
   networkCalls = 0;
 }
 afterEach(() => vi.unstubAllGlobals());

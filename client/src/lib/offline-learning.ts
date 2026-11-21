@@ -1,4 +1,6 @@
-/** Lingua P0: queue ownership, stable operation identity and ACK-safe replay.
+import { signalLearningQueueChanged, withLearningQueueLock } from "./offline-coordination";
+
+/** Lingua P1: queue ownership, stable operation identity and ACK-safe replay.
  * This is operational SRS telemetry, never evidence of mastery.
  * The legacy global key is deliberately NOT adopted into an authenticated account.
  */
@@ -69,17 +71,19 @@ function readQueue(userId: number | string): PendingLearningOperation[] {
   }
 }
 function writeQueue(userId: number | string, queue: PendingLearningOperation[]) {
+  let persisted = false;
   const key = queueKey(userId);
   volatileQueues.set(key, queue);
   if (isBrowser()) {
     try {
       window.localStorage.setItem(key, JSON.stringify(queue));
       volatileOnly.delete(key);
+      persisted = true;
     } catch {
       volatileOnly.add(key);
       // Kept in session memory; do not silently attach it to a different user.
     }
-    window.dispatchEvent(new Event("lingua:offline-queue"));
+    signalLearningQueueChanged(userId, persisted);
   }
 }
 function operationId() {
@@ -119,7 +123,7 @@ export function normalizePendingLearningOperations(
 export function getPendingLearningOperations(userId: number | string) {
   const current = readQueue(userId);
   const normalized = normalizePendingLearningOperations(current);
-  if (normalized.length !== current.length) writeQueue(userId, normalized);
+  // No unlocked, side-effecting normalization reads across tabs.
   return normalized;
 }
 export function pendingLearningCount(userId: number | string) {
@@ -139,6 +143,16 @@ export function enqueueLearningOperation(
   else queue.push(next);
   writeQueue(userId, deduplicateLearningOperations(queue));
   return next;
+}
+/** Browser UI must use this async serialized path, not the legacy sync primitive. */
+export async function enqueueLearningOperationCoordinated(
+  userId: number | string,
+  input: PendingLearningInput | PendingLearningOperation
+): Promise<PendingLearningOperation> {
+  const stable = "id" in input ? input : createPendingLearningOperation(input);
+  const result = await withLearningQueueLock(userId, () => enqueueLearningOperation(userId, stable));
+  if (!result) throw new Error("Queue lock did not grant ownership");
+  return result;
 }
 export function removePendingLearningOperation(userId: number | string, id: string) {
   writeQueue(userId, getPendingLearningOperations(userId).filter(op => op.id !== id));
@@ -172,6 +186,14 @@ export function resolvePendingLearningItem(
   ));
 }
 
+/** Browser rebindings serialize with enqueue and replay across tabs. */
+export async function resolvePendingLearningItemCoordinated(
+  userId: number | string, clientKey: string, knowledgeItemId: number
+) {
+  await withLearningQueueLock(userId,
+    () => resolvePendingLearningItem(userId, clientKey, knowledgeItemId));
+}
+
 export type LearningReplayApi = {
   save: (item: OfflineSaveItem) => Promise<number>;
   review: (input: { knowledgeItemId: number; rating: "again" | "hard" | "good" | "easy"; operationId: string }) => Promise<unknown>;
@@ -186,8 +208,20 @@ export function replayPendingLearningOperations(
 ): Promise<{ synced: boolean; remaining: number }> {
   const key = queueKey(userId);
   const alreadyRunning = inFlightReplays.get(key);
-  if (alreadyRunning) return alreadyRunning;
+  if (alreadyRunning) {
+    // A component unmounted during the first replay can cancel that promise.
+    // A new live component must retry, rather than inheriting its cancellation.
+    return alreadyRunning.then(result =>
+      result.synced || result.remaining === 0 || shouldStop()
+        ? result
+        : replayPendingLearningOperations(userId, api, shouldStop)
+    );
+  }
   const run = async () => {
+  // Wait for the previous tab, acquire exclusive ownership, and re-read the queue.
+  // All ACK updates and dependent rebindings remain inside the lock.
+  const result = await withLearningQueueLock(userId, async () => {
+  if (shouldStop()) return { synced: false, remaining: pendingLearningCount(userId) };
   const ids = getPendingLearningOperations(userId).map(op => op.id);
   for (const id of ids) {
     if (shouldStop()) return { synced: false, remaining: pendingLearningCount(userId) };
@@ -207,8 +241,12 @@ export function replayPendingLearningOperations(
   }
   const remaining = pendingLearningCount(userId);
   return { synced: remaining === 0, remaining };
+  });
+  return result ?? { synced: false, remaining: pendingLearningCount(userId) };
   };
-  const promise = run().finally(() => { inFlightReplays.delete(key); });
+  const promise = run().finally(() => {
+    if (inFlightReplays.get(key) === promise) inFlightReplays.delete(key);
+  });
   inFlightReplays.set(key, promise);
   return promise;
 }

@@ -39,3 +39,9 @@ Esta seção registra um **rascunho ainda não aprovado em produção** e não m
 - A hora usada nas transições novas é determinada pelo servidor; `appliedAtMs` dá ordenação e a identidade de operação evita reaplicação.
 
 **Restrições inalteradas:** nada disso prova domínio ou certifica. Não há lock entre abas, criptografia da fila, garantia de durabilidade sob falha do `localStorage`, nem tratamento automático para logs legados. Toda migração e validação integrada permanecem dependentes de revisão humana.
+
+## 8. P1 — coordenação entre abas (branch de revisão)
+
+A implementação proposta na branch fix/p1-concorrencia-abas utiliza Web Locks API com lock exclusivo por userId para replay e alterações originadas na interface (enqueue e rebind). BroadcastChannel e storage só propagam notificações sem payload pedagógico. Leitura da fila não faz mais normalização destrutiva sem lock. Uma segunda aba aguarda o lock e relê a fila, em vez de confiar em snapshot antigo. Cancelamento de sessão é verificado após obtenção do lock.
+
+**Limitações:** não coordena múltiplos dispositivos; requisições online que não usam fila não passam pelo lock. Funções síncronas legadas permanecem para compatibilidade/testes, mas a interface usa as variantes serializadas. Falha de localStorage ainda pode provocar fallback volátil que não sobrevive a reinício. Save/remove não possuem a mesma idempotência server-side de review. Falha de Web Locks no navegador impede gravação offline e replay, com aviso explícito em vez de falsa sincronização. P1 depende de QA real no navegador, sem dados de estudantes.

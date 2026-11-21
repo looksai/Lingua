@@ -1,0 +1,40 @@
+# P1 staging blueprint. Not a deployment; connecting a Render account is a separate step.
+# Free Render web services expose a public HTTPS address. Never use production data.
+services:
+  - type: web
+    name: lingua-p1-staging
+    runtime: node
+    plan: free
+    branch: fix/p1-concorrencia-abas
+    autoDeployTrigger: 'off'
+    buildCommand: npm install --global pnpm@10.18.0 && pnpm install --no-prod --frozen-lockfile && pnpm build
+    startCommand: node dist/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: '24.22.3'
+      # Staging MySQL only, with TLS verification implemented and tested before use.
+      - key: DATABASE_URL
+        sync: false
+      # Existing Manus WebDev authentication, NOT Manus Open App API OAuth:
+      - key: MANUS_PROJECT_ID
+        sync: false
+      - key: MANUS_JWT_SECRET
+        sync: false
+      - key: MANUS_OAUTH_API_URL
+        sync: false
+      - key: MANUS_OAUTH_PORTAL_URL
+        sync: false
+      # FUTURE/RESERVED: requested for a possible Manus Open App OAuth adapter.
+      # The current Lingua/WebDev login DOES NOT read these variables.
+      # Merely setting them will NOT enable Open App login.
+      - key: OAUTH_CLIENT_ID
+        sync: false
+      - key: OAUTH_CLIENT_SECRET
+        sync: false
+      # FUTURE/RESERVED: current app signs sessions with MANUS_JWT_SECRET,
+      # not SESSION_SECRET; see docs/RENDER-OAUTH.md.
+      - key: SESSION_SECRET
+        sync: false
