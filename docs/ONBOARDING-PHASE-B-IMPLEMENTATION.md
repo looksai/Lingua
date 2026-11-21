@@ -1,6 +1,6 @@
 # Fase B — Onboarding Jarvis (PR de implementação)
 
-**Status:** implementação em branch `feat/onboarding-jarvis`, revisão pendente. **NÃO executar migration nem deploy antes de aprovação do fundador e auditor Deep.**
+**Status em 21/11/2026:** Deep e fundador aprovaram o PR #17 e a migration de staging. A migration `0005` foi aplicada **somente na Aiven de testes**, após inspeção de identidade, TLS e pré-requisitos, com verificação posterior de colunas, índices e FKs. [Inspeção](https://github.com/looksai/Lingua/actions/runs/44962641720) · [Migração aplicada e verificada](https://github.com/looksai/Lingua/actions/runs/44962693544). **A aprovação da migration não equivale a um deploy validado ou a autorização de lançamento público.**
 
 ## O que esta entrega realmente contém
 
@@ -18,19 +18,19 @@
 1. **Não existe ainda tutor Jarvis plenamente proativo, voz, avaliação acústica, diagnóstico multihabilidade, seleção autônoma de atividades ou integração CSLE.** O texto do tutor no onboarding é contextual, opcional e limitado.
 2. O plano inicial é um ponto de partida por interesse, não inferência de capacidade. Cinco respostas por texto ainda **não** fundamentam grau de fluência.
 3. O legado `/demo` ainda usa a UI Welma e seus percentuais **explicitamente rotulados como fictícios** e bloqueados para usuários autenticados.
-4. Persistência exige aplicação manual controlada da migration `drizzle/0005_onboarding_jarvis.sql` em staging. **A migration 0004 do PR #14 não deve ser aplicada.** A tabela de perfil não deve ser substituída por `userKnowledgeStates`.
+4. Migration `drizzle/0005_onboarding_jarvis.sql` **já aplicada na Aiven de staging em 21/11/2026**, com esquema e integridade verificados. **A migration 0004 do PR #14 não foi aplicada.** O perfil continua separado de `userKnowledgeStates`.
 5. A versão atual do `ReadingLab` e do `ReviewDeck` possui suas próprias pendências documentadas; preservação de componentes não equivale a QA integral.
 6. `OPENAI_API_KEY` pertence apenas ao servidor. A opção LLM exige orçamento, políticas de retenção do provedor e teste de latência/custos. A escolha padrão de modelo não afirma que é o melhor ou o mais barato.
 7. A contagem de respostas na tela é apenas registro, **não pontuação**. Feedback do LLM nunca entra como evidência curricular.
 8. O tutor não tem ainda edição/exclusão individual de respostas ou exportação: são requisitos pendentes de privacidade antes de disponibilizar publicamente, além do controle de acesso e exclusão em cascata de conta.
-9. O app não deve oferecer «onboarding pronto em Render» até a migration staging ser aprovada/aplicada, API validada e testes E2E reais concluídos.
+9. O app não deve oferecer «onboarding validado em Render» até deploy, verificação do backend/API e testes E2E reais concluídos. A aplicação da migration não comprova o fluxo no navegador.
 
 ## Controle de migração — procedimento proposto (não executar automaticamente)
 
-1. Confirmar backup, acesso com privilégio mínimo e quais migrations manuais já rodaram em Aiven (`0000`, `0001`, `0002`, `0003`); comparar esquema real com `drizzle/schema.ts`.
-2. Inspecionar o plano e executar **`0005_onboarding_jarvis.sql` apenas em staging**, com SQL revisado e aprovação, e conferir índices/FKs/collation.
-3. Validar usuário novo, antigo, dois usuários alternados, concorrência e erro por banco indisponível; depois testar recuperação por login em aparelho diferente.
-4. Rolar back com estratégia de backup e proteção de dados; não executar `pnpm db:push` cegamente: o journal histórico não acompanha todas as migrations manuais.
+1. **Executado:** confirmar conexão TLS, alvo Aiven específico e tabelas 0000–0003; inspecionar ausência de tabelas 0005.
+2. **Executado:** aplicar `0005_onboarding_jarvis.sql` somente em staging; verificar esquema, índices e FKs via GitHub Actions com confirmação explícita.
+3. **Pendente:** validar usuário novo, antigo, dois usuários alternados, concorrência e falhas; testar recuperação por login em aparelho diferente.
+4. **Pendente:** registrar procedimento de restauração e retenção de dados antes de qualquer produção; não executar `pnpm db:push` cegamente: o journal histórico não acompanha todas as migrations manuais.
 
 ## Testes/gates
 
@@ -48,4 +48,4 @@ Push-to-talk: ASR configurável -> LLM texto -> TTS configurável, com fallback 
 
 ## Governança
 
-PR de implementação permanecerá **Draft** até parecer independente do Deep e aceite do fundador. Nenhum merge, schema push, alteração no Aiven/Render ou deploy autorizado apenas pelo CI verde.
+PR de implementação **aprovado por Deep e fundador** para merge. Alterações no Aiven já efetuadas estritamente na instância staging após inspeção. O deploy Render deverá ser verificado separadamente; CI verde e DDL correta não substituem testes de navegação e isolamento.
