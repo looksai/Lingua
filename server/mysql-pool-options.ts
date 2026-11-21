@@ -46,12 +46,22 @@ export function buildMysqlPoolOptions(
   if (isLoopback && !caBase64) return options;
 
   // A missing/malformed CA must never silently downgrade external TLS.
-  // GitHub Secrets and copied Base64 can contain wrapping/newline whitespace.
-  // Normalize only whitespace; refuse malformed encoding instead of downgrading TLS.
-  const encodedCa = caBase64?.replace(/\s+/g, "") ?? "";
-  if (!encodedCa || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encodedCa))
-    throw new Error("DATABASE_SSL_CA_BASE64 must contain Base64 of the Aiven PEM certificate");
-  const ca = Buffer.from(encodedCa, "base64").toString("utf8");
+  // Accept either Base64-encoded PEM or the original PEM text pasted into
+  // the GitHub Secret. Both must pass X.509 and mysql2's TLS verification.
+  // Never log source values or permit a missing/invalid CA to fall back to plain text.
+  const provided = caBase64?.trim() ?? "";
+  if (!provided)
+    throw new Error("DATABASE_SSL_CA_BASE64 is missing; enter the Aiven CA PEM or Base64");
+  const normalizedPem = provided.replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n");
+  let ca: string;
+  if (normalizedPem.startsWith("-----BEGIN CERTIFICATE-----")) {
+    ca = normalizedPem;
+  } else {
+    const encodedCa = provided.replace(/\s+/g, "");
+    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encodedCa))
+      throw new Error("DATABASE_SSL_CA_BASE64 is invalid: expected the full CA PEM or Base64");
+    ca = Buffer.from(encodedCa, "base64").toString("utf8");
+  }
   if (!ca.includes("-----BEGIN CERTIFICATE-----") ||
       !ca.includes("-----END CERTIFICATE-----"))
     throw new Error("Invalid database CA certificate");

@@ -21,3 +21,7 @@ O **Render Free não fornece shell ou SSH**, então o comando `pnpm drizzle-kit 
 O script recusa outro hostname, outra porta ou schema. A existência de um banco exclusivo para Lingua não garante que esteja vazio — por isso a inspeção vem antes.
 
 Nota sobre a Aiven: o banner de 30 dias e US$ 50 representa **trial da conta**, não comprova que a instância MySQL esteja num tier Free. Consultar **service → Overview → Plan** no painel Aiven. A Aiven aposentará serviços MySQL Free remanescentes em 21/12/2026: https://aiven.io/docs/products/mysql/howto/mysql-free-tier-migration-options .
+
+## Se o secret CA for rejeitado
+
+`LINGUA_STAGING_CA_BASE64` aceita **duas formas equivalentes**: Base64 do `ca.pem` ou o texto PEM original inteiro (incluindo as linhas `-----BEGIN CERTIFICATE-----` e `-----END CERTIFICATE-----`). A autenticação TLS e a validação X.509 continuam obrigatórias. Se o Base64 copiado por etapas não funcionar, abra o `ca.pem` original no Bloco de Notas, copie o conteúdo completo e use **Update** no secret com o mesmo nome. Não cole o conteúdo em chat, PR ou screenshots. O programa nunca exibe o CA. Caso o segredo esteja vazio ou contenha outro texto, a conexão continua bloqueada.
