@@ -28,6 +28,13 @@ export const users = mysqlTable("users", {
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
+export const localCredentials = mysqlTable("localCredentials", {
+  userId: int("userId").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  email: varchar("email", { length: 320 }).notNull().unique(),
+  passwordHash: varchar("passwordHash", { length: 255 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 export const knowledgeItems = mysqlTable(
   "knowledgeItems",
   {

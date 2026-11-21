@@ -22,15 +22,6 @@ services:
       # Mandatory for non-loopback MySQL; this value is never committed to Git.
       - key: DATABASE_SSL_CA_BASE64
         sync: false
-      # Existing Manus WebDev authentication, NOT Manus Open App API OAuth:
-      - key: MANUS_PROJECT_ID
+      # App-owned JWT signing key. Generate securely in Render; never commit.
+      - key: SESSION_SECRET
         sync: false
-      - key: MANUS_JWT_SECRET
-        sync: false
-      - key: MANUS_OAUTH_API_URL
-        sync: false
-      - key: MANUS_OAUTH_PORTAL_URL
-        sync: false
-      # The current WebDev login does not read OAUTH_CLIENT_ID,
-      # OAUTH_CLIENT_SECRET or SESSION_SECRET. Those remain documented as
-      # future options, not required launch-time secrets.

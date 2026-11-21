@@ -1,4 +1,5 @@
 import { COOKIE_NAME } from "@shared/const";
+import { issueSession, registerLocalUser, loginLocalUser, rateLimit, checkRequestOrigin, normalizeEmail } from "./auth-local";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
@@ -19,6 +20,26 @@ export const appRouter = router({
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    signUp: publicProcedure.input(z.object({
+      email: z.email().max(320),
+      password: z.string().min(12).max(128),
+    })).mutation(async ({ ctx, input }) => {
+      checkRequestOrigin(ctx.req);
+      rateLimit("signup:" + (ctx.req.ip ?? "unknown") + ":" + normalizeEmail(input.email));
+      const user = await registerLocalUser(input.email, input.password);
+      ctx.res.cookie(COOKIE_NAME, await issueSession(user), { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
+      return { success: true as const };
+    }),
+    signIn: publicProcedure.input(z.object({
+      email: z.email().max(320),
+      password: z.string().min(1).max(128),
+    })).mutation(async ({ ctx, input }) => {
+      checkRequestOrigin(ctx.req);
+      rateLimit("signin:" + (ctx.req.ip ?? "unknown") + ":" + normalizeEmail(input.email));
+      const user = await loginLocalUser(input.email, input.password);
+      ctx.res.cookie(COOKIE_NAME, await issueSession(user), { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
+      return { success: true as const };
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
