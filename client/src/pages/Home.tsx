@@ -289,10 +289,10 @@ function Shell({
             </div>
           </div>
           <button className="mt-5 flex w-full items-center gap-3 border-t border-ink/10 pt-5 text-left">
-            <div className="avatar">WH</div>
+            <div className="avatar">L</div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">Welma</p>
-              <p className="text-xs text-ink-faint">Perfil demonstrativo</p>
+              <p className="truncate text-sm font-semibold">{accountEmail ? "Minha conta" : "Visitante"}</p>
+              <p className="text-xs text-ink-faint">{accountEmail ? "Conteúdo de exemplo" : "Explorar demonstração"}</p>
             </div>
             <Settings2 size={16} className="ml-auto text-ink-faint" />
           </button>
@@ -346,7 +346,7 @@ function HomeView({ onNavigate }: { onNavigate: (view: View) => void }) {
     <div className="space-y-10">
       <div className="flex flex-col justify-between gap-5 border-b border-ink/10 pb-8 md:flex-row md:items-end">
         <div>
-          <p className="eyebrow mb-3">Quarta-feira · 20 de novembro</p>
+          <p className="eyebrow mb-3">Seu espaço de aprendizagem</p>
           <h1 className="font-display text-5xl leading-[0.92] tracking-[-0.055em] sm:text-6xl">
             Bom te ver,
             <br />
