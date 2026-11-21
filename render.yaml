@@ -18,6 +18,10 @@ services:
       # Staging MySQL only, with TLS verification implemented and tested before use.
       - key: DATABASE_URL
         sync: false
+      # Base64 of the project CA certificate, entered only in Render secrets.
+      # Mandatory for non-loopback MySQL; this value is never committed to Git.
+      - key: DATABASE_SSL_CA_BASE64
+        sync: false
       # Existing Manus WebDev authentication, NOT Manus Open App API OAuth:
       - key: MANUS_PROJECT_ID
         sync: false

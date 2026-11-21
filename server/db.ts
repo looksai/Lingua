@@ -1,5 +1,7 @@
 import { and, asc, desc, eq, lte } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
+import mysql from "mysql2/promise";
+import { buildMysqlPoolOptions } from "./mysql-pool-options";
 import {
   InsertKnowledgeItem,
   InsertUser,
@@ -18,15 +20,18 @@ import {
   type ReviewResult,
 } from "../shared/learning";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: MySql2Database | null = null;
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const options = buildMysqlPoolOptions(
+        process.env.DATABASE_URL, process.env.DATABASE_SSL_CA_BASE64
+      );
+      _db = drizzle({ client: mysql.createPool(options) });
     } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
+      console.warn("[Database] Initialization failed; connection settings or TLS need review");
       _db = null;
     }
   }

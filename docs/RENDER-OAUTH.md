@@ -138,3 +138,7 @@ Referências oficiais:
 - https://open.manus.ai/docs/v2/open-app
 - https://aiven.io/changelog/507f8b1b-dd8f-4841-ac4a-940ac492b688
 - https://aiven.io/docs/products/mysql/howto/mysql-free-tier-migration-options
+
+## Complemento P1 — CA MySQL no Render
+
+A branch `fix/p1-aiven-tls` acrescenta `DATABASE_SSL_CA_BASE64` (valor secreto em Base64 do conteúdo do `ca.pem`) e conexão `mysql2` com CA e `rejectUnauthorized: true`. Leia [P1-AIVEN-TLS.md](P1-AIVEN-TLS.md) antes de configurar o banco remoto; não execute migrations através do `drizzle-kit` sem a configuração segura específica dessa ferramenta.
