@@ -40,6 +40,8 @@ export type SrsReviewOptions = {
   jitterRatio?: number;
   userId?: string;
   itemId?: string;
+  // Historical pre-amendment reviews retain their original scheduling semantics.
+  legacyFinalHard?: boolean;
 };
 
 const RATING_QUALITY: Record<SrsRating, 0 | 3 | 4 | 5> = {
@@ -167,8 +169,8 @@ export function applySrsReview(
   ) {
     const completedLearning =
       rating === "easy" ||
-      (rating !== "hard" &&
-        state.repetitions >= LEARNING_STEPS_MINUTES.length - 1);
+      (state.repetitions >= LEARNING_STEPS_MINUTES.length - 1 &&
+        (rating !== "hard" || (state.state === "learning" && !options.legacyFinalHard)));
     if (completedLearning) {
       next.state = "review";
       next.repetitions = Math.max(1, state.repetitions + 1);
@@ -219,6 +221,7 @@ export type ReviewLogForReplay = {
   createdAt: string;
   operationId?: string;
   sequence?: number; // trusted DB commit order, not client-controlled
+  legacyFinalHard?: boolean; // per-operation historical scheduling rule
 };
 
 export function replayReviewLogs(
@@ -240,6 +243,7 @@ export function replayReviewLogs(
       (state, log) => {
         const next = applySrsReview(state, log.rating, new Date(log.createdAt), {
           ...options, itemId: options.itemId ?? knowledgeItemId,
+          legacyFinalHard: log.legacyFinalHard,
         });
         return options.databaseFloat32
           ? { ...next, easeFactor: Math.fround(next.easeFactor) }

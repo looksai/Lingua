@@ -1,0 +1,55 @@
+name: P0 MySQL migration (disposable)
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/p0-auditada]
+    paths:
+      - '.github/workflows/test-migration.yml'
+      - 'drizzle/**'
+      - 'server/**'
+      - 'shared/learning.ts'
+      - 'tests/mysql/**'
+permissions:
+  contents: read
+jobs:
+  mysql-integration:
+    if: github.ref == 'refs/heads/fix/p0-auditada'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: disposable-root-only
+          MYSQL_DATABASE: lingua_p0_test
+          MYSQL_USER: lingua_test
+          MYSQL_PASSWORD: disposable-test-only
+        ports:
+          - 3306/tcp
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      TZ: UTC
+      LINGUA_MYSQL_TEST: '1'
+      DATABASE_URL: mysql://lingua_test:disposable-test-only@127.0.0.1:${{ job.services.mysql.ports[3306] }}/lingua_p0_test
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install pnpm
+        run: npm install --global pnpm@10.18.0
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript check
+        run: pnpm check
+      - name: Apply migrations and test real MySQL
+        run: pnpm exec vitest run --config tests/mysql/vitest.config.ts
+      - name: Isolation notice
+        if: always()
+        run: echo "GitHub Actions removes this job's service container automatically. No external database was used."

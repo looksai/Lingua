@@ -55,7 +55,7 @@ Todo intervalo de revisão tem piso de 1 dia. O teto operacional do intervalo é
 Os passos são, em ordem: **1 minuto, 10 minutos, 1 dia**.
 
 - Em `new`, `again` fica no passo de 1 minuto; `hard` e `good` avançam um passo; `easy` promove imediatamente para `review` com 4 dias.
-- Em `learning`, `again` volta ao passo de 1 minuto; `hard` repete o passo atual; `good` avança um passo; `easy` promove para `review` com 4 dias. Ao concluir o passo de 1 dia, a próxima resposta não-`again` promove para `review`.
+- Em `learning`, `again` volta ao passo de 1 minuto; nos passos de 1 e 10 minutos, `hard` repete o passo atual e `good` avança. No último passo (1 dia), `hard` ou `good` promove para `review` com intervalo de 1 dia. `easy` promove para `review` com 4 dias em qualquer passo. A alteração aprovada nesta rodada é somente a promoção por `hard` no último passo; não altera os passos curtos nem `relearning`. O comportamento anterior é conservado no replay de registros que não contenham a marca de regra `learning-final-hard-v2` no ACK persistido. Isso é agendamento, não comprovação de domínio ou de retenção efetivamente medida.
 - Em `relearning`, a mesma sequência é usada: `again` reinicia em 1 minuto; `hard` repete o passo atual; `good` avança; `easy` promove. Ao concluir o passo de 1 dia, retorna a `review` com intervalo de 1 dia ou, para `easy`, 4 dias.
 - Ao promover, `repetitions` fica em pelo menos 1. Ele é um contador operacional de passagens pelos passos/revisões; não altera a fórmula de intervalo em `review`, que usa o intervalo anterior e EF'.
 - `again` em `relearning` não incrementa `lapses`: o lapso já foi contado quando o item em `review` recebeu `again`; repetir a falha durante a recuperação não representa um novo lapso de revisão.
@@ -76,6 +76,8 @@ Com `agora = 2026-11-20T12:00:00Z` e jitter desativado nos exemplos:
 | `new`, reps 0                 | `good`   | `learning`, 10 min                         |
 | `learning`, reps 1            | `good`   | `learning`, 1 dia                          |
 | `learning`, reps 2            | `good`   | `review`, 1 dia                            |
+| `learning`, reps 2            | `hard`   | `review`, 1 dia                            |
+| `learning`, reps 1            | `hard`   | `learning`, 10 min                        |
 | `new`, reps 0                 | `easy`   | `review`, 4 dias, EF 2.6                   |
 | `review`, interval 6, EF 2.5  | `again`  | `relearning`, 1 min, lapses +1             |
 | `review`, interval 10, EF 2.5 | `hard`   | `review`, 12 dias antes do jitter, EF 2.36 |

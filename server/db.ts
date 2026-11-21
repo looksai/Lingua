@@ -270,7 +270,8 @@ export async function recordKnowledgeReview(
       throw new Error("Operation ID reused with a different review intent");
     if (!found[0].resultJson)
       throw new Error("Legacy review has no retrievable idempotent result");
-    return JSON.parse(found[0].resultJson) as ReviewResult;
+    const { srsRule: _rule, ...ack } = JSON.parse(found[0].resultJson) as ReviewResult & { srsRule?: string };
+    return ack;
   };
 
   const prior = await existingResult(db);
@@ -316,7 +317,7 @@ export async function recordKnowledgeReview(
       }).where(eq(userKnowledgeStates.id, current.id));
       await tx.insert(reviewLogs).values({
         userId, knowledgeItemId, operationId, stateId: current.id,
-        appliedAtMs: now.getTime(), resultJson: JSON.stringify(result),
+        appliedAtMs: now.getTime(), resultJson: JSON.stringify({ ...result, srsRule: "learning-final-hard-v2" }),
         rating, quality: result.quality,
         previousState: current.state, nextState: result.state,
         previousDueAt: current.dueAt, nextDueAt,
@@ -374,6 +375,7 @@ export async function reconstructPersistedKnowledgeState(
         knowledgeItemId: String(knowledgeItemId), rating: log.rating,
         createdAt: new Date(log.appliedAtMs!).toISOString(),
         operationId: log.operationId, sequence: log.id,
+        legacyFinalHard: !log.resultJson || JSON.parse(log.resultJson).srsRule !== "learning-final-hard-v2",
       })), initial, {
         userId: String(userId), itemId: String(knowledgeItemId), databaseFloat32: true,
       });
