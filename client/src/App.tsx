@@ -6,6 +6,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
+import StudentWorkspace from "./pages/StudentWorkspace";
+import { trpc } from "./lib/trpc";
 
 function HomeRoute() {
   const identity = trpc.auth.me.useQuery(undefined, { retry: false });
