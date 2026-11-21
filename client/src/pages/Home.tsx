@@ -37,6 +37,7 @@ import { mockDecision } from "@/lib/csle-contract";
 import ReadingLab from "@/components/ReadingLab";
 import ContentLibrary from "@/components/ContentLibrary";
 import ReviewDeck from "@/components/ReviewDeck";
+import { trpc } from "@/lib/trpc";
 
 type View = "home" | "learn" | "read" | "review" | "explore" | "evidence";
 
@@ -234,10 +235,12 @@ function Shell({
   view,
   onNavigate,
   children,
+  accountEmail,
 }: {
   view: View;
   onNavigate: (view: View) => void;
   children: React.ReactNode;
+  accountEmail?: string;
 }) {
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -286,10 +289,10 @@ function Shell({
             </div>
           </div>
           <button className="mt-5 flex w-full items-center gap-3 border-t border-ink/10 pt-5 text-left">
-            <div className="avatar">WH</div>
+            <div className="avatar">L</div>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold">Welma</p>
-              <p className="text-xs text-ink-faint">Perfil demonstrativo</p>
+              <p className="truncate text-sm font-semibold">{accountEmail ? "Minha conta" : "Visitante"}</p>
+              <p className="text-xs text-ink-faint">{accountEmail ? "Conteúdo de exemplo" : "Explorar demonstração"}</p>
             </div>
             <Settings2 size={16} className="ml-auto text-ink-faint" />
           </button>
@@ -307,15 +310,13 @@ function Shell({
             </span>
           </div>
           <div className="hidden items-center gap-2 text-xs text-ink-muted sm:flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-teal" /> sessão
-            demonstrativa <span className="text-ink-faint">·</span> progresso
-            local
+            <span className="h-1.5 w-1.5 rounded-full bg-teal" /> {accountEmail ? "conta conectada · conteúdo demonstrativo" : "sessão demonstrativa · progresso local"}
           </div>
           <div className="flex items-center gap-3">
             <button className="icon-button" aria-label="Ajuda">
               <CircleHelp size={17} />
             </button>
-            <a href="/login" className="text-sm font-semibold text-teal hover:underline">Entrar / Cadastrar</a>
+            {accountEmail ? <span className="text-xs text-teal" title={accountEmail}>Conta conectada</span> : <a href="/login" className="text-sm font-semibold text-teal hover:underline">Entrar / Cadastrar</a>}
           </div>
         </header>
         <main className="mx-auto max-w-[1400px] px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
@@ -345,7 +346,7 @@ function HomeView({ onNavigate }: { onNavigate: (view: View) => void }) {
     <div className="space-y-10">
       <div className="flex flex-col justify-between gap-5 border-b border-ink/10 pb-8 md:flex-row md:items-end">
         <div>
-          <p className="eyebrow mb-3">Quarta-feira · 20 de novembro</p>
+          <p className="eyebrow mb-3">Seu espaço de aprendizagem</p>
           <h1 className="font-display text-5xl leading-[0.92] tracking-[-0.055em] sm:text-6xl">
             Bom te ver,
             <br />
@@ -1273,8 +1274,9 @@ function EvidenceView() {
 
 export default function Home() {
   const [view, setView] = useState<View>("home");
+  const identity = trpc.auth.me.useQuery(undefined, { retry: false });
   return (
-    <Shell view={view} onNavigate={setView}>
+    <Shell view={view} onNavigate={setView} accountEmail={identity.data?.email ?? undefined}>
       {view === "home" && <HomeView onNavigate={setView} />}
       {view === "learn" && <LearnView onNavigate={setView} />}
       {view === "read" && <ReadingLab />}
