@@ -1,0 +1,53 @@
+name: Lingua Aiven staging (manual and guarded)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "inspect reads metadata only; migrate bootstraps an EMPTY staging DB"
+        required: true
+        type: choice
+        default: inspect
+        options:
+          - inspect
+          - migrate
+      confirmation:
+        description: "For migrate only: APLICAR_0000_0001_0002_SOMENTE_LINGUA"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-aiven-staging
+  cancel-in-progress: false
+
+jobs:
+  verify-staging:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout audited source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: pnpm 10.18
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Inspect or bootstrap only the Aiven staging database
+        env:
+          LINGUA_STAGING_ACTION: ${{ inputs.action }}
+          LINGUA_STAGING_CONFIRMATION: ${{ inputs.confirmation }}
+          LINGUA_STAGING_DATABASE_URL: ${{ secrets.LINGUA_STAGING_DATABASE_URL }}
+          LINGUA_STAGING_CA_BASE64: ${{ secrets.LINGUA_STAGING_CA_BASE64 }}
+        run: pnpm exec tsx scripts/staging-aiven-mysql.ts
