@@ -5,7 +5,7 @@ services:
     name: lingua-p1-staging
     runtime: node
     plan: free
-    branch: fix/p1-concorrencia-abas
+    branch: main
     autoDeployTrigger: 'off'
     buildCommand: npm install --global pnpm@10.18.0 && pnpm install --no-prod --frozen-lockfile && pnpm build
     startCommand: node dist/index.js
@@ -31,14 +31,6 @@ services:
         sync: false
       - key: MANUS_OAUTH_PORTAL_URL
         sync: false
-      # FUTURE/RESERVED: requested for a possible Manus Open App OAuth adapter.
-      # The current Lingua/WebDev login DOES NOT read these variables.
-      # Merely setting them will NOT enable Open App login.
-      - key: OAUTH_CLIENT_ID
-        sync: false
-      - key: OAUTH_CLIENT_SECRET
-        sync: false
-      # FUTURE/RESERVED: current app signs sessions with MANUS_JWT_SECRET,
-      # not SESSION_SECRET; see docs/RENDER-OAUTH.md.
-      - key: SESSION_SECRET
-        sync: false
+      # The current WebDev login does not read OAUTH_CLIENT_ID,
+      # OAUTH_CLIENT_SECRET or SESSION_SECRET. Those remain documented as
+      # future options, not required launch-time secrets.
