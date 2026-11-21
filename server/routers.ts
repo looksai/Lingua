@@ -26,7 +26,19 @@ export const appRouter = router({
     })).mutation(async ({ ctx, input }) => {
       checkRequestOrigin(ctx.req);
       rateLimit("signup:" + (ctx.req.ip ?? "unknown") + ":" + normalizeEmail(input.email));
-      const user = await registerLocalUser(input.email, input.password);
+      let user;
+      try {
+        user = await registerLocalUser(input.email, input.password);
+      } catch (error) {
+        if (error instanceof TRPCError) throw error;
+        // Drizzle error messages can include SQL parameters and password hashes.
+        // Log only safe driver codes, never the raw error, query, or parameters.
+        const cause = typeof error === "object" && error !== null && "cause" in error ? error.cause : error;
+        const code = typeof cause === "object" && cause !== null && "code" in cause ? String(cause.code) : "";
+        const safeCodes = new Set(["ER_NO_REFERENCED_ROW_2", "ER_DUP_ENTRY", "ER_DATA_TOO_LONG", "ER_BAD_FIELD_ERROR", "ER_NO_SUCH_TABLE", "ER_ACCESS_DENIED_ERROR", "ER_TRUNCATED_WRONG_VALUE", "ER_FK_INCOMPATIBLE_COLUMNS", "ER_PARSE_ERROR"]);
+        console.error("[Auth] Signup database write failed; mysql_code=" + (safeCodes.has(code) ? code : "withheld"));
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Não foi possível concluir o cadastro. Tente novamente mais tarde." });
+      }
       ctx.res.cookie(COOKIE_NAME, await issueSession(user), { ...getSessionCookieOptions(ctx.req), maxAge: 12 * 60 * 60 * 1000 });
       return { success: true as const };
     }),

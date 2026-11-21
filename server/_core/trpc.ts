@@ -5,6 +5,11 @@ import type { TrpcContext } from "./context";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
+  errorFormatter({ shape, error }) {
+    // Never serialize raw database/ORM errors to the browser, including SQL parameters.
+    if (error.code !== "INTERNAL_SERVER_ERROR") return shape;
+    return { ...shape, message: "Erro interno. Tente novamente mais tarde." };
+  },
 });
 
 export const router = t.router;
