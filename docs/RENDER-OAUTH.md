@@ -1,4 +1,66 @@
-# Lingua P1 — Render e autenticação Manus: guia para o fundador
+# Guia rápido — Lingua no Render (OAuth Manus e MySQL externo)
+
+**Objetivo:** preparar o **My Workspace** já confirmado para hospedar somente o servidor Web **Free**, sem criar nenhum serviço, sem contratar plano e sem iniciar deploy. A conta Render já possui o serviço *nordstar-business-os-temporary*, também Free: **não tocá-lo nem reaproveitá-lo**. O Lingua ainda não tem Web Service no Render.
+
+## Antes de tudo: escolha o tipo de login
+
+O projeto possui **autenticação Manus WebDev (legada)**. Ela não é a mesma coisa que um **Manus Open App OAuth**.
+
+| Caminho | É compatível agora? | O que fazer |
+|---|---|---|
+| **A — Manus WebDev existente** | **Somente se** o projeto original aceitar callback HTTPS externo | Verificar o projeto Manus original e a permissão para `/api/oauth/callback` no domínio Render |
+| **B — Manus Open App OAuth** | **Não**, exige um adaptador de autenticação separado, ainda não implementado | Criar App **apenas se tiver conta Manus Team** e houver aprovação de uma migração; não usar os segredos Open App diretamente na implementação WebDev |
+
+**Atenção:** a documentação oficial [Manus — Open App](https://open.manus.ai/docs/v2/open-app) diz que a criação e a autorização de Open Apps exigem uma **conta Team**; uma conta pessoal não pode criar nem autorizar esse tipo de aplicativo. Open App serve para conceder acesso à API Manus em nome do usuário; não se deve presumir que sua autenticação é intercambiável com o login WebDev.
+
+### Caminho A — verificar WebDev sem alterar o código
+
+1. Abra o [Manus](https://manus.im/) e localize o **projeto original que gerou o Lingua**.
+2. No projeto, procure as configurações de domínio/autenticação e, especificamente, suporte a **redirecionamento OAuth externo HTTPS**. A localização exata dessa opção na interface WebDev ainda **não foi confirmada**; não confundir com as configurações **Open App**.
+3. Confirme com a documentação do seu projeto ou suporte Manus se o destino `https://<servico>.onrender.com/api/oauth/callback` pode ser autorizado.
+4. Somente se a resposta for positiva, reúna legitimamente **`MANUS_PROJECT_ID`, `MANUS_OAUTH_PORTAL_URL` e `MANUS_OAUTH_API_URL`** para homologação, e gere um **`MANUS_JWT_SECRET` exclusivo**, guardado apenas no painel de secrets do Render.
+5. **Se não houver callback externo, pare.** Não altere o login nem publique o serviço sem um plano aprovado de substituição de identidade e testes de usuários/cookies/CSRF.
+
+### Caminho B — criar Open App, somente se decidirmos substituir a autenticação
+
+1. Leia [a documentação oficial de Open Apps do Manus](https://open.manus.ai/docs/v2/open-app) e verifique se sua conta é **Team** e se a aplicação terá as permissões necessárias. **Se não for Team, não contrate um plano por conta desta orientação.**
+2. Na sua conta Team, acesse as **configurações de Desenvolvedor (Developers)** indicadas na documentação e escolha criar uma **Open App**.
+3. Defina nome, descrição, URL inicial e um **redirect URI HTTPS exato** que o **futuro adaptador** usará; não suponha que o callback WebDev existente aceita a resposta Open App. Não utilize wildcard.
+4. Após criar a Open App, o Manus apresenta um **`client_id`** e um **`client_secret` inicial**, exibido uma única vez. Guarde-os em gerenciador seguro e no Render somente quando o adaptador estiver aprovado. Nunca cole segredos em chats ou no Git.
+5. **Pare antes do deploy:** o Lingua atual usa `/app-auth` e `WebDevAuthPublicService/ExchangeToken`; a Open App usa `https://manus.im/openapi/oauth` e `https://api.manus.ai/oauth/token`. Precisamos desenvolver e testar um adaptador OAuth2 separado (state, PKCE quando aplicável, sessão, autorização e associação de identidade) antes de usar essas credenciais.
+
+## Configurar variáveis no Render (somente após escolher o caminho)
+
+No [Render Dashboard](https://dashboard.render.com/), entre em **My Workspace** e escolha futuramente **New → Blueprint** conectado à **branch `fix/p1-concorrencia-abas`** do repositório privado `looksai/Lingua`. O arquivo `render.yaml` já define **um único Web Service Node.js, plano Free, sem banco Render e com auto-deploy desligado**.
+
+| Variável `sync: false` | Estado no código atual |
+|---|---|
+| `DATABASE_URL` | **Ativa**, MySQL externo *somente* homologação, com TLS autenticado a validar |
+| `MANUS_PROJECT_ID` | **Ativa**, WebDev |
+| `MANUS_OAUTH_PORTAL_URL` | **Ativa**, WebDev |
+| `MANUS_OAUTH_API_URL` | **Ativa**, WebDev |
+| `MANUS_JWT_SECRET` | **Ativa**, segredo de sessão do Lingua |
+| `OAUTH_CLIENT_ID` | **Reservada/inativa** até implementação de Open App |
+| `OAUTH_CLIENT_SECRET` | **Reservada/inativa** até implementação de Open App |
+| `SESSION_SECRET` | **Reservada/inativa**; **não substitui `MANUS_JWT_SECRET`** no código atual |
+
+**Importante:** ao criar um Blueprint, o Render solicitará os valores `sync: false`; não inventar nem preencher placeholders como se fossem credenciais válidas. Se o painel exigir variáveis reservadas antes de permitir criar o recurso, **não aplicar o Blueprint**: revisar o arquivo após decidir o provedor de login. Render documenta que `sync: false` pede os valores na criação inicial, enquanto os valores em atualização posterior precisam ser definidos manualmente no serviço: https://render.com/docs/blueprint-spec .
+
+## Banco MySQL externo (não criar dentro do Render)
+
+1. Escolher fornecedor de **MySQL 8 de staging**, aprovando antecipadamente qualquer custo. O MySQL do GitHub Actions é descartável e não substitui banco persistente.
+2. Criar credenciais com permissões mínimas e **sem dados reais**. Não colocar a URI no YAML.
+3. Antes da conexão, revisar a configuração de TLS do driver `mysql2`: **a implementação atual ainda precisa de validação de TLS/certificados**; `mysql://` por si só não prova segurança.
+4. Aplicar migrations 0000, 0001 e 0002 num banco de homologação novo por procedimento auditado, nunca em produção sem plano separado.
+5. Só então fornecer `DATABASE_URL` na configuração privada do Render.
+
+**Capturas de tela:** não foram incluídas porque não há uma captura verificada da interface atual das configurações Manus WebDev/Developers. Links oficiais são usados em vez de imagens inventadas ou potencialmente desatualizadas.
+
+**Ponto de parada:** não criar Blueprint, publicar URL, migrar banco nem ativar login antes de o fundador confirmar banco, callbacks Manus e configuração segura de credenciais. O PR #3 ainda não deve sofrer merge sem autorização expressa do fundador.
+
+---
+
+## Anexo técnico — detalhes do código e do ambiente
 
 **Situação:** preparado, **não publicado**. Nenhuma conta Render, banco de homologação, credencial ou URL funcional foi criada por este commit. Somente dados sintéticos. O preview do Render será uma URL HTTPS na nuvem; não precisa instalar Docker nem executar `pnpm dev` no notebook.
 

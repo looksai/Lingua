@@ -27,5 +27,14 @@ services:
         sync: false
       - key: MANUS_OAUTH_PORTAL_URL
         sync: false
-      # OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET are NOT consumed by this code.
-      # Do not invent credentials or set unneeded secrets.
+      # FUTURE/RESERVED: requested for a possible Manus Open App OAuth adapter.
+      # The current Lingua/WebDev login DOES NOT read these variables.
+      # Merely setting them will NOT enable Open App login.
+      - key: OAUTH_CLIENT_ID
+        sync: false
+      - key: OAUTH_CLIENT_SECRET
+        sync: false
+      # FUTURE/RESERVED: current app signs sessions with MANUS_JWT_SECRET,
+      # not SESSION_SECRET; see docs/RENDER-OAUTH.md.
+      - key: SESSION_SECRET
+        sync: false
