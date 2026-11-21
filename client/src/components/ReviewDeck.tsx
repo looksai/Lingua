@@ -11,9 +11,10 @@ import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import type { SrsRating } from "@shared/learning";
 import {
-  createPendingLearningOperation, enqueueLearningOperation,
+  createPendingLearningOperation, enqueueLearningOperationCoordinated,
   pendingLearningCount, replayPendingLearningOperations,
 } from "@/lib/offline-learning";
+import { subscribeLearningQueue } from "@/lib/offline-coordination";
 
 type ReviewFilter = "due" | "all";
 type ReportWindow = "30" | "90" | "all";
@@ -87,13 +88,7 @@ export default function ReviewDeck() {
   }, [ownerId]);
   useEffect(() => {
     const refresh = () => setPendingCount(ownerId ? pendingLearningCount(ownerId) : 0);
-    window.addEventListener("lingua:offline-queue", refresh);
-    window.addEventListener("online", refresh);
-    refresh();
-    return () => {
-      window.removeEventListener("lingua:offline-queue", refresh);
-      window.removeEventListener("online", refresh);
-    };
+    return ownerId ? subscribeLearningQueue(ownerId, refresh) : (refresh(), () => {});
   }, [ownerId]);
   useEffect(() => {
     if (!ownerId || pendingCount === 0) return;
@@ -207,11 +202,12 @@ export default function ReviewDeck() {
           void utils.learning.listItems.invalidate();
         },
         onError: error => {
-          enqueueLearningOperation(ownerId, operation);
-          setPendingCount(pendingLearningCount(ownerId));
-          setMessage(
-            `${text} ficou na fila offline. Será sincronizada quando a conexão voltar.`
-          );
+          void enqueueLearningOperationCoordinated(ownerId, operation).then(() => {
+            setPendingCount(pendingLearningCount(ownerId));
+            setMessage(`${text} ficou na fila offline. Será sincronizada quando a conexão voltar.`);
+          }).catch(() => {
+            setMessage("Não foi possível salvar essa revisão na fila com segurança. Reabra o navegador compatível antes de sair.");
+          });
         },
       }
     );
@@ -253,7 +249,7 @@ export default function ReviewDeck() {
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-ink-muted">
-          <span className="h-1.5 w-1.5 rounded-full bg-teal" /> sincronizado
+          <span className="h-1.5 w-1.5 rounded-full bg-teal" /> {pendingCount ? `${pendingCount} operação(ões) pendente(s)` : "fila local sem pendências"}
         </div>
       </header>
 

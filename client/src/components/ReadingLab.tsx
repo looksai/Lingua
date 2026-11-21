@@ -18,13 +18,14 @@ import type {
 import { trpc } from "@/lib/trpc";
 import ShadowingPractice from "@/components/ShadowingPractice";
 import {
-  enqueueLearningOperation,
+  enqueueLearningOperationCoordinated,
   createPendingLearningOperation,
   replayPendingLearningOperations,
-  resolvePendingLearningItem,
+  resolvePendingLearningItemCoordinated,
   pendingLearningCount,
   type OfflineSaveItem,
 } from "@/lib/offline-learning";
+import { subscribeLearningQueue } from "@/lib/offline-coordination";
 import {
   applySrsReview,
   createInitialReviewState,
@@ -233,13 +234,7 @@ export default function ReadingLab() {
 
   useEffect(() => {
     const refresh = () => setPendingCount(ownerId ? pendingLearningCount(ownerId) : 0);
-    window.addEventListener("lingua:offline-queue", refresh);
-    window.addEventListener("online", refresh);
-    refresh();
-    return () => {
-      window.removeEventListener("lingua:offline-queue", refresh);
-      window.removeEventListener("online", refresh);
-    };
+    return ownerId ? subscribeLearningQueue(ownerId, refresh) : (refresh(), () => {});
   }, [ownerId]);
 
   useEffect(() => {
@@ -344,12 +339,15 @@ export default function ReadingLab() {
             {
               onSuccess: () => setPersistenceStatus(ownerId && pendingLearningCount(ownerId) ? "local" : "synced"),
               onError: error => {
-                if (ownerId) enqueueLearningOperation(ownerId, {
-                  type: "remove",
-                  clientKey: normalizeKnowledgeText(selectedWord),
-                  knowledgeItemId: serverItemId,
-                });
-                setPendingCount(ownerId ? pendingLearningCount(ownerId) : 0);
+                if (ownerId) {
+                  void enqueueLearningOperationCoordinated(ownerId, {
+                    type: "remove",
+                    clientKey: normalizeKnowledgeText(selectedWord),
+                    knowledgeItemId: serverItemId,
+                  }).then(() => setPendingCount(pendingLearningCount(ownerId))).catch(() => {
+                    setReviewMessage("Não foi possível enfileirar a remoção com segurança; a operação permanece sem confirmação.");
+                  });
+                }
                 setPersistenceStatus("local");
                 setReviewMessage(error.message);
               },
@@ -407,20 +405,29 @@ export default function ReadingLab() {
                   : undefined,
               },
             }));
-            if (ownerId) resolvePendingLearningItem(ownerId, normalizeKnowledgeText(selectedWord), result.item.id);
-            setPersistenceStatus(ownerId && pendingLearningCount(ownerId) ? "local" : "synced");
+            if (ownerId) {
+              void resolvePendingLearningItemCoordinated(ownerId, normalizeKnowledgeText(selectedWord), result.item.id)
+                .then(() => setPersistenceStatus(pendingLearningCount(ownerId) ? "local" : "synced"))
+                .catch(() => {
+                  setPersistenceStatus("local");
+                  setReviewMessage("O item foi salvo, mas a fila local ainda precisa de confirmação segura.");
+                });
+            }
           },
           onError: () => {
-            if (ownerId) enqueueLearningOperation(ownerId, {
-              type: "save",
-              clientKey: normalizeKnowledgeText(selectedWord),
-              payload: savePayload,
-            });
-            setPendingCount(ownerId ? pendingLearningCount(ownerId) : 0);
             setPersistenceStatus("local");
-            setReviewMessage(
-              "Banco indisponível nesta sessão; a palavra continua salva localmente."
-            );
+            if (ownerId) {
+              void enqueueLearningOperationCoordinated(ownerId, {
+                type: "save",
+                clientKey: normalizeKnowledgeText(selectedWord),
+                payload: savePayload,
+              }).then(() => {
+                setPendingCount(pendingLearningCount(ownerId));
+                setReviewMessage("Banco indisponível; operação guardada na fila offline.");
+              }).catch(() => {
+                setReviewMessage("Falha ao gravar com segurança a fila offline; não feche a aba sem recuperar a conexão.");
+              });
+            }
           },
         });
       }
@@ -469,18 +476,24 @@ export default function ReadingLab() {
               setPersistenceStatus(pendingLearningCount(ownerId) ? "local" : "synced");
             },
             onError: () => {
-              enqueueLearningOperation(ownerId, operation);
-              setPendingCount(pendingLearningCount(ownerId));
               setPersistenceStatus("local");
-              setReviewMessage(`${word} aguarda confirmação do servidor.`);
+              void enqueueLearningOperationCoordinated(ownerId, operation).then(() => {
+                setPendingCount(pendingLearningCount(ownerId));
+                setReviewMessage(`${word} aguarda confirmação do servidor.`);
+              }).catch(() => {
+                setReviewMessage(`${word}: a revisão não pôde ser enfileirada com segurança.`);
+              });
             },
           }
         );
       } else {
-        enqueueLearningOperation(ownerId, operation);
-        setPendingCount(pendingLearningCount(ownerId));
         setPersistenceStatus("local");
-        setReviewMessage(`${word} aguarda a sincronização do item.`);
+        void enqueueLearningOperationCoordinated(ownerId, operation).then(() => {
+          setPendingCount(pendingLearningCount(ownerId));
+          setReviewMessage(`${word} aguarda a sincronização do item.`);
+        }).catch(() => {
+          setReviewMessage(`${word}: a revisão não pôde ser enfileirada com segurança.`);
+        });
       }
     }
   };
