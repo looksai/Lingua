@@ -4,6 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
+import { studentRouter } from "./student-router";
 import { z } from "zod";
 import {
   ensureUserKnowledgeState,
@@ -16,6 +17,7 @@ import {
 } from "./db";
 
 export const appRouter = router({
+  student: studentRouter,
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
