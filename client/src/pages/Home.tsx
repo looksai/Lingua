@@ -315,7 +315,7 @@ function Shell({
             <button className="icon-button" aria-label="Ajuda">
               <CircleHelp size={17} />
             </button>
-            <button className="header-avatar">WH</button>
+            <a href="/login" className="text-sm font-semibold text-teal hover:underline">Entrar / Cadastrar</a>
           </div>
         </header>
         <main className="mx-auto max-w-[1400px] px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
