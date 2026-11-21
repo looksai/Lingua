@@ -1,3 +1,5 @@
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "../../../server/routers";
 import { useState, type FormEvent } from "react";
 import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -5,7 +7,7 @@ import ReadingLab from "@/components/ReadingLab";
 import ReviewDeck from "@/components/ReviewDeck";
 import { supportedFirstAccessLanguages, tutorPersonaLabels, interestLabels, type TutorPersona, type LearnerInterest } from "@shared/onboarding";
 
-type Snapshot = NonNullable<ReturnType<typeof trpc.onboarding.me.useQuery>["data"]>;
+type Snapshot = inferRouterOutputs<AppRouter>["onboarding"]["me"];
 type View = "dashboard" | "read" | "review" | "settings";
 
 export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; email: string }) {
