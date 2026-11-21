@@ -34,8 +34,7 @@ jobs:
     env:
       TZ: UTC
       LINGUA_MYSQL_TEST: '1'
-      DATABASE_URL: mysql://lingua_test:disposable-test-only@127.0.0.1:${{ job.services.mysql.ports[3306] }}/lingua_p0_test
-    steps:
+      steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
@@ -49,6 +48,8 @@ jobs:
       - name: TypeScript check
         run: pnpm check
       - name: Apply migrations and test real MySQL
+        env:
+          DATABASE_URL: mysql://lingua_test:disposable-test-only@127.0.0.1:${{ job.services.mysql.ports[3306] }}/lingua_p0_test
         run: pnpm exec vitest run --config tests/mysql/vitest.config.ts
       - name: Isolation notice
         if: always()
