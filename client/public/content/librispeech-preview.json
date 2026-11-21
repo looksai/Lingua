@@ -1,0 +1,59 @@
+{
+  "schema": "lingua.content.v1",
+  "sourceId": "librispeech-slr12-preview",
+  "source": "LibriSpeech / OpenSLR SLR12 via Hugging Face Dataset Server",
+  "locale": "en",
+  "license": "CC BY 4.0",
+  "sourceUrl": "https://www.openslr.org/12",
+  "retrievedAt": "2026-11-20T09:51:23.906Z",
+  "records": [
+    {
+      "id": "2277-149896-0000",
+      "text": "HE WAS IN A FEVERED STATE OF MIND OWING TO THE BLIGHT HIS WIFE'S ACTION THREATENED TO CAST UPON HIS ENTIRE FUTURE",
+      "speakerId": "2277",
+      "chapterId": "149896",
+      "audio": "/content/audio/librispeech/2277-149896-0000.wav",
+      "sourceAudioUrl": "https://datasets-server.huggingface.co/assets/openslr/librispeech_asr/--/71cacbfb7e2354c4226d01e70d77d5fca3d04ba1/--/clean/validation/0/audio/audio.wav?Expires=1795171883&Signature=YABkRv4eTCcgh0BRoB8QsPGEx8dNM-qyR9AqWyCqdGN5IroKiRUkogZcS4Og-UpEADXqHJC5hn2ukINbv2AZY-e9~BP8TBw1amrpKLqHIFxM~LD-gELW12US8OT~tCeatGsEPaFKCbwKTpM7UNYNgYAGb~5U2tZ~elwzXZE81ysaZqOy9fjB6rWrNw0ADutL2qpRZGNgSXInBp5vK4MNMVUVQSojEtwSqsrp~ux9flol4F6e0XFCE-KzBSiaV3mHSru1Opii7tltU5QYj2tifjTwgaCX8OgNxh~nujJV9Rqz3H~V5Zf68q1zUI00D~9eL0f~Qzw47NfmrvSTj43Brg__&Key-Pair-Id=K3C0L9WB6U5DUC",
+      "sha256": "20e10e583b4918e05cea91316f7bde65a345d2756e64abc7f7ee133e2a0547f5",
+      "license": "CC BY 4.0",
+      "sourceUrl": "https://www.openslr.org/12",
+      "reviewStatus": "ready-for-listening-review"
+    },
+    {
+      "id": "2277-149896-0001",
+      "text": "HE WOULD HAVE TO PAY HER THE MONEY WHICH SHE WOULD NOW REGULARLY DEMAND OR THERE WOULD BE TROUBLE IT DID NOT MATTER WHAT HE DID",
+      "speakerId": "2277",
+      "chapterId": "149896",
+      "audio": "/content/audio/librispeech/2277-149896-0001.wav",
+      "sourceAudioUrl": "https://datasets-server.huggingface.co/assets/openslr/librispeech_asr/--/71cacbfb7e2354c4226d01e70d77d5fca3d04ba1/--/clean/validation/1/audio/audio.wav?Expires=1795171883&Signature=sy4~uMVMTTzE0RAioybLanoNIU91QdVxDzdKhcRxPDvKUuD9LVAWUCh3Q-RXUW~gdDIrohOMuu~PeuspR8b9lNUBZanB4UbkHa8VajYO3vMI-ThxSfrqM5XP3XZvXGqQGHQ42nQbgWxlSheg5C-9dhlb5PRiESVOdTmhtH3O0TeEdepl~Sj8EjKAomjXOZZAjNYPT1eqDIwrL6oZTtbsvb9EgySBUA1qApOFLh4wCo27~Q5EPQrQ9xHCewJNg5HwmzzRlUQrJPP3j0-HVhg9Qef~0oAtdc~mOJqJOJpDHSR6wGXoIbT~gs6wwdOXnRHasW85209NwAAyYBDyWka4MQ__&Key-Pair-Id=K3C0L9WB6U5DUC",
+      "sha256": "2015beb0e883fac46113c4295bf26852dd4edf4db4f03992f7786162dacfbccf",
+      "license": "CC BY 4.0",
+      "sourceUrl": "https://www.openslr.org/12",
+      "reviewStatus": "ready-for-listening-review"
+    },
+    {
+      "id": "2277-149896-0002",
+      "text": "HURSTWOOD WALKED THE FLOOR MENTALLY ARRANGING THE CHIEF POINTS OF HIS SITUATION",
+      "speakerId": "2277",
+      "chapterId": "149896",
+      "audio": "/content/audio/librispeech/2277-149896-0002.wav",
+      "sourceAudioUrl": "https://datasets-server.huggingface.co/assets/openslr/librispeech_asr/--/71cacbfb7e2354c4226d01e70d77d5fca3d04ba1/--/clean/validation/2/audio/audio.wav?Expires=1795171883&Signature=tjgeJsKK5-U0szSbVjjpQsTGhhL4I1geU~ynjh66YIcfVGudzy21O0FUC22-MuIMui-AL94dtkQ~kkIpl83o-WJFEfeIr8j0U9IsKRTVMB-aRJuk79tSvTNznbzDDXmz5bG7DExaLcaSQGcCkW~ZNPTF5-TWYhWlV6XrKzHU48rCM8aoAWA7QAx1E1dTbSjHpFEFmIyQRhprjWSSmusp6ytOEY2vs1jAhNqUYea7hL7CurGIqTjvyR5XEvLuCAY-yDxZMPhBCIMdKNVAHbrDn-8~rtJZ2HjchOMbczYM26bG4H6-JZ5VKeBkt3hdnHn9fHRWfCQdTSkzgPbjTi9D3g__&Key-Pair-Id=K3C0L9WB6U5DUC",
+      "sha256": "3e79d139f899ba281721ce9ed9a716c9c4b6491e7d88f45dad849ee74c7e0a29",
+      "license": "CC BY 4.0",
+      "sourceUrl": "https://www.openslr.org/12",
+      "reviewStatus": "ready-for-listening-review"
+    },
+    {
+      "id": "2277-149896-0003",
+      "text": "HE ALSO THOUGHT OF HIS MANAGERIAL POSITION",
+      "speakerId": "2277",
+      "chapterId": "149896",
+      "audio": "/content/audio/librispeech/2277-149896-0003.wav",
+      "sourceAudioUrl": "https://datasets-server.huggingface.co/assets/openslr/librispeech_asr/--/71cacbfb7e2354c4226d01e70d77d5fca3d04ba1/--/clean/validation/3/audio/audio.wav?Expires=1795171883&Signature=EYGzmnmhxuGx9kZyKovbPmrTX1-gfE~JERDHjTb7tHUMX~nDBYWh~t40U60ZPLKiqM~P4MaFjStUckKW8hzPw63lu-e-T9fUit12R-oAe0nX0Qe7lT-QRb4yVDU0VzLuNxBPUpjGSBhPOYkQHQny2y8x-OvmNO03RGfLniPZw3PDeO-HuzR8by8THLXhLwoYMUe-2ERzuKo~LjHUoMUI5gdJ9kFwgbvhe5FqxDTqeVoJhG-HgCzFWda4abF5iQe9T73T5RNqGZu6RkJeb0zvCSyKQxaKiffdB9-JjMMDTJV3AUhCozCAJwCLkjhW5PFx3MYtnC2xccvJNY2dhd2bUg__&Key-Pair-Id=K3C0L9WB6U5DUC",
+      "sha256": "08743768593471a329e747aa8a301f215747c140d15c0a7438b56e4b90ecc7e8",
+      "license": "CC BY 4.0",
+      "sourceUrl": "https://www.openslr.org/12",
+      "reviewStatus": "ready-for-listening-review"
+    }
+  ]
+}

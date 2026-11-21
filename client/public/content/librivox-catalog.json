@@ -1,0 +1,128 @@
+{
+  "schema": "lingua.content.v1",
+  "sourceId": "librivox",
+  "source": "LibriVox",
+  "locale": "en",
+  "license": "Public domain policy; verify work and jurisdiction per item",
+  "sourceUrl": "https://librivox.org/pages/public-domain/",
+  "apiUrl": "https://librivox.org/api/info",
+  "retrievedAt": "2026-11-20T09:51:27.796Z",
+  "sourceSha256": "54223ea9957dd46478cdf3d9e674abdd6006174d7fc581484a98fea465cdc1b3",
+  "previewUrl": "https://www.archive.org/download/count_monte_cristo_0711_librivox/count_of_monte_cristo_001_dumas_64kb.mp3",
+  "books": [
+    {
+      "id": "47",
+      "title": "Count of Monte Cristo",
+      "language": "English",
+      "authors": [
+        {
+          "id": "431",
+          "first_name": "Alexandre",
+          "last_name": "Dumas",
+          "dob": "1802",
+          "dod": "1870"
+        }
+      ],
+      "url": "https://librivox.org/the-count-of-monte-cristo-by-alexandre-dumas/",
+      "listenUrl": "https://archive.org/compress/count_monte_cristo_0711_librivox/formats=64KBPS MP3&file=/count_monte_cristo_0711_librivox.zip",
+      "sourceStatus": "catalog-only-territorial-review",
+      "previewUrl": "https://www.archive.org/download/count_monte_cristo_0711_librivox/count_of_monte_cristo_001_dumas_64kb.mp3",
+      "note": "Verify work, translation, recording and target jurisdiction before redistribution."
+    },
+    {
+      "id": "52",
+      "title": "Letters of Two Brides",
+      "language": "English",
+      "authors": [
+        {
+          "id": "86",
+          "first_name": "Honoré de",
+          "last_name": "Balzac",
+          "dob": "1799",
+          "dod": "1850"
+        }
+      ],
+      "url": "https://librivox.org/letters-of-two-brides-by-honore-de-balzac/",
+      "listenUrl": "https://archive.org/compress/letters_brides_0709_librivox/formats=64KBPS MP3&file=/letters_brides_0709_librivox.zip",
+      "sourceStatus": "catalog-only-territorial-review",
+      "previewUrl": null,
+      "note": "Verify work, translation, recording and target jurisdiction before redistribution."
+    },
+    {
+      "id": "53",
+      "title": "Bleak House",
+      "language": "English",
+      "authors": [
+        {
+          "id": "91",
+          "first_name": "Charles",
+          "last_name": "Dickens",
+          "dob": "1812",
+          "dod": "1870"
+        }
+      ],
+      "url": "https://librivox.org/bleak-house-by-charles-dickens/",
+      "listenUrl": "https://archive.org/compress/bleak_house_cl_librivox/formats=64KBPS MP3&file=/bleak_house_cl_librivox.zip",
+      "sourceStatus": "catalog-only-territorial-review",
+      "previewUrl": null,
+      "note": "Verify work, translation, recording and target jurisdiction before redistribution."
+    },
+    {
+      "id": "54",
+      "title": "Penguin Island",
+      "language": "English",
+      "authors": [
+        {
+          "id": "890",
+          "first_name": "Anatole",
+          "last_name": "France",
+          "dob": "1844",
+          "dod": "1924"
+        }
+      ],
+      "url": "https://librivox.org/penguin-island-by-anatole-france/",
+      "listenUrl": "https://archive.org/compress/penguin_island_ms_librivox/formats=64KBPS MP3&file=/penguin_island_ms_librivox.zip",
+      "sourceStatus": "catalog-only-territorial-review",
+      "previewUrl": null,
+      "note": "Verify work, translation, recording and target jurisdiction before redistribution."
+    },
+    {
+      "id": "55",
+      "title": "This Side of Paradise",
+      "language": "English",
+      "authors": [
+        {
+          "id": "148",
+          "first_name": "F. Scott",
+          "last_name": "Fitzgerald",
+          "dob": "1896",
+          "dod": "1940"
+        }
+      ],
+      "url": "https://librivox.org/this-side-of-paradise-by-f-scott-fitzgerald",
+      "listenUrl": "https://archive.org/compress/this_side_paradise_librivox/formats=64KBPS MP3&file=/this_side_paradise_librivox.zip",
+      "sourceStatus": "catalog-only-territorial-review",
+      "previewUrl": null,
+      "note": "Verify work, translation, recording and target jurisdiction before redistribution."
+    },
+    {
+      "id": "56",
+      "title": "Secret Garden",
+      "language": "English",
+      "authors": [
+        {
+          "id": "150",
+          "first_name": "Frances Hodgson",
+          "last_name": "Burnett",
+          "dob": "1849",
+          "dod": "1924"
+        }
+      ],
+      "url": "https://librivox.org/the-secret-garden-by-frances-hodgson-burnett/",
+      "listenUrl": "https://archive.org/compress/secret_garden_librivox/formats=64KBPS MP3&file=/secret_garden_librivox.zip",
+      "sourceStatus": "catalog-only-territorial-review",
+      "previewUrl": null,
+      "note": "Verify work, translation, recording and target jurisdiction before redistribution."
+    }
+  ]
+}

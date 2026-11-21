@@ -1,0 +1,228 @@
+{
+  "schema": "lingua.content.v1",
+  "sourceId": "tatoeba-text",
+  "source": "Tatoeba",
+  "locale": "en",
+  "license": "Per-item license preserved; text subset excludes non-CC0/CC BY records",
+  "sourceUrl": "https://tatoeba.org/en/downloads",
+  "retrievedAt": "2026-11-20T09:51:23.077Z",
+  "sourceSha256": "7ca0ea50fb4dae3cdc2f1601e959e67875d2c09388716c80520d70cebd89cd50",
+  "sentences": [
+    {
+      "id": "14125486",
+      "language": "eng",
+      "text": "Hello",
+      "license": "CC BY 2.0 FR",
+      "author": "Qwtalbna28833",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14125486",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14098201",
+      "language": "eng",
+      "text": "Afternoon",
+      "license": "CC BY 2.0 FR",
+      "author": "Lily_at_School",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14098201",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14098200",
+      "language": "eng",
+      "text": "Noon",
+      "license": "CC BY 2.0 FR",
+      "author": "Lily_at_School",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14098200",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14097011",
+      "language": "eng",
+      "text": "Prepare!",
+      "license": "CC BY 2.0 FR",
+      "author": "Tartar",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14097011",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14087475",
+      "language": "eng",
+      "text": "Half.",
+      "license": "CC BY 2.0 FR",
+      "author": "yessoos",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14087475",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071081",
+      "language": "eng",
+      "text": "Wednesday.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071081",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071072",
+      "language": "eng",
+      "text": "Minority.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071072",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071069",
+      "language": "eng",
+      "text": "Majority.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071069",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071067",
+      "language": "eng",
+      "text": "Priority.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071067",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071064",
+      "language": "eng",
+      "text": "Diversity.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071064",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071061",
+      "language": "eng",
+      "text": "Essential.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071061",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071058",
+      "language": "eng",
+      "text": "Announce.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071058",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071055",
+      "language": "eng",
+      "text": "Required.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071055",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071031",
+      "language": "eng",
+      "text": "I'm going to cut the grass.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071031",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071027",
+      "language": "eng",
+      "text": "Goats.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071027",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071025",
+      "language": "eng",
+      "text": "Sheep.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071025",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071013",
+      "language": "eng",
+      "text": "Wether.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071013",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14071010",
+      "language": "eng",
+      "text": "Ewe.",
+      "license": "CC BY 2.0 FR",
+      "author": "humed_adam",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14071010",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14047984",
+      "language": "eng",
+      "text": "Gee!",
+      "license": "CC BY 2.0 FR",
+      "author": "Myrano_",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14047984",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14047982",
+      "language": "eng",
+      "text": "Jeez!",
+      "license": "CC BY 2.0 FR",
+      "author": "Myrano_",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14047982",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14042173",
+      "language": "eng",
+      "text": "Old.",
+      "license": "CC BY 2.0 FR",
+      "author": "CuteGirlLeia",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14042173",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14038539",
+      "language": "eng",
+      "text": "Present!",
+      "license": "CC BY 2.0 FR",
+      "author": "jan_OkulaJu",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14038539",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14031118",
+      "language": "eng",
+      "text": "Upstart!",
+      "license": "CC BY 2.0 FR",
+      "author": "Myrano_",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14031118",
+      "reviewStatus": "needs-pedagogical-review"
+    },
+    {
+      "id": "14023899",
+      "language": "eng",
+      "text": "Flower.",
+      "license": "CC BY 2.0 FR",
+      "author": "LeviHighway",
+      "sourceUrl": "https://tatoeba.org/en/sentences/show/14023899",
+      "reviewStatus": "needs-pedagogical-review"
+    }
+  ]
+}

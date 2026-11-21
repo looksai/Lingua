@@ -1,0 +1,65 @@
+{
+  "schema": "lingua.content-manifest.v1",
+  "generatedAt": "2026-11-20T09:51:27.797Z",
+  "policy": {
+    "noAutomaticCertification": true,
+    "audioRedistribution": "quarantine-until-item-license-reviewed",
+    "takedownSupported": true
+  },
+  "sources": [
+    {
+      "id": "cmudict",
+      "name": "CMU Pronouncing Dictionary",
+      "kind": "pronunciation",
+      "integration": "local-dataset",
+      "status": "integrated-with-notice",
+      "license": "CMUdict license",
+      "attribution": "Carnegie Mellon University; preserve repository LICENSE and disclaimer.",
+      "asset": "/content/cmudict-en-us.json",
+      "records": 135166,
+      "sha256": "81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22"
+    },
+    {
+      "id": "tatoeba-text",
+      "name": "Tatoeba textual sample",
+      "kind": "sentences",
+      "integration": "local-curated-sample",
+      "status": "integrated-needs-pedagogical-review",
+      "license": "Per-item CC BY 2.0 FR or CC0 1.0",
+      "attribution": "Preserve author, sentence ID, source URL and license per item.",
+      "asset": "/content/tatoeba-english.json",
+      "records": 24,
+      "sha256": "7ca0ea50fb4dae3cdc2f1601e959e67875d2c09388716c80520d70cebd89cd50"
+    },
+    {
+      "id": "librispeech-slr12",
+      "name": "LibriSpeech / OpenSLR SLR12",
+      "kind": "audio-transcript",
+      "integration": "source-registered-subset-ready",
+      "status": "catalogued-download-on-demand",
+      "license": "CC BY 4.0",
+      "attribution": "OpenSLR SLR12 / LibriSpeech; include license, source URL and modifications.",
+      "sourceUrl": "https://www.openslr.org/12",
+      "sampleUrl": "https://openslr.trmal.net/resources/12/dev-clean.tar.gz",
+      "records": null,
+      "sha256": null,
+      "previewAsset": "/content/librispeech-preview.json",
+      "previewRecords": 4,
+      "note": "Four short WAV previews are local; the full corpus is intentionally not committed."
+    },
+    {
+      "id": "librivox",
+      "name": "LibriVox",
+      "kind": "audiobook",
+      "integration": "catalog-local-audio-external",
+      "status": "catalogued-territorial-review",
+      "license": "Public domain policy; verify per work and jurisdiction",
+      "attribution": "Preserve LibriVox ID, title, author, reader, URL and collection date.",
+      "asset": "/content/librivox-catalog.json",
+      "records": 6,
+      "sha256": "54223ea9957dd46478cdf3d9e674abdd6006174d7fc581484a98fea465cdc1b3",
+      "previewUrl": "https://www.archive.org/download/count_monte_cristo_0711_librivox/count_of_monte_cristo_001_dumas_64kb.mp3",
+      "note": "Do not redistribute audio until work, recording and jurisdiction are reviewed."
+    }
+  ]
+}

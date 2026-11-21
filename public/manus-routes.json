@@ -1,0 +1,6 @@
+{
+  "routes": [
+    { "path": "/", "title": "Lingua — Inglês que acompanha seu caminho" },
+    { "path": "/404", "title": "Página não encontrada" }
+  ]
+}
