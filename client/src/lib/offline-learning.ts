@@ -208,7 +208,15 @@ export function replayPendingLearningOperations(
 ): Promise<{ synced: boolean; remaining: number }> {
   const key = queueKey(userId);
   const alreadyRunning = inFlightReplays.get(key);
-  if (alreadyRunning) return alreadyRunning;
+  if (alreadyRunning) {
+    // A component unmounted during the first replay can cancel that promise.
+    // A new live component must retry, rather than inheriting its cancellation.
+    return alreadyRunning.then(result =>
+      result.synced || result.remaining === 0 || shouldStop()
+        ? result
+        : replayPendingLearningOperations(userId, api, shouldStop)
+    );
+  }
   const run = async () => {
   // Wait for the previous tab, acquire exclusive ownership, and re-read the queue.
   // All ACK updates and dependent rebindings remain inside the lock.
