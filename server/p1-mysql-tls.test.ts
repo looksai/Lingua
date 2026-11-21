@@ -8,8 +8,8 @@ const url = "mysql://test_user:placeholder-secret@mysql.example.test:14403/testd
 
 describe("P1: external MySQL TLS configuration (no network)", () => {
   it("requires a CA for an external database even with ssl-mode=REQUIRED", () => {
-    expect(() => buildMysqlPoolOptions(url, undefined)).toThrow(/CA_BASE64 must contain Base64/);
-    expect(() => buildMysqlPoolOptions(url, "")).toThrow(/CA_BASE64 must contain Base64/);
+    expect(() => buildMysqlPoolOptions(url, undefined)).toThrow(/CA_BASE64 (?:is missing|is invalid)/);
+    expect(() => buildMysqlPoolOptions(url, "")).toThrow(/CA_BASE64 (?:is missing|is invalid)/);
   });
   it("verifies the server CA without insecure TLS bypass", () => {
     const options = buildMysqlPoolOptions(url, ca);
@@ -25,13 +25,25 @@ describe("P1: external MySQL TLS configuration (no network)", () => {
     const options = buildMysqlPoolOptions(url, wrapped);
     expect(options.ssl).toMatchObject({ rejectUnauthorized: true, ca: rootCertificates[0] });
   });
+  it("accepts an original CA PEM secret with strict TLS verification", () => {
+    const options = buildMysqlPoolOptions(url, rootCertificates[0]);
+    expect(options.ssl).toMatchObject({ rejectUnauthorized: true, ca: rootCertificates[0] });
+  });
+  it("accepts a PEM secret with literal escaped newlines", () => {
+    const escaped = rootCertificates[0].replace(/\n/g, "\\n");
+    const options = buildMysqlPoolOptions(url, escaped);
+    expect(options.ssl).toMatchObject({ rejectUnauthorized: true, ca: rootCertificates[0] });
+  });
+  it("refuses an empty CA secret without touching the network", () => {
+    expect(() => buildMysqlPoolOptions(url, "  ")).toThrow(/is missing/);
+  });
   it("rejects non-Base64 CA secrets before networking", () => {
     expect(() => buildMysqlPoolOptions(url, "ca.pem")).toThrow(/must contain Base64/);
   });
   it("rejects invalid and expired CA data before opening any connection", () => {
     const malformed = Buffer.from("not a certificate").toString("base64");
     expect(() => buildMysqlPoolOptions(url, malformed)).toThrow(/Invalid database CA/);
-    expect(() => buildMysqlPoolOptions(url, "%%")).toThrow(/CA_BASE64 must contain Base64/);
+    expect(() => buildMysqlPoolOptions(url, "%%")).toThrow(/CA_BASE64 (?:is missing|is invalid)/);
   });
   it("rejects insecure connection modes even if a CA was given", () => {
     expect(() => buildMysqlPoolOptions(url.replace("REQUIRED", "DISABLED"), ca))
