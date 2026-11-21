@@ -1,5 +1,5 @@
-# P1 staging blueprint only: founder action is needed before any deployment.
-# Do not use production credentials, learning data, or secrets in this file.
+# P1 staging blueprint. Not a deployment; connecting a Render account is a separate step.
+# Free Render web services expose a public HTTPS address. Never use production data.
 services:
   - type: web
     name: lingua-p1-staging
@@ -14,12 +14,18 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 24.22.1
+        value: '24.22.3'
+      # Staging MySQL only, with TLS verification implemented and tested before use.
       - key: DATABASE_URL
+        sync: false
+      # Existing Manus WebDev authentication, NOT Manus Open App API OAuth:
+      - key: MANUS_PROJECT_ID
         sync: false
       - key: MANUS_JWT_SECRET
         sync: false
-      - key: MANUS_PROJECT_ID
-        sync: false
       - key: MANUS_OAUTH_API_URL
         sync: false
+      - key: MANUS_OAUTH_PORTAL_URL
+        sync: false
+      # OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET are NOT consumed by this code.
+      # Do not invent credentials or set unneeded secrets.

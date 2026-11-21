@@ -6,7 +6,7 @@ Este guia é uma proposta. Nenhum serviço, URL, conta, banco ou credencial foi 
 
 1. O Lingua combina React/Vite com backend Express/tRPC e OAuth da plataforma Manus. Não basta um site estático: login, callbacks OAuth e cookies precisam funcionar no novo domínio HTTPS. Se o provedor Manus não oferecer callbacks externos, o preview não estará apto a testar autenticação até existir um modo de QA seguro, avaliado separadamente.
 2. O preview padrão do Render fica acessível publicamente na internet. O plano Free não é uma barreira privada de acesso. Proteger acesso por camada confiável ou manter apenas fixtures não sensíveis; nunca expor dados de estudantes ou lógica proprietária sem revisão de segurança. Não simplificar autenticação para facilitar o teste.
-3. O workflow MySQL do GitHub é descartável, não é banco persistente do Render. O Lingua exige MySQL exclusivo de homologação (ex.: Aiven), com SSL/TLS validado e apenas dados sintéticos. Nunca inserir DATABASE_URL de produção. Render Free oferece web service e Postgres, mas a aplicação não suporta Postgres sem trabalho adicional.
+3. O workflow MySQL do GitHub é descartável, não é banco persistente do Render. O Lingua exige MySQL exclusivo de homologação (Aiven Free será encerrado em 21/12/2026), com SSL/TLS validado e apenas dados sintéticos. Nunca inserir DATABASE_URL de produção. Render Free oferece web service e Postgres, mas a aplicação não suporta Postgres sem trabalho adicional.
 4. render.yaml desliga auto-deploy e fixa a branch P1, não main. Nenhum segredo é versionado. A rota /api/health confirma só que o HTTP iniciou; não garante autenticação, DB nem sincronização.
 
 ## Passo a passo (futuro, sem instalar nada no Celeron)
@@ -25,3 +25,8 @@ https://render.com/docs/free
 https://render.com/docs/blueprint-spec
 https://render.com/docs/web-services
 https://render.com/docs/node-version
+
+
+## Etapa OAuth / banco: atenção à revisão técnica
+
+Antes de executar o Blueprint, seguir **[RENDER-OAUTH.md](RENDER-OAUTH.md)**. O código atual não usa `OAUTH_CLIENT_ID` nem `OAUTH_CLIENT_SECRET`, e o Manus WebDevAuthPublicService não deve ser confundido com Open App API OAuth. Só configurar serviços depois de verificar callback externo e TLS do MySQL. O Aiven Free para MySQL será encerrado em 21/12/2026; não assumir hospedagem gratuita persistente.
