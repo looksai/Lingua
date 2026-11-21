@@ -37,6 +37,7 @@ import { mockDecision } from "@/lib/csle-contract";
 import ReadingLab from "@/components/ReadingLab";
 import ContentLibrary from "@/components/ContentLibrary";
 import ReviewDeck from "@/components/ReviewDeck";
+import { trpc } from "@/lib/trpc";
 
 type View = "home" | "learn" | "read" | "review" | "explore" | "evidence";
 
@@ -234,10 +235,12 @@ function Shell({
   view,
   onNavigate,
   children,
+  accountEmail,
 }: {
   view: View;
   onNavigate: (view: View) => void;
   children: React.ReactNode;
+  accountEmail?: string;
 }) {
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -307,15 +310,13 @@ function Shell({
             </span>
           </div>
           <div className="hidden items-center gap-2 text-xs text-ink-muted sm:flex">
-            <span className="h-1.5 w-1.5 rounded-full bg-teal" /> sessão
-            demonstrativa <span className="text-ink-faint">·</span> progresso
-            local
+            <span className="h-1.5 w-1.5 rounded-full bg-teal" /> {accountEmail ? "conta conectada · conteúdo demonstrativo" : "sessão demonstrativa · progresso local"}
           </div>
           <div className="flex items-center gap-3">
             <button className="icon-button" aria-label="Ajuda">
               <CircleHelp size={17} />
             </button>
-            <a href="/login" className="text-sm font-semibold text-teal hover:underline">Entrar / Cadastrar</a>
+            {accountEmail ? <span className="text-xs text-teal" title={accountEmail}>Conta conectada</span> : <a href="/login" className="text-sm font-semibold text-teal hover:underline">Entrar / Cadastrar</a>}
           </div>
         </header>
         <main className="mx-auto max-w-[1400px] px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
@@ -1273,8 +1274,9 @@ function EvidenceView() {
 
 export default function Home() {
   const [view, setView] = useState<View>("home");
+  const identity = trpc.auth.me.useQuery(undefined, { retry: false });
   return (
-    <Shell view={view} onNavigate={setView}>
+    <Shell view={view} onNavigate={setView} accountEmail={identity.data?.email ?? undefined}>
       {view === "home" && <HomeView onNavigate={setView} />}
       {view === "learn" && <LearnView onNavigate={setView} />}
       {view === "read" && <ReadingLab />}
