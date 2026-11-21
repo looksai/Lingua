@@ -87,8 +87,12 @@ export async function registerLocalUser(email: string, password: string): Promis
       return user;
     });
   } catch (error) {
-    if ((error as { code?: string }).code === "ER_DUP_ENTRY" || String(error).includes("Duplicate entry"))
-      throw new TRPCError({ code: "CONFLICT", message: "Cadastro indisponível para este email" });
+    // Drizzle wraps mysql2 errors in `cause`. Do not stringify database
+    // errors: their SQL may contain the stored password hash.
+    const cause = typeof error === "object" && error !== null && "cause" in error ? error.cause : error;
+    const code = typeof cause === "object" && cause !== null && "code" in cause ? cause.code : undefined;
+    if (code === "ER_DUP_ENTRY")
+      throw new TRPCError({ code: "CONFLICT", message: "Cadastro indisponível para este email. Se você já possui conta, tente entrar." });
     throw error;
   }
 }
