@@ -27,3 +27,15 @@ A fila usa evento local para atualização visual. A reprodução deve ser assum
 ## 6. Criptografia
 
 A criptografia local não entra neste checkpoint. A fila contém apenas payloads de aprendizagem mínimos, mas `localStorage` não é considerado cofre. Criptografia, rotação de chaves e recuperação são dívidas explícitas.
+
+## 7. Nota de implementação proposta após recuperação do código — 20/11/2026
+
+Esta seção registra um **rascunho ainda não aprovado em produção** e não modifica a governança das seções anteriores. Os itens de dívida acima descrevem o checkpoint histórico anterior do Manus. O patch GPT de P0 propõe:
+
+- Chave de fila individual por `userId` autenticado (`lingua.learning.pending.v2.user.<id>`), sem atribuir a fila global v1 a uma conta arbitrária.
+- `operationId` estável desde a primeira tentativa de revisão; idempotência em `reviewLogs` por `(userId, operationId)` no servidor, condicionada à execução da migration e aos testes MySQL.
+- Rebind atômico de `clientKey → knowledgeItemId` no storage após ACK do save; uma revisão sem ID confirmado **interrompe** a fila e não é descartada.
+- Reconstrução de `userKnowledgeStates` permitida somente para logs atribuídos com segurança ao ciclo de save atual; história legada não atribuível fica bloqueada, não é inferida.
+- A hora usada nas transições novas é determinada pelo servidor; `appliedAtMs` dá ordenação e a identidade de operação evita reaplicação.
+
+**Restrições inalteradas:** nada disso prova domínio ou certifica. Não há lock entre abas, criptografia da fila, garantia de durabilidade sob falha do `localStorage`, nem tratamento automático para logs legados. Toda migração e validação integrada permanecem dependentes de revisão humana.

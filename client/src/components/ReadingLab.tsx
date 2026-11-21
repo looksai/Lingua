@@ -19,9 +19,10 @@ import { trpc } from "@/lib/trpc";
 import ShadowingPractice from "@/components/ShadowingPractice";
 import {
   enqueueLearningOperation,
-  getPendingLearningOperations,
+  createPendingLearningOperation,
+  replayPendingLearningOperations,
+  resolvePendingLearningItem,
   pendingLearningCount,
-  removePendingLearningOperation,
   type OfflineSaveItem,
 } from "@/lib/offline-learning";
 import {
@@ -99,9 +100,7 @@ export default function ReadingLab() {
   const [persistenceStatus, setPersistenceStatus] = useState<
     "local" | "syncing" | "synced"
   >("local");
-  const [pendingCount, setPendingCount] = useState(() =>
-    pendingLearningCount()
-  );
+  const [pendingCount, setPendingCount] = useState(0);
   const [answered, setAnswered] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -116,6 +115,9 @@ export default function ReadingLab() {
     useState<SpeechObservationCandidate | null>(null);
   const transcriptionMutation = trpc.speech.transcribe.useMutation();
   const authQuery = trpc.auth.me.useQuery();
+  const ownerId = authQuery.data?.id;
+  const utils = trpc.useUtils();
+  const [verifiedOwnerId, setVerifiedOwnerId] = useState<number | null>(null);
   const savedItemsQuery = trpc.learning.listItems.useQuery(
     {},
     { enabled: Boolean(authQuery.data), retry: false }
@@ -159,7 +161,28 @@ export default function ReadingLab() {
   );
 
   useEffect(() => {
-    if (!savedItemsQuery.data) return;
+    let cancelled = false;
+    setVerifiedOwnerId(null);
+    // React Query keys are not user-scoped, so discard old authenticated
+    // results before hydrating a new person's local study state.
+    setServerItemIds({});
+    setSavedWords(["ready"]);
+    setReviewStates({ ready: createInitialReviewState("word-ready") });
+    setPersistenceStatus("local");
+    if (ownerId) {
+      void (async () => {
+        try {
+          await utils.learning.listItems.reset();
+          await savedItemsQuery.refetch();
+          if (!cancelled) setVerifiedOwnerId(ownerId);
+        } catch { /* Local practice remains available. */ }
+      })();
+    }
+    return () => { cancelled = true; };
+  }, [ownerId]);
+
+  useEffect(() => {
+    if (!savedItemsQuery.data || !ownerId || verifiedOwnerId !== ownerId) return;
     setSavedWords(current =>
       Array.from(
         new Set([
@@ -197,8 +220,8 @@ export default function ReadingLab() {
         ]),
       ])
     );
-    setPersistenceStatus("synced");
-  }, [savedItemsQuery.data]);
+    setPersistenceStatus(ownerId && pendingLearningCount(ownerId) ? "local" : "synced");
+  }, [savedItemsQuery.data, ownerId, verifiedOwnerId]);
 
   useEffect(() => {
     if (!savedItemsQuery.error) return;
@@ -209,7 +232,7 @@ export default function ReadingLab() {
   }, [savedItemsQuery.error]);
 
   useEffect(() => {
-    const refresh = () => setPendingCount(pendingLearningCount());
+    const refresh = () => setPendingCount(ownerId ? pendingLearningCount(ownerId) : 0);
     window.addEventListener("lingua:offline-queue", refresh);
     window.addEventListener("online", refresh);
     refresh();
@@ -217,57 +240,35 @@ export default function ReadingLab() {
       window.removeEventListener("lingua:offline-queue", refresh);
       window.removeEventListener("online", refresh);
     };
-  }, []);
+  }, [ownerId]);
 
   useEffect(() => {
-    if (!authQuery.data || pendingCount === 0) return;
+    if (!ownerId || pendingCount === 0) return;
     let cancelled = false;
     const replay = async () => {
-      const clientIds = new Map<string, number>();
-      for (const operation of getPendingLearningOperations()) {
-        if (cancelled) return;
-        try {
-          if (operation.type === "save") {
-            const result = await saveItemMutation.mutateAsync(
-              operation.payload
-            );
-            clientIds.set(operation.clientKey, result.item.id);
-          } else {
-            const knowledgeItemId =
-              operation.knowledgeItemId ??
-              (operation.clientKey
-                ? clientIds.get(operation.clientKey)
-                : undefined);
-            if (!knowledgeItemId) continue;
-            if (operation.type === "review") {
-              await reviewMutation.mutateAsync({
-                knowledgeItemId,
-                rating: operation.rating,
-              });
-            } else {
-              await removeItemMutation.mutateAsync({ knowledgeItemId });
-            }
-          }
-          removePendingLearningOperation(operation.id);
-        } catch {
+      try {
+        const result = await replayPendingLearningOperations(ownerId, {
+          save: async payload => (await saveItemMutation.mutateAsync(payload)).item.id,
+          review: input => reviewMutation.mutateAsync(input),
+          remove: knowledgeItemId => removeItemMutation.mutateAsync({ knowledgeItemId }),
+        }, () => cancelled);
+        if (!cancelled) {
+          setPendingCount(result.remaining);
+          setPersistenceStatus(result.synced ? "synced" : "local");
+          if (result.synced) void savedItemsQuery.refetch();
+        }
+      } catch {
+        if (!cancelled) {
           setPersistenceStatus("local");
           setReviewMessage(
-            "Há operações locais aguardando conexão. O estudo continua disponível."
+            "Existem operações pendentes ou referências ainda não confirmadas; nenhuma revisão foi descartada."
           );
-          return;
         }
-      }
-      if (!cancelled) {
-        setPendingCount(pendingLearningCount());
-        setPersistenceStatus("synced");
-        void savedItemsQuery.refetch();
       }
     };
     void replay();
-    return () => {
-      cancelled = true;
-    };
-  }, [authQuery.data, pendingCount]);
+    return () => { cancelled = true; };
+  }, [ownerId, pendingCount]);
 
   const speak = (text: string) => {
     if (!("speechSynthesis" in window)) return;
@@ -341,14 +342,14 @@ export default function ReadingLab() {
           removeItemMutation.mutate(
             { knowledgeItemId: serverItemId },
             {
-              onSuccess: () => setPersistenceStatus("synced"),
+              onSuccess: () => setPersistenceStatus(ownerId && pendingLearningCount(ownerId) ? "local" : "synced"),
               onError: error => {
-                enqueueLearningOperation({
+                if (ownerId) enqueueLearningOperation(ownerId, {
                   type: "remove",
                   clientKey: normalizeKnowledgeText(selectedWord),
                   knowledgeItemId: serverItemId,
                 });
-                setPendingCount(pendingLearningCount());
+                setPendingCount(ownerId ? pendingLearningCount(ownerId) : 0);
                 setPersistenceStatus("local");
                 setReviewMessage(error.message);
               },
@@ -406,15 +407,16 @@ export default function ReadingLab() {
                   : undefined,
               },
             }));
-            setPersistenceStatus("synced");
+            if (ownerId) resolvePendingLearningItem(ownerId, normalizeKnowledgeText(selectedWord), result.item.id);
+            setPersistenceStatus(ownerId && pendingLearningCount(ownerId) ? "local" : "synced");
           },
           onError: () => {
-            enqueueLearningOperation({
+            if (ownerId) enqueueLearningOperation(ownerId, {
               type: "save",
               clientKey: normalizeKnowledgeText(selectedWord),
               payload: savePayload,
             });
-            setPendingCount(pendingLearningCount());
+            setPendingCount(ownerId ? pendingLearningCount(ownerId) : 0);
             setPersistenceStatus("local");
             setReviewMessage(
               "Banco indisponível nesta sessão; a palavra continua salva localmente."
@@ -435,55 +437,51 @@ export default function ReadingLab() {
       `${word} revisada: próxima revisão em ${result.nextIntervalLabel}. Isso é um agendamento, não uma evidência de domínio.`
     );
     const serverItemId = serverItemIds[word];
-    if (serverItemId && authQuery.data) {
-      setPersistenceStatus("syncing");
-      reviewMutation.mutate(
-        { knowledgeItemId: serverItemId, rating },
-        {
-          onSuccess: persisted => {
-            setReviewStates(states => ({
-              ...states,
-              [word]: {
-                ...result,
-                dueAt: new Date(persisted.dueAt).toISOString(),
-                state: persisted.state,
-                easeFactor: persisted.easeFactor,
-                intervalDays: persisted.intervalDays,
-                repetitions: persisted.repetitions,
-                lapses: persisted.lapses,
-                lastReviewedAt: persisted.lastReviewedAt
-                  ? new Date(persisted.lastReviewedAt).toISOString()
-                  : undefined,
-              },
-            }));
-            setPersistenceStatus("synced");
-          },
-          onError: () => {
-            enqueueLearningOperation({
-              type: "review",
-              clientKey: normalizeKnowledgeText(word),
-              knowledgeItemId: serverItemId,
-              rating,
-            });
-            setPendingCount(pendingLearningCount());
-            setPersistenceStatus("local");
-            setReviewMessage(
-              `${word} ficou agendada localmente; não foi possível sincronizar agora.`
-            );
-          },
-        }
-      );
-    } else if (authQuery.data) {
-      enqueueLearningOperation({
+    if (ownerId) {
+      // Stable across first attempt, network-unknown outcome and every retry.
+      const operation = createPendingLearningOperation({
         type: "review",
         clientKey: normalizeKnowledgeText(word),
+        knowledgeItemId: serverItemId,
         rating,
       });
-      setPendingCount(pendingLearningCount());
-      setPersistenceStatus("local");
-      setReviewMessage(
-        `${word} foi agendada localmente e aguarda a sincronização do item.`
-      );
+      if (serverItemId) {
+        setPersistenceStatus("syncing");
+        reviewMutation.mutate(
+          { knowledgeItemId: serverItemId, rating, operationId: operation.id },
+          {
+            onSuccess: persisted => {
+              setReviewStates(states => ({
+                ...states,
+                [word]: {
+                  ...result,
+                  dueAt: new Date(persisted.dueAt).toISOString(),
+                  state: persisted.state,
+                  easeFactor: persisted.easeFactor,
+                  intervalDays: persisted.intervalDays,
+                  repetitions: persisted.repetitions,
+                  lapses: persisted.lapses,
+                  lastReviewedAt: persisted.lastReviewedAt
+                    ? new Date(persisted.lastReviewedAt).toISOString()
+                    : undefined,
+                },
+              }));
+              setPersistenceStatus(pendingLearningCount(ownerId) ? "local" : "synced");
+            },
+            onError: () => {
+              enqueueLearningOperation(ownerId, operation);
+              setPendingCount(pendingLearningCount(ownerId));
+              setPersistenceStatus("local");
+              setReviewMessage(`${word} aguarda confirmação do servidor.`);
+            },
+          }
+        );
+      } else {
+        enqueueLearningOperation(ownerId, operation);
+        setPendingCount(pendingLearningCount(ownerId));
+        setPersistenceStatus("local");
+        setReviewMessage(`${word} aguarda a sincronização do item.`);
+      }
     }
   };
 

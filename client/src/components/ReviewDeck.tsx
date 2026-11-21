@@ -7,10 +7,13 @@ import {
   RotateCcw,
   SlidersHorizontal,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import type { SrsRating } from "@shared/learning";
-import { enqueueLearningOperation } from "@/lib/offline-learning";
+import {
+  createPendingLearningOperation, enqueueLearningOperation,
+  pendingLearningCount, replayPendingLearningOperations,
+} from "@/lib/offline-learning";
 
 type ReviewFilter = "due" | "all";
 type ReportWindow = "30" | "90" | "all";
@@ -56,13 +59,64 @@ export default function ReviewDeck() {
     { enabled: Boolean(authQuery.data), retry: false }
   );
   const reviewMutation = trpc.learning.review.useMutation();
+  const saveMutation = trpc.learning.saveItem.useMutation();
+  const removeMutation = trpc.learning.removeItem.useMutation();
+  const [pendingCount, setPendingCount] = useState(0);
   const historyQuery = trpc.learning.history.useQuery(
     { limit: 200 },
     { enabled: Boolean(authQuery.data), retry: false }
   );
   const utils = trpc.useUtils();
-  const items = itemsQuery.data ?? [];
-  const history = historyQuery.data ?? [];
+  const ownerId = authQuery.data?.id;
+  const [verifiedOwnerId, setVerifiedOwnerId] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    setVerifiedOwnerId(null);
+    if (ownerId) {
+      void (async () => {
+        try {
+          await Promise.all([
+            utils.learning.listItems.reset(), utils.learning.history.reset(),
+          ]);
+          await Promise.all([itemsQuery.refetch(), historyQuery.refetch()]);
+          if (!cancelled) setVerifiedOwnerId(ownerId);
+        } catch { /* No cross-account cached view; leave the panel empty. */ }
+      })();
+    }
+    return () => { cancelled = true; };
+  }, [ownerId]);
+  useEffect(() => {
+    const refresh = () => setPendingCount(ownerId ? pendingLearningCount(ownerId) : 0);
+    window.addEventListener("lingua:offline-queue", refresh);
+    window.addEventListener("online", refresh);
+    refresh();
+    return () => {
+      window.removeEventListener("lingua:offline-queue", refresh);
+      window.removeEventListener("online", refresh);
+    };
+  }, [ownerId]);
+  useEffect(() => {
+    if (!ownerId || pendingCount === 0) return;
+    let cancelled = false;
+    void replayPendingLearningOperations(ownerId, {
+      save: async payload => (await saveMutation.mutateAsync(payload)).item.id,
+      review: input => reviewMutation.mutateAsync(input),
+      remove: knowledgeItemId => removeMutation.mutateAsync({ knowledgeItemId }),
+    }, () => cancelled).then(result => {
+      if (!cancelled) {
+        setPendingCount(result.remaining);
+        if (result.synced) {
+          void itemsQuery.refetch();
+          void historyQuery.refetch();
+        }
+      }
+    }).catch(() => {
+      if (!cancelled) setMessage("Algumas operações aguardam conexão ou confirmação; nenhuma foi descartada.");
+    });
+    return () => { cancelled = true; };
+  }, [ownerId, pendingCount]);
+  const items = verifiedOwnerId === ownerId ? (itemsQuery.data ?? []) : [];
+  const history = verifiedOwnerId === ownerId ? (historyQuery.data ?? []) : [];
   const reportHistory = useMemo(() => {
     if (reportWindow === "all") return history;
     const cutoff = Date.now() - Number(reportWindow) * 24 * 60 * 60 * 1000;
@@ -140,8 +194,11 @@ export default function ReviewDeck() {
 
   const review = (knowledgeItemId: number, rating: SrsRating, text: string) => {
     setMessage(null);
+    const ownerId = authQuery.data?.id;
+    if (!ownerId) return;
+    const operation = createPendingLearningOperation({ type: "review", knowledgeItemId, rating });
     reviewMutation.mutate(
-      { knowledgeItemId, rating },
+      { knowledgeItemId, rating, operationId: operation.id },
       {
         onSuccess: () => {
           setMessage(
@@ -150,11 +207,8 @@ export default function ReviewDeck() {
           void utils.learning.listItems.invalidate();
         },
         onError: error => {
-          enqueueLearningOperation({
-            type: "review",
-            knowledgeItemId,
-            rating,
-          });
+          enqueueLearningOperation(ownerId, operation);
+          setPendingCount(pendingLearningCount(ownerId));
           setMessage(
             `${text} ficou na fila offline. Será sincronizada quando a conexão voltar.`
           );

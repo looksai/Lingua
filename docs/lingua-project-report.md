@@ -155,3 +155,9 @@ Também executar `git diff --check`, fazer `fetch`, `rebase` de `origin/main` e 
 - Acrescentar relatórios longitudinais com retenção configurável no servidor, se necessário.
 - Criar exportação com versão, assinatura e trilha de auditoria mais formal.
 - Implementar adaptador CSLE real somente depois da validação dos contratos e dos limites pedagógicos.
+
+## 13. Proposta de correções P0 por GPT — aguardando Deep/fundador (20/11/2026)
+
+O Manus ficou indisponível no plano free; o ZIP recuperado foi usado como base de trabalho sem Git nem confirmação de SHA. O GPT preparou **uma cópia isolada e sem commit** com idempotência `(userId, operationId)`, reconstruction do estado por ciclo de vínculo, fila offline por conta, rebind confiável de IDs de itens salvos e isolamento de conteúdo criado pelo usuário. Há uma migration aditiva **ainda não aplicada**. Não há integração real do CSLE.
+
+**Validação:** 13 testes locais de módulos independentes passaram; `pnpm check`, suíte Vitest, build, MySQL e experiência no navegador **não foram executados/validados**, por falta de dependências e banco. A lista de riscos e gates está em `docs/P0-IMPLEMENTACAO-GPT-PARA-DEEP.md`. Nenhum SHA novo deve ser inserido em §10 até existir commit real revisado por Deep e autorizado pelo fundador.

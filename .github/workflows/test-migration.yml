@@ -1,0 +1,60 @@
+name: P0 MySQL migration (disposable)
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/p0-auditada]
+permissions:
+  contents: read
+jobs:
+  mysql-integration:
+    if: github.ref == 'refs/heads/fix/p0-auditada'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: disposable-root-only
+          MYSQL_DATABASE: lingua_p0_test
+          MYSQL_USER: lingua_test
+          MYSQL_PASSWORD: disposable-test-only
+        ports:
+          - '3306:3306'
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      TZ: UTC
+      LINGUA_MYSQL_TEST: '1'
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - name: Verify toolchain
+        run: |
+          node --version
+          pnpm --version
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: TypeScript check
+        run: pnpm check
+      - name: Apply migrations and test real MySQL
+        env:
+          DATABASE_URL: 'mysql://lingua_test:disposable-test-only@127.0.0.1:3306/lingua_p0_test'
+        run: pnpm exec vitest run --config tests/mysql/vitest.config.ts
+      - name: Isolation notice
+        if: always()
+        run: echo "The service container is discarded automatically when this job ends."

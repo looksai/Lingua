@@ -40,6 +40,8 @@ export type SrsReviewOptions = {
   jitterRatio?: number;
   userId?: string;
   itemId?: string;
+  // Historical pre-amendment reviews retain their original scheduling semantics.
+  legacyFinalHard?: boolean;
 };
 
 const RATING_QUALITY: Record<SrsRating, 0 | 3 | 4 | 5> = {
@@ -154,7 +156,8 @@ export function applySrsReview(
   };
 
   if (rating === "again") {
-    next.state = state.state === "review" ? "relearning" : "learning";
+    next.state = state.state === "review" || state.state === "relearning"
+      ? "relearning" : "learning";
     next.lapses = state.lapses + (state.state === "review" ? 1 : 0);
     next.repetitions = 0;
     next.intervalDays = 0;
@@ -166,8 +169,8 @@ export function applySrsReview(
   ) {
     const completedLearning =
       rating === "easy" ||
-      (rating !== "hard" &&
-        state.repetitions >= LEARNING_STEPS_MINUTES.length - 1);
+      (state.repetitions >= LEARNING_STEPS_MINUTES.length - 1 &&
+        (rating !== "hard" || (state.state === "learning" && !options.legacyFinalHard)));
     if (completedLearning) {
       next.state = "review";
       next.repetitions = Math.max(1, state.repetitions + 1);
@@ -217,12 +220,15 @@ export type ReviewLogForReplay = {
   rating: SrsRating;
   createdAt: string;
   operationId?: string;
+  sequence?: number; // trusted DB commit order, not client-controlled
+  legacyFinalHard?: boolean; // per-operation historical scheduling rule
 };
 
 export function replayReviewLogs(
   knowledgeItemId: string,
   logs: ReviewLogForReplay[],
-  initialState = createInitialReviewState(knowledgeItemId)
+  initialState = createInitialReviewState(knowledgeItemId),
+  options: Pick<SrsReviewOptions, "userId" | "itemId"> & { databaseFloat32?: boolean } = {}
 ): ReviewState {
   return logs
     .filter(log => log.knowledgeItemId === knowledgeItemId)
@@ -230,11 +236,19 @@ export function replayReviewLogs(
     .sort(
       (a, b) =>
         a.createdAt.localeCompare(b.createdAt) ||
-        (a.operationId ?? "").localeCompare(b.operationId ?? "")
+        ((a.sequence != null && b.sequence != null) ? a.sequence - b.sequence :
+          (a.operationId ?? "").localeCompare(b.operationId ?? ""))
     )
     .reduce(
-      (state, log) =>
-        applySrsReview(state, log.rating, new Date(log.createdAt)),
+      (state, log) => {
+        const next = applySrsReview(state, log.rating, new Date(log.createdAt), {
+          ...options, itemId: options.itemId ?? knowledgeItemId,
+          legacyFinalHard: log.legacyFinalHard,
+        });
+        return options.databaseFloat32
+          ? { ...next, easeFactor: Math.fround(next.easeFactor) }
+          : next;
+      },
       initialState
     );
 }

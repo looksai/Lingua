@@ -1,4 +1,5 @@
 import {
+  bigint,
   float,
   index,
   int,
@@ -91,6 +92,9 @@ export const reviewLogs = mysqlTable(
     userId: int("userId").notNull(),
     knowledgeItemId: int("knowledgeItemId").notNull(),
     operationId: varchar("operationId", { length: 180 }).notNull(),
+    stateId: int("stateId"), // learning lifecycle; never replay a previous save-cycle
+    appliedAtMs: bigint("appliedAtMs", { mode: "number" }), // precise authoritative server time
+    resultJson: text("resultJson"), // exactly the committed ACK for idempotent retries
     rating: mysqlEnum("rating", ["again", "hard", "good", "easy"]).notNull(),
     quality: int("quality").notNull(),
     previousState: mysqlEnum("previousState", [
