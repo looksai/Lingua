@@ -10,7 +10,7 @@
 
 **Ação manual do fundador, quando desejar habilitar regras de fato:** verificar GitHub Pro na conta proprietária; em `looksai/Lingua → Settings → Rules → Rulesets → New branch ruleset`, definir `main` como alvo exato e enforcement **Active**. Habilitar **Require a pull request before merging** e **Block force pushes** (além de bloquear deleção da branch); revisar permissões de bypass para não permitir exceção silenciosa dos agentes. Caso a interface ofereça nomes ligeiramente diferentes, confirmar o efeito real. Os status checks obrigatórios só devem ser escolhidos após verificar que esses mesmos jobs rodam em PRs, sem criar um bloqueio impossível de satisfazer. Confirmar depois via painel e API que a branch está protegida. Aplicar também ao CSLE em etapa específica, mediante autorização.
 
-Enquanto não houver proteção efetiva: nenhum push direto na `main`; branches + PRs somente, por **acordo operacional, não por mecanismo técnico**. Nenhum merge de implementação P1 antes de ativar as regras e receber aprovação.
+**Decisão posterior do auditor (21/11/2026):** não contratar GitHub Pro agora e não tornar repositório público. Enquanto isso, valem as seguintes regras **de governança e convenção, não de bloqueio técnico**: (1) ninguém, humano ou agente, realizará force push na main; (2) nenhuma alteração direta na main; usar branch e Pull Request; (3) todo merge requer aprovação expressa do fundador e revisão do Deep; (4) o CI deve ser inspecionado antes do merge. Um GitHub Action detecta falhas **após** alterações, mas não consegue impedir ou reverter um force push de forma confiável. Guardar backups independentes. Avaliar Rulesets quando o projeto puder adotar plano compatível.
 
 ## 1. Concorrência entre abas (P1.1)
 
@@ -40,7 +40,7 @@ Enquanto não houver proteção efetiva: nenhum push direto na `main`; branches 
 
 ## 4. Gates para iniciar implementação
 
-1. Ruleset **ativa e verificada** na `main` (requer ação no plano/configuração do GitHub).
+1. Governança operacional documentada: branch + PR, CI verde, auditoria Deep e aprovação do fundador; nenhuma escrita ou force push direto na main. Ruleset técnica permanece dívida de infraestrutura.
 2. Aprovação explícita de fundador e Deep para este plano, prioridades e critérios.
 3. Definição de ambiente isolado de staging, autenticação e custos; **sem dados reais** antes de controles adequados.
 4. PRs separados para lock entre abas, QA/preview e contrato CSLE, com testes, revisão independente e rollback.
