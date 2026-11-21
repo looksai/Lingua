@@ -40,7 +40,27 @@ async function main() {
       console.log("localCredentials already exists; no changes. Manual schema verification required if needed.");
       return;
     }
-    if (action === "inspect") { console.log("Prerequisite tables found; localCredentials absent; inspection only."); return; }
+    if (action === "inspect") {
+      // Read-only diagnostics for the exact prerequisites of migration 0003.
+      const [indexRows] = await conn.query<RowDataPacket[]>(
+        "SELECT COLUMN_NAME AS col, NON_UNIQUE AS nonUnique, SEQ_IN_INDEX AS position FROM information_schema.statistics WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='reviewLogs' AND INDEX_NAME='reviewLogs_user_operation_unique' ORDER BY SEQ_IN_INDEX"
+      );
+      const validIndex = indexRows.length === 2 &&
+        indexRows[0]?.col === "userId" && Number(indexRows[0]?.nonUnique) === 0 &&
+        indexRows[1]?.col === "operationId" && Number(indexRows[1]?.nonUnique) === 0;
+      const [userColumns] = await conn.query<RowDataPacket[]>(
+        "SELECT COLUMN_TYPE AS columnType, IS_NULLABLE AS nullable FROM information_schema.columns WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='id'"
+      );
+      const [fkSetting] = await conn.query<RowDataPacket[]>(
+        "SELECT ENGINE AS engine FROM information_schema.tables WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users'"
+      );
+      console.log("Prerequisite tables found; localCredentials absent; inspection only.");
+      console.log("0003 prerequisites: reviewLogs unique index valid=" + validIndex +
+        "; users.id type=" + (userColumns[0]?.columnType === "int" ? "int" : "other") +
+        "; users.id nullable=" + (userColumns[0]?.nullable === "NO" ? "no" : "unexpected") +
+        "; users engine=" + (fkSetting[0]?.engine === "InnoDB" ? "InnoDB" : "other"));
+      return;
+    }
     if (process.env.LINGUA_STAGING_CONFIRMATION !== CONFIRM) throw Error("Explicit 0003 confirmation required");
     stage = "acquire-lock";
     const [lock] = await conn.query<RowDataPacket[]>("SELECT GET_LOCK('lingua_staging_schema_bootstrap',15) AS acquired");
