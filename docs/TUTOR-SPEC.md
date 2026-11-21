@@ -133,7 +133,7 @@ Shadowing local permanece disponível independentemente de LLM/voz remota, com m
 
 **Trilho econômico (padrão para validação):** entrada de áudio *opt-in* → ASR (serviço configurável) → texto/transcrição revisável → LLM textual → TTS opcional (serviço configurável) → legenda e playback. Benefícios: auditabilidade, orçamento por componente, fallback texto e redução de custos por uso. Desvantagens: latência entre turnos, expressividade e interrupções mais limitadas.
 
-**Trilho de experiência premium (experimento controlado):** voz bidirecional em streaming com WebRTC, detecção de turno, interrupção da resposta e opção de delegar decisões pedagógicas ao backend Lingua. O modelo vocal não escreve em banco nem aprova evidência. Cobrança por tempo/tokens e risco de custo devem ser monitorados. Usar streaming apenas com permissão e indicador visível de captação; sem gravação em segundo plano.
+**Trilho de experiência premium (adiado por custo, não autorizado nesta fase):** voz bidirecional em streaming com WebRTC, detecção de turno, interrupção da resposta e opção de delegar decisões pedagógicas ao backend Lingua. O modelo vocal não escreve em banco nem aprova evidência. Cobrança por tempo/tokens e risco de custo devem ser monitorados. Usar streaming apenas com permissão e indicador visível de captação; sem gravação em segundo plano.
 
 **Candidatos atuais (snapshot de pesquisa, 21/11/2026):**
 - OpenAI **GPT-Live-1.1**: full-duplex e conversação multilíngue; lista pública de **US$ 0,05/min ativo e US$ 0,02/min em standby** (backend e ferramentas cobrados à parte). Potencial para efeito «Jarvis», com orçamento rígido. [Modelo oficial](https://developers.openai.com/api/docs/models/gpt-live-1.1) | [WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc).
@@ -145,7 +145,7 @@ Shadowing local permanece disponível independentemente de LLM/voz remota, com m
 
 **Atenção a descontinuações oficiais:** `tts-1`, `tts-1-hd`, `gpt-4o-mini-tts` encerram em **06/01/2027**; `whisper-1`, `gpt-4o-transcribe`, `gpt-4o-mini-transcribe` e outros fluxos antigos de transcrição encerram em **26/02/2027**. Não escolhê-los como base nova. [Aviso TTS](https://developers.openai.com/api/docs/guides/text-to-speech) | [Aviso ASR](https://developers.openai.com/api/docs/guides/transcription).
 
-**Recomendação para prova de conceito (não contratação):** iniciar **texto + ASR/TTS desacoplados**, depois testar GPT-Live-1.1 para sessões premium curtas, comparando 95º percentil de latência, percepção, precisão de fala, transferência pedagógica, gasto total e fallback. Nunca embutir API key permanente no cliente; credenciais/token efêmero via servidor e quotas.
+**Decisão de voz para o MVP após parecer do Deep:** priorizar **push-to-talk** (pressionar, falar, soltar) com ASR → LLM → TTS desacoplados, condicionado à avaliação real de preço, qualidade e orçamento. **GPT-Live-1.1 NÃO está aprovado para implementação ou contratação nesta fase**; somente reavaliar streaming completo após validação comercial e econômica. Comparar 95º percentil de latência, percepção, precisão de transcrição, transferência pedagógica, gasto total e fallback. A afirmação «100 vezes mais barato» não está validada. Nunca embutir API key permanente no cliente; credenciais/token efêmero via servidor e quotas.
 
 ## 10. Orçamento, métricas e fallbacks
 
@@ -170,8 +170,8 @@ Testar voz com consentimento recusado, microfone ausente, latência, falha de re
 9. Chaves não vazam no app; limites de custo, métricas, controle de falhas e testes de injeção funcionam.
 10. Não existe alegação pública de «CSLE ativo» até integração auditada.
 
-## 12. O que NÃO implementar agora
+## 12. Registro de decisão posterior (21/11/2026)
 
-Nenhuma migration, endpoint, UI, modelo, ferramenta, notificação, voz ativa, memória persistente ou ligação CSLE. Primeiro: **aprovação do fundador e do Deep**, alinhamento com a Fase A, definição de rubricas e teste de viabilidade do orçamento.
+O parecer do Deep **autoriza uma implementação restrita do onboarding Fase B** na branch separada `feat/onboarding-jarvis`, sem ativação de produção; não autoriza ainda voz ativa, memória persistente ampla, tutor proativo completo ou ligação CSLE. O novo código requer auditoria do PR, CI, QA com MySQL staging e aprovação para qualquer migration ou deploy. O escopo autorizado é descrito em [Fase B](./ONBOARDING-PHASE-B-IMPLEMENTATION.md).
 
 **Relacionados:** [Visão do produto](./PRODUCT-VISION.md), [Onboarding](./ONBOARDING-SPEC.md), [SRS](./srs-spec.md), [Shadowing](./shadowing-spec.md), [Offline](./offline-sync-spec.md).

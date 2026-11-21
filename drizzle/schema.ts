@@ -138,3 +138,36 @@ export type KnowledgeItem = typeof knowledgeItems.$inferSelect;
 export type InsertKnowledgeItem = typeof knowledgeItems.$inferInsert;
 export type UserKnowledgeState = typeof userKnowledgeStates.$inferSelect;
 export type ReviewLog = typeof reviewLogs.$inferSelect;
+
+
+/**
+ * Learner onboarding is deliberately separate from SRS knowledge states.
+ * Do not treat the introductory answers as proof of mastery.
+ */
+export const learnerProfiles = mysqlTable("learnerProfiles", {
+  userId: int("userId").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  interfaceLocale: varchar("interfaceLocale", { length: 16 }).notNull().default("pt-BR"),
+  nativeLanguage: varchar("nativeLanguage", { length: 16 }).notNull().default("pt"),
+  targetLanguage: varchar("targetLanguage", { length: 16 }).notNull().default("en"),
+  tutorName: varchar("tutorName", { length: 40 }).notNull().default("Seu tutor"),
+  tutorPersona: mysqlEnum("tutorPersona", ["welcoming", "direct", "curious", "neutral"]).notNull().default("welcoming"),
+  interest: mysqlEnum("interest", ["curiosity", "travel", "work", "technology", "everyday"]).notNull().default("curiosity"),
+  allowAIFeedback: int("allowAIFeedback").notNull().default(0),
+  onboardingStatus: mysqlEnum("onboardingStatus", ["started", "deferred", "complete"]).notNull().default("started"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const introductoryResponses = mysqlTable("introductoryResponses", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  taskId: varchar("taskId", { length: 64 }).notNull(),
+  answer: text("answer").notNull(),
+  tutorReply: varchar("tutorReply", { length: 400 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => ({
+  userTaskUnique: unique("introductoryResponses_user_task_unique").on(table.userId, table.taskId),
+}));
+
+export type LearnerProfile = typeof learnerProfiles.$inferSelect;
+export type IntroductoryResponse = typeof introductoryResponses.$inferSelect;
