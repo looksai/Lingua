@@ -5,6 +5,7 @@ import {
   int,
   mysqlEnum,
   mysqlTable,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -138,3 +139,27 @@ export type KnowledgeItem = typeof knowledgeItems.$inferSelect;
 export type InsertKnowledgeItem = typeof knowledgeItems.$inferInsert;
 export type UserKnowledgeState = typeof userKnowledgeStates.$inferSelect;
 export type ReviewLog = typeof reviewLogs.$inferSelect;
+
+/** Independent student onboarding/progress. No demonstration state is stored here. */
+export const learnerProfiles = mysqlTable("learnerProfiles", {
+  userId: int("userId").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  displayName: varchar("displayName", { length: 80 }).notNull(),
+  studyGoal: varchar("studyGoal", { length: 24 }).notNull(),
+  priorExposure: varchar("priorExposure", { length: 24 }).notNull(),
+  baselineScore: int("baselineScore"),
+  baselineTotal: int("baselineTotal"),
+  baselineCompletedAt: timestamp("baselineCompletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const learnerLessonResults = mysqlTable("learnerLessonResults", {
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  lessonKey: varchar("lessonKey", { length: 64 }).notNull(),
+  bestScore: int("bestScore").notNull().default(0),
+  total: int("total").notNull(),
+  completedAt: timestamp("completedAt"),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, table => ({
+  pk: primaryKey({ columns: [table.userId, table.lessonKey] }),
+}));
