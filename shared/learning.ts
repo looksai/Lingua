@@ -154,7 +154,8 @@ export function applySrsReview(
   };
 
   if (rating === "again") {
-    next.state = state.state === "review" ? "relearning" : "learning";
+    next.state = state.state === "review" || state.state === "relearning"
+      ? "relearning" : "learning";
     next.lapses = state.lapses + (state.state === "review" ? 1 : 0);
     next.repetitions = 0;
     next.intervalDays = 0;
@@ -217,12 +218,14 @@ export type ReviewLogForReplay = {
   rating: SrsRating;
   createdAt: string;
   operationId?: string;
+  sequence?: number; // trusted DB commit order, not client-controlled
 };
 
 export function replayReviewLogs(
   knowledgeItemId: string,
   logs: ReviewLogForReplay[],
-  initialState = createInitialReviewState(knowledgeItemId)
+  initialState = createInitialReviewState(knowledgeItemId),
+  options: Pick<SrsReviewOptions, "userId" | "itemId"> & { databaseFloat32?: boolean } = {}
 ): ReviewState {
   return logs
     .filter(log => log.knowledgeItemId === knowledgeItemId)
@@ -230,11 +233,18 @@ export function replayReviewLogs(
     .sort(
       (a, b) =>
         a.createdAt.localeCompare(b.createdAt) ||
-        (a.operationId ?? "").localeCompare(b.operationId ?? "")
+        ((a.sequence != null && b.sequence != null) ? a.sequence - b.sequence :
+          (a.operationId ?? "").localeCompare(b.operationId ?? ""))
     )
     .reduce(
-      (state, log) =>
-        applySrsReview(state, log.rating, new Date(log.createdAt)),
+      (state, log) => {
+        const next = applySrsReview(state, log.rating, new Date(log.createdAt), {
+          ...options, itemId: options.itemId ?? knowledgeItemId,
+        });
+        return options.databaseFloat32
+          ? { ...next, easeFactor: Math.fround(next.easeFactor) }
+          : next;
+      },
       initialState
     );
 }

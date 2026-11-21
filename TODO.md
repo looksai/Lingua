@@ -161,3 +161,18 @@
 - Testes determinísticos cobrem os quatro ratings em todos os estados, piso/teto de EF, promoção, relearning, jitter, reconstrução, deduplicação, expiração e shadowing sem rede/autenticação.
 - Idempotência server-side por `(userId, operationId)` e reconstrução persistente com timestamps exigem alteração de schema/procedure e permanecem como próxima etapa.
 - Lock/lease para múltiplas abas, criptografia local e garantia de cache do áudio após nova abertura permanecem como dívidas explícitas.
+
+## 21. Correções P0 propostas pelo GPT após recuperação do ZIP — aguardando auditoria do Deep
+
+- [x] Código de idempotência server-side e migration `0002` criados em cópia isolada (não aplicados).
+- [x] Operação SRS com ID estável antes da primeira tentativa e ACK reutilizável em retries.
+- [x] Replayer SRS com semente por usuário/item e ciclo de vínculo; reconstrução transacional explícita implementada em código.
+- [x] Fila isolada por conta e rebind do ID de servidor para operações dependentes.
+- [x] Conteúdo criado via cliente com chave privada derivada no servidor; atualização de metadados compartilhados desabilitada.
+- [x] 13 testes isolados da fila, SRS e isolamento aprovados sem dependências de projeto.
+- [ ] **Bloqueante:** `pnpm check`, `pnpm test` e `pnpm build` em ambiente com dependências.
+- [ ] **Bloqueante:** testar migration, locking, idempotência concorrente e reconstrução em MySQL de teste.
+- [ ] **Bloqueante:** aprovar política de legados, reconciliação de linhas compartilhadas e troca de conta no navegador.
+- [ ] **Bloqueante:** revisão independente do Deep e aprovação humana para qualquer commit/deployment.
+
+Ver `docs/P0-IMPLEMENTACAO-GPT-PARA-DEEP.md`. Este registro não significa checkpoint aprovado ou concluído em produção. O `docs/srs-spec.md` permanece inalterado.

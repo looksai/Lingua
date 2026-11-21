@@ -125,7 +125,7 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         try {
-          const item = await upsertKnowledgeItem(input);
+          const item = await upsertKnowledgeItem(ctx.user.id, input);
           if (!item) throw new Error("Knowledge item was not returned");
           const state = await ensureUserKnowledgeState(ctx.user.id, item.id);
           return { item, state };
@@ -197,6 +197,7 @@ export const appRouter = router({
         z.object({
           knowledgeItemId: z.number().int().positive(),
           rating: z.enum(["again", "hard", "good", "easy"]),
+          operationId: z.string().regex(/^[A-Za-z0-9_-]{8,180}$/),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -204,7 +205,8 @@ export const appRouter = router({
           return await recordKnowledgeReview(
             ctx.user.id,
             input.knowledgeItemId,
-            input.rating
+            input.rating,
+            input.operationId
           );
         } catch (error) {
           console.error("[Learning] Failed to record review:", error);
