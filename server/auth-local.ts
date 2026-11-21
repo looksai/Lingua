@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID, timingSafeEqual, scrypt as scryptCallback } from "node:crypto";
-import { promisify } from "node:util";
 import { SignJWT, jwtVerify } from "jose";
 import { parse as parseCookie } from "cookie";
 import { and, eq } from "drizzle-orm";
@@ -9,7 +8,8 @@ import { getDb } from "./db";
 import { localCredentials, users, type User } from "../drizzle/schema";
 import { COOKIE_NAME } from "../shared/const";
 
-const scrypt = promisify(scryptCallback);
+const scrypt = (password: string, salt: string): Promise<Buffer> =>
+  new Promise((resolve, reject) => scryptCallback(password, salt, 64, HASH_PARAMETERS, (error, derived) => error ? reject(error) : resolve(derived)));
 const ISSUER = "lingua-auth", AUDIENCE = "lingua-web";
 const SESSION_SECONDS = 12 * 60 * 60;
 const HASH_PARAMETERS = { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
@@ -23,7 +23,7 @@ export function sessionSecret(env: NodeJS.ProcessEnv = process.env): Uint8Array 
 }
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString("base64url");
-  const hash = await scrypt(password, salt, 64, HASH_PARAMETERS) as Buffer;
+  const hash = await scrypt(password, salt);
   return `scrypt-v1$${salt}$${hash.toString("base64url")}`;
 }
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
@@ -31,7 +31,7 @@ export async function verifyPassword(password: string, stored: string): Promise<
   if (scheme !== "scrypt-v1" || !salt || !expected) return false;
   const expectedBytes = Buffer.from(expected, "base64url");
   if (expectedBytes.length !== 64) return false;
-  const actual = await scrypt(password, salt, 64, HASH_PARAMETERS) as Buffer;
+  const actual = await scrypt(password, salt);
   return timingSafeEqual(actual, expectedBytes);
 }
 export function rateLimit(key: string, now = Date.now()) {
