@@ -161,7 +161,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
             setDraft(result.text);setTranscriptReady(true);
             setNotice("Confira a transcrição e envie quando estiver correta. Ela não é uma nota de pronúncia.");
           }
-        }catch{if(mounted.current)setNotice("Não foi possível transcrever. Tente novamente ou digite.");}
+        }catch(error){if(mounted.current)setNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?"O tutor está descansando. Tente novamente em alguns minutos.":"Não foi possível transcrever. Tente novamente ou digite.");}
         finally{inFlight.current=false;if(mounted.current)setBusy(false);}
       };
       recorder.onerror=()=>{stopCapture(false);if(mounted.current)setNotice("Falha na gravação. Use o teclado.");};
