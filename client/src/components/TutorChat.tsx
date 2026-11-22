@@ -11,17 +11,23 @@ type Message = TutorHistory & {
 type Capture = { recorder: MediaRecorder; stream: MediaStream; timer?: ReturnType<typeof setTimeout>; chunks: Blob[]; size:number; send:boolean };
 const MAX_MESSAGES = 24;
 
-export default function TutorChat({profile}: {profile:TutorProfile}) {
+export type TutorVoiceSettings={voiceURI:string;rate:number;pitch:number};
+export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings}: {
+  profile:TutorProfile;
+  accountEmail:string;
+  voiceSettings:TutorVoiceSettings;
+  onVoiceSettingsChange:(prefs:TutorVoiceSettings)=>void;
+  onOpenTutorSettings:()=>void;
+}) {
   const [open,setOpen] = useState(true);
   const [messages,setMessages] = useState<Message[]>(()=>[{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
   const [consent,setConsent] = useState(false);
+  const [termsAccepted,setTermsAccepted] = useState(false);
   const [voice,setVoice] = useState(false);
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [privacyPrompt,setPrivacyPrompt]=useState(false);
   const [localVoices,setLocalVoices]=useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceURI,setSelectedVoiceURI]=useState("");
-  const [speechRate,setSpeechRate]=useState(0.95);
-  const [speechPitch,setSpeechPitch]=useState(1);
+  const {voiceURI:selectedVoiceURI,rate:speechRate,pitch:speechPitch}=voiceSettings;
   const [speakingId,setSpeakingId]=useState<number|null>(null);
   const currentSpeech=useRef<SpeechSynthesisUtterance|null>(null);
   const [draft,setDraft] = useState("");
@@ -47,6 +53,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousProvider=useRef(provider);
+  const consentKey=provider&&provider!=="off"?`lingua:provider-consent:v1:${accountEmail.trim().toLowerCase()}:${provider}`:null;
   const localVoice=selectLocalVoice(localVoices,selectedVoiceURI);
   useEffect(()=>{
     if(typeof window.speechSynthesis==="undefined")return;
@@ -56,7 +63,17 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     synth.addEventListener?.("voiceschanged",refresh);
     return ()=>synth.removeEventListener?.("voiceschanged",refresh);
   },[]);
-  useEffect(()=>{if(previousProvider.current!==provider){previousProvider.current=provider;setConsent(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));}},[provider]);
+  useEffect(()=>{
+    if(previousProvider.current===provider)return;
+    previousProvider.current=provider;
+    let accepted=false;
+    if(consentKey){try{
+      const stored=JSON.parse(window.localStorage.getItem(consentKey)??"null") as {accepted?:boolean;version?:number}|null;
+      accepted=stored?.accepted===true&&stored?.version===1;
+    }catch{/* Storage blocked: ask once in memory only. */}}
+    setConsent(accepted);setTermsAccepted(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);
+    setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
+  },[provider,consentKey]);
 
   function stopCapture(send:boolean) {
     held.current=false;
@@ -112,12 +129,14 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
   function send(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     if(!draft.trim()||busy||inFlight.current)return;
-    if(enabled&&!consent){setPrivacyPrompt(true);return;}
+    if(enabled&&!consent){setTermsAccepted(false);setPrivacyPrompt(true);return;}
     void submitMessage(consent);
   }
   function acceptPrivacy(){
-    if(!enabled)return;
-    setConsent(true);setPrivacyPrompt(false);
+    if(!enabled||!termsAccepted)return;
+    setConsent(true);setPrivacyPrompt(false);setTermsAccepted(false);
+    if(consentKey)try{window.localStorage.setItem(consentKey,JSON.stringify({version:1,accepted:true,agreedAt:new Date().toISOString()}));}catch{/* Consent still valid in this tab. */}
+
     if(draft.trim())void submitMessage(true);
     else setNotice("Pode falar! Para gravar, segure o microfone.");
   }
@@ -161,7 +180,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   async function startCapture(){
-    if(!consent&&enabled){setPrivacyPrompt(true);return;}
+    if(!consent&&enabled){setTermsAccepted(false);setPrivacyPrompt(true);return;}
     if(inFlight.current||capture.current||held.current||!consent||!capabilities.data?.asr)return;
     if(draft.trim()){setNotice("Envie ou apague o texto antes de gravar.");return;}
     if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined"){
@@ -223,7 +242,8 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
   }
   function minimize(){stopCapture(false);stopSpeech();setSettingsOpen(false);setPrivacyPrompt(false);setOpen(false);}
   function updateConsent(next:boolean){
-    if(!next){stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
+    if(!next){if(consentKey)try{window.localStorage.removeItem(consentKey);}catch{/* no local storage */}
+      stopSpeech();stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
       setMessages(previous=>previous.map(m=>({...m,audioBase64:null}))); }
     setConsent(next);
   }
@@ -250,10 +270,11 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
       <div>
         <h2 className="font-display text-2xl">Pronto para conversar?</h2>
         <p className="mt-3 text-sm leading-6">Para responder, {provider==="groq"?"o Groq":provider==="openai"?"a OpenAI":"um serviço externo"} processará sua mensagem, seu perfil de estudo, o histórico recente e as gravações que você decidir enviar. Não inclua informações sensíveis.</p>
-        <p className="mt-3 text-xs leading-5 text-ink-muted">A autorização vale apenas nesta sessão. Você pode desativá-la em Configurações. Nada será enviado a esse serviço antes da sua confirmação.</p>
+        <p className="mt-3 text-xs leading-5 text-ink-muted">O aceite fica lembrado neste navegador para esta conta e este provedor. Você pode revogar em Configurações. Em outro dispositivo ou provedor, solicitaremos novamente. Nada será enviado antes da confirmação.</p>
       </div>
       <div className="flex flex-wrap gap-3">
-        <button type="button" autoFocus onClick={acceptPrivacy} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">{draft.trim()?"Autorizar e enviar":"Autorizar conversa"}</button>
+        <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)} className="mt-1.5" /><span>Li e aceito que o serviço indicado processe minhas mensagens, perfil e áudios enviados, conforme descrito acima. Posso revogar em Configurações.</span></label>
+        <button type="button" autoFocus disabled={!termsAccepted} onClick={acceptPrivacy} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">{draft.trim()?"Aceitar e enviar":"Começar a conversar"}</button>
         <button type="button" onClick={()=>setPrivacyPrompt(false)} className="rounded-full border border-ink/20 px-5 py-3 text-sm font-semibold">Agora não</button>
       </div>
     </section> : settingsOpen ? <section aria-label="Preferências da conversa" className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
@@ -261,10 +282,11 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
         <h2 className="font-display text-2xl">Configurações de voz</h2>
         <p className="mt-2 text-sm text-ink-muted">Escolha como as mensagens serão lidas neste dispositivo.</p>
       </div>
+      <button type="button" onClick={()=>{setSettingsOpen(false);onOpenTutorSettings();}} className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Abrir Meu Tutor para escolher voz e personalidade</button>
       <div className="space-y-3">
         <label className="block text-sm font-semibold">Voz disponível
           <select aria-label="Selecionar voz de leitura" value={localVoice?.voiceURI??""} disabled={availableLocalVoices(localVoices).length===0}
-            onChange={e=>{stopSpeech();setSelectedVoiceURI(e.target.value);}}
+            onChange={e=>{stopSpeech();onVoiceSettingsChange({...voiceSettings,voiceURI:e.target.value});}}
             className="mt-2 w-full rounded-lg border border-ink/20 bg-white p-3 font-normal disabled:opacity-50">
             {availableLocalVoices(localVoices).length===0?<option value="">Nenhuma voz local disponível</option>:availableLocalVoices(localVoices).map(v=><option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>)}
           </select>
@@ -272,10 +294,10 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
         {!localVoice&&<p role="status" className="text-sm text-ink-muted">Não há voz local disponível neste navegador. Você pode continuar por texto, ou experimentar um navegador/dispositivo com vozes instaladas.</p>}
         {localVoice&&<p className="text-xs text-ink-muted">Voz selecionada: {localVoice.lang}. A qualidade e os idiomas disponíveis dependem do seu dispositivo; uma mesma voz pode pronunciar incorretamente trechos de outro idioma.</p>}
         <label className="block text-sm font-semibold">Velocidade · {speechRate.toFixed(2)}×
-          <input type="range" min="0.75" max="1.15" step="0.05" value={speechRate} onChange={e=>setSpeechRate(Number(e.target.value))} className="mt-2 w-full" />
+          <input type="range" min="0.75" max="1.15" step="0.05" value={speechRate} onChange={e=>onVoiceSettingsChange({...voiceSettings,rate:Number(e.target.value)})} className="mt-2 w-full" />
         </label>
         <label className="block text-sm font-semibold">Altura da voz · {speechPitch.toFixed(2)}
-          <input type="range" min="0.8" max="1.2" step="0.05" value={speechPitch} onChange={e=>setSpeechPitch(Number(e.target.value))} className="mt-2 w-full" />
+          <input type="range" min="0.8" max="1.2" step="0.05" value={speechPitch} onChange={e=>onVoiceSettingsChange({...voiceSettings,pitch:Number(e.target.value)})} className="mt-2 w-full" />
         </label>
         <button type="button" disabled={!localVoice} onClick={()=>browserSpeak("Hello! Vamos praticar inglês.",-1)} className="inline-flex items-center gap-2 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">
           <Volume2 size={16}/>{speakingId===-1?"Parar teste":"Testar voz"}
@@ -283,7 +305,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
       </div>
       <div className="border-t border-ink/10 pt-5">
         <h3 className="font-semibold">Privacidade da conversa</h3>
-        <p className="mt-2 text-xs leading-5 text-ink-muted">Seu chat pode enviar texto e gravações ao {provider==="groq"?"Groq":provider==="openai"?"serviço OpenAI":"provedor externo"} somente após autorização. Esta escolha não é gravada como consentimento permanente.</p>
+        <p className="mt-2 text-xs leading-5 text-ink-muted">Seu chat pode enviar texto e gravações ao {provider==="groq"?"Groq":provider==="openai"?"serviço OpenAI":"provedor externo"} somente após autorização. O aceite é lembrado apenas neste navegador, por conta e provedor, até você revogar ou limpar os dados locais. Não constitui registro de consentimento auditado no servidor.</p>
         {consent?<button type="button" onClick={()=>{updateConsent(false);setNotice("Envio à IA desativado nesta sessão.");}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Desativar envio à IA</button>:
           <button type="button" disabled={!enabled} onClick={()=>{setSettingsOpen(false);setPrivacyPrompt(true);}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">Autorizar envio à IA</button>}
       </div>
