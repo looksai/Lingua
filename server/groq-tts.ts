@@ -1,4 +1,4 @@
-import {GROQ_RATE_LIMIT_MESSAGE,GroqRateLimitError} from "./tutor-free-provider";
+import {GroqRateLimitError} from "./tutor-free-provider";
 
 // Groq Orpheus V1 English: https://console.groq.com/docs/text-to-speech/orpheus
 // NOT playai-tts, which shut down in 2025. English only, <=200 characters, WAV.
