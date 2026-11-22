@@ -1,6 +1,6 @@
 # Staging Aiven — execução segura da migration 0006 (manual)
 
-**Status:** preparada, NÃO executada. Autorização do fundador e Deep registrada na conversa em 22/11/2026. Aplicação técnica e verificação ainda pendentes, porque não há conector Aiven/SQL administrativo disponível neste ambiente.
+**Status:** migration **APLICADA E VERIFICADA** no staging Aiven em 22/11/2026, via workflow de GitHub Actions protegido `ops/aiven-0006-placement`, run [45084116478](https://github.com/looksai/Lingua/actions/runs/45084116478). A inspeção anterior [45083982437](https://github.com/looksai/Lingua/actions/runs/45083982437) confirmou ausência das duas tabelas e identidade TLS. O job de aplicação informou `0006 APPLIED AND VERIFIED`: colunas, índices, FKs e contagens iniciais zero. **A existência de snapshot/backup da conta Aiven não foi verificada por este workflow**; não inventar confirmação. Os passos abaixo ficam preservados como runbook de auditoria/reprodução em ambiente apropriado; não executar novamente só por estarem descritos.
 
 **Alvo único:** MySQL Aiven de *staging* já utilizado por `lingua-p1-staging-le7u` no Render, TLS com CA verificada. **Proibido** aplicar em produção, outro projeto, Nordstar ou banco sem identidade verificada. Não ler/copiar/colar segredos em chat, PR ou logs. Nunca usar `pnpm db:push`.
 
