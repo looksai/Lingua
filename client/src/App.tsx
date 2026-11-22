@@ -33,7 +33,7 @@ function RootPage() {
   if (identity.isPending) return <Loading text="Carregando Lingua..." />;
   if (identity.error) return <Loading text="Não foi possível confirmar sua sessão. Verifique a conexão e recarregue a página." />;
   if (!identity.data) return <Landing />;
-  return <PrivateExperience email={identity.data.email ?? "minha conta"} />;
+  return <PrivateExperience key={identity.data.id} email={identity.data.email ?? "minha conta"} />;
 }
 
 function DemoPage() {

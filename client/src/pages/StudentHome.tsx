@@ -5,6 +5,7 @@ import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2 } from "lucide-r
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
 import ReviewDeck from "@/components/ReviewDeck";
+import TutorChat from "@/components/TutorChat";
 import { supportedFirstAccessLanguages, tutorPersonaLabels, interestLabels, type TutorPersona, type LearnerInterest } from "@shared/onboarding";
 
 type Snapshot = inferRouterOutputs<AppRouter>["onboarding"]["me"];
@@ -128,5 +129,6 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       </section>}
       {logout.error && <p role="alert" className="mt-5 text-sm text-red-700">Não foi possível sair. Tente novamente.</p>}
     </main>
+    <TutorChat profile={profile}/>
   </div>;
 }
