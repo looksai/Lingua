@@ -9,6 +9,47 @@ const ENDPOINT="https://api.groq.com/openai/v1/audio/speech";
 const MODEL="canopylabs/orpheus-v1-english";
 const MAX_SPEECH_BYTES=1_500_000;
 
+export type GroqTtsBadRequestReason="voice"|"model"|"format"|"input"|"access"|"unknown";
+export class GroqTtsBadRequest extends Error {
+  constructor(readonly reason:GroqTtsBadRequestReason) {
+    super("Groq TTS rejected a parameter");
+    this.name="GroqTtsBadRequest";
+  }
+}
+// Categorize the provider's 400 response without ever logging or returning
+// its raw message, which might echo a learner's request or a secret.
+async function categorize400(res:Response):Promise<GroqTtsBadRequestReason>{
+  const reader=res.body?.getReader();if(!reader)return "unknown";
+  const chunks:Uint8Array[]=[];let count=0;
+  try {
+    for(;;){
+      const item=await reader.read();if(item.done)break;
+      count+=item.value.byteLength;
+      if(count>4_096){await reader.cancel();return "unknown";}
+      chunks.push(item.value);
+    }
+  }catch{return "unknown";}
+  finally{reader.releaseLock();}
+  let parsed:unknown;
+  try{parsed=JSON.parse(Buffer.concat(chunks,count).toString("utf8"));}
+  catch{return "unknown";}
+  if(!parsed||typeof parsed!=="object"||!("error" in parsed))return "unknown";
+  const error=(parsed as {error?:unknown}).error;
+  if(!error||typeof error!=="object")return "unknown";
+  const data=error as {message?:unknown;type?:unknown;code?:unknown;param?:unknown};
+  const message=typeof data.message==="string"?data.message.slice(0,2048):"";
+  const parameter=typeof data.param==="string"?data.param:"";
+  const dataCode=typeof data.code==="string"?data.code:"";
+  const inspect=[parameter,dataCode,message].join(" ").toLowerCase();
+  if(/\b(voice|speaker|persona)\b/.test(inspect))return "voice";
+  if(/\b(model|orpheus|model_id)\b/.test(inspect))return "model";
+  if(/\b(response_format|format|wav|audio format)\b/.test(inspect))return "format";
+  if(/\b(input|characters?|length|text|tokens?|content)\b/.test(inspect))return "input";
+  if(/\b(access|permission|project|account|organization|disabled|restricted|not available)\b/.test(inspect))return "access";
+  return "unknown";
+}
+
+
 export async function synthesizeEnglish(
   text:string,
   voice:GroqEnglishVoice,
@@ -27,9 +68,10 @@ export async function synthesizeEnglish(
       body:JSON.stringify({model:MODEL,input:text,voice,response_format:"wav"})
     });
     if(!res.ok){
-      await res.body?.cancel();
-      console.warn("[tutor-tts] status="+res.status);
+      const reason=res.status===400?await categorize400(res):(await res.body?.cancel(),"unknown");
+      console.warn("[tutor-tts] status="+res.status+(res.status===400?" category="+reason:""));
       if(res.status===429)throw new GroqRateLimitError();
+      if(res.status===400)throw new GroqTtsBadRequest(reason);
       throw Error("TTS rejected request");
     }
     const reader=res.body?.getReader();
