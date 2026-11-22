@@ -147,6 +147,17 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           <label className="block text-sm font-semibold">Interesse<select value={interest} onChange={e=>setInterest(e.target.value as LearnerInterest)} className="mt-2 w-full rounded-lg border p-3 font-normal">{Object.entries(interestLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
           <div className="space-y-4 border-t border-ink/10 pt-5">
             <h2 className="font-display text-2xl">Voz do tutor</h2>
+            <div className="rounded-xl border border-ink/10 bg-paper p-4">
+              <p className="font-semibold">Voz neural em inglês · Groq</p>
+              <p className="mt-1 text-xs leading-5 text-ink-muted">O Orpheus fala frases curtas em inglês. O áudio é gerado quando você solicita e usa a cota da sua conta Groq; não é a voz das explicações em português.</p>
+              <label className="mt-3 block text-sm font-semibold">Escolher voz neural
+                <select value={voiceSettings.neuralVoice??"troy"}
+                  onChange={e=>setVoiceSettings(p=>({...p,neuralVoice:e.target.value as NonNullable<TutorVoiceSettings["neuralVoice"]>}))}
+                  className="mt-2 w-full rounded-lg border border-ink/20 bg-white p-3 font-normal">
+                  {(["troy","daniel","austin","autumn","diana","hannah"] as const).map(id=><option key={id} value={id}>{id[0].toUpperCase()+id.slice(1)}</option>)}
+                </select>
+              </label>
+            </div>
             <p className="text-sm leading-6 text-ink-muted">Escolha uma voz de leitura instalada no seu dispositivo. Os nomes e sotaques disponíveis variam por navegador e sistema operacional.</p>
             <label className="block text-sm font-semibold">Voz e sotaque
               <select aria-label="Selecionar voz do tutor" disabled={!selectedVoice} value={selectedVoice?.voiceURI??""}
