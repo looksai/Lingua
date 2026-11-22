@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "react";
-import { MessageCircle, Mic, Minus, Send, Square, Volume2 } from "lucide-react";
+import { MessageCircle, Mic, Minus, Send, Square, Volume2, Settings2, ChevronLeft } from "lucide-react";
+import {availableLocalVoices,selectLocalVoice,speechText} from "@/lib/tutor-speech";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
   TUTOR_MAX_TEXT, tutorAudioTypes, type TutorAudioType, type TutorHistory, type TutorProfile } from "@shared/tutor";
@@ -15,6 +16,14 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
   const [messages,setMessages] = useState<Message[]>(()=>[{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
   const [consent,setConsent] = useState(false);
   const [voice,setVoice] = useState(false);
+  const [settingsOpen,setSettingsOpen]=useState(false);
+  const [privacyPrompt,setPrivacyPrompt]=useState(false);
+  const [localVoices,setLocalVoices]=useState<SpeechSynthesisVoice[]>([]);
+  const [selectedVoiceURI,setSelectedVoiceURI]=useState("");
+  const [speechRate,setSpeechRate]=useState(0.95);
+  const [speechPitch,setSpeechPitch]=useState(1);
+  const [speakingId,setSpeakingId]=useState<number|null>(null);
+  const currentSpeech=useRef<SpeechSynthesisUtterance|null>(null);
   const [draft,setDraft] = useState("");
   const [busy,setBusy] = useState(false);
   const [recording,setRecording] = useState(false);
@@ -38,7 +47,16 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousProvider=useRef(provider);
-  useEffect(()=>{if(previousProvider.current!==provider){previousProvider.current=provider;setConsent(false);setVoice(false);setDemoConsent(false);setDemo(null);setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));}},[provider]);
+  const localVoice=selectLocalVoice(localVoices,selectedVoiceURI);
+  useEffect(()=>{
+    if(typeof window.speechSynthesis==="undefined")return;
+    const synth=window.speechSynthesis;
+    const refresh=()=>setLocalVoices(synth.getVoices());
+    refresh();
+    synth.addEventListener?.("voiceschanged",refresh);
+    return ()=>synth.removeEventListener?.("voiceschanged",refresh);
+  },[]);
+  useEffect(()=>{if(previousProvider.current!==provider){previousProvider.current=provider;setConsent(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));}},[provider]);
 
   function stopCapture(send:boolean) {
     held.current=false;
@@ -55,6 +73,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     return ()=>{
       mounted.current=false;
       if(typeof window.speechSynthesis!=="undefined")window.speechSynthesis.cancel();
+      currentSpeech.current=null;
       generation.current++;
       held.current=false;
       const current=capture.current;
@@ -73,8 +92,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     setMessages(previous=>[...previous,entry].slice(-MAX_MESSAGES).map((m,i,all)=>
       i<all.length-8 ? {...m,audioBase64:null} : m));
   }
-  async function send(event:FormEvent<HTMLFormElement>){
-    event.preventDefault();
+  async function submitMessage(authorized:boolean){
     const text=draft.trim();
     if(!text||inFlight.current||capture.current||held.current)return;
     inFlight.current=true;setBusy(true);setNotice("");setTranscriptReady(false);
@@ -82,7 +100,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     const history=messages.slice(-TUTOR_MAX_HISTORY).map(({role,text})=>({role,text}));
     append({role:"user",text});
     try{
-      const res=await reply.mutateAsync({message:text,history,consent,provider,voice:consent&&voice});
+      const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice});
       if(!mounted.current)return;
       append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
     }catch{
@@ -90,6 +108,18 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     }finally{
       inFlight.current=false;if(mounted.current)setBusy(false);
     }
+  }
+  function send(event:FormEvent<HTMLFormElement>){
+    event.preventDefault();
+    if(!draft.trim()||busy||inFlight.current)return;
+    if(enabled&&!consent){setPrivacyPrompt(true);return;}
+    void submitMessage(consent);
+  }
+  function acceptPrivacy(){
+    if(!enabled)return;
+    setConsent(true);setPrivacyPrompt(false);
+    if(draft.trim())void submitMessage(true);
+    else setNotice("Pode falar! Para gravar, segure o microfone.");
   }
   async function speakWelcome(){
     if(inFlight.current||!consent||!capabilities.data?.tts)return;
@@ -102,15 +132,26 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     }catch{if(mounted.current)setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
     finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
-  function browserSpeak(text:string,lang:"pt-BR"|"en-US"){
-    if(typeof window.speechSynthesis==="undefined"||typeof SpeechSynthesisUtterance==="undefined"){setNotice("Este navegador não oferece síntese local.");return;}
+  function stopSpeech(){
+    currentSpeech.current=null;
+    if(typeof window.speechSynthesis!=="undefined")window.speechSynthesis.cancel();
+    setSpeakingId(null);
+  }
+  function browserSpeak(text:string,id:number){
+    if(typeof window.speechSynthesis==="undefined"||typeof SpeechSynthesisUtterance==="undefined"||!localVoice){
+      setNotice("Nenhuma voz local está disponível. Abra as configurações do tutor.");return;
+    }
+    if(speakingId===id){stopSpeech();return;}
+    stopSpeech();
     const synth=window.speechSynthesis;
-    const voices=synth.getVoices().filter(v=>v.localService===true&&v.lang.toLowerCase().startsWith(lang.slice(0,2)));
-    const selected=voices.find(v=>v.lang.toLowerCase()===lang.toLowerCase())??voices[0];
-    if(!selected){setNotice("Não encontramos uma voz local neste idioma. Use o texto ou o teste de voz Gemini.");return;}
-    synth.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang=lang;utterance.voice=selected;
-    utterance.onerror=()=>{if(mounted.current)setNotice("Falha na voz local. O texto foi preservado.");};
-    synth.speak(utterance);setNotice("");
+    const utterance=new SpeechSynthesisUtterance(speechText(text));
+    const selected=localVoices.find(v=>v.voiceURI===localVoice.voiceURI);
+    if(!selected)return;
+    utterance.voice=selected;utterance.lang=selected.lang;
+    utterance.rate=speechRate;utterance.pitch=speechPitch;
+    utterance.onend=()=>{if(currentSpeech.current===utterance){currentSpeech.current=null;setSpeakingId(null);}};
+    utterance.onerror=(e)=>{if(currentSpeech.current===utterance){currentSpeech.current=null;setSpeakingId(null);if(e.error!=="canceled"&&e.error!=="interrupted")setNotice("Não foi possível reproduzir a voz local. O texto continua disponível.");}};
+    currentSpeech.current=utterance;setSpeakingId(id);setNotice("");synth.speak(utterance);
   }
   async function playGeminiDemo(){
     if(inFlight.current||!demoConsent||!capabilities.data?.geminiDemo)return;
@@ -120,6 +161,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   async function startCapture(){
+    if(!consent&&enabled){setPrivacyPrompt(true);return;}
     if(inFlight.current||capture.current||held.current||!consent||!capabilities.data?.asr)return;
     if(draft.trim()){setNotice("Envie ou apague o texto antes de gravar.");return;}
     if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined"){
@@ -179,7 +221,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     event.currentTarget.setPointerCapture(event.pointerId);
     void startCapture();
   }
-  function minimize(){stopCapture(false);if(typeof window.speechSynthesis!=="undefined")window.speechSynthesis.cancel();setOpen(false);}
+  function minimize(){stopCapture(false);stopSpeech();setSettingsOpen(false);setPrivacyPrompt(false);setOpen(false);}
   function updateConsent(next:boolean){
     if(!next){stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
       setMessages(previous=>previous.map(m=>({...m,audioBase64:null}))); }
