@@ -12,7 +12,7 @@ describe("Tutor staging",()=>{
     expect(localReply("praticar")).toContain("sugestão guiada local");
   });
   it("requires key, enable flag and exact allowlist",()=>{
-    const env={OPENAI_API_KEY:"test",LINGUA_TUTOR_ENABLED:"true",LINGUA_TUTOR_ALLOWED_EMAILS:"qa@example.com"};
+    const env={OPENAI_API_KEY:"test",LINGUA_TUTOR_PROVIDER:"openai",LINGUA_TUTOR_ENABLED:"true",LINGUA_TUTOR_ALLOWED_EMAILS:"qa@example.com"};
     expect(paidTutorAllowed("QA@example.com",env)).toBe(true);
     expect(paidTutorAllowed("other@example.com",env)).toBe(false);
     expect(paidTutorAllowed("qa@example.com",{})).toBe(false);
