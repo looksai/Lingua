@@ -176,3 +176,12 @@
 - [ ] **Bloqueante:** revisão independente do Deep e aprovação humana para qualquer commit/deployment.
 
 Ver `docs/P0-IMPLEMENTACAO-GPT-PARA-DEEP.md`. Este registro não significa checkpoint aprovado ou concluído em produção. O `docs/srs-spec.md` permanece inalterado.
+
+
+## 22. Fase C — tutor conversacional: P1 de continuidade
+
+- [ ] **P1 — substituir o TTS legado antes de 06/01/2027.** O adaptador `openai-legacy` com `tts-1` é somente uma ponte de homologação, com desativação automática na data de encerramento prevista. Implementar e testar um adaptador de síntese por turno via protocolo oficialmente suportado (avaliar Realtime API ou outro provedor), mantendo a interface ASR → LLM → TTS desacoplada, opt-in, Push-to-Talk e fallback textual. Não basta trocar o ID do modelo no endpoint legado. Validar qualidade PT/EN, latência, custo real, segurança, limites de uso e falhas antes de substituir o adaptador; manter áudio desativável.
+- [ ] **P1 — homologar Fase C real:** testar saudação, histórico em sessão, consentimento, transcrição, reprodução, falhas e custo por turno em conta de teste autorizada, no Render. CI com mocks não comprova chamadas externas.
+- [ ] **P1 — antes de acesso público pago:** verificação de propriedade do e-mail, quotas duráveis, proteção contra abuso e exposição de segredos, e medição dos custos. Quotas locais não garantem teto absoluto.
+
+A auditoria Deep e o fundador aprovaram a integração do PR #18 e o deploy em staging, não o lançamento público nem a integração do CSLE. Ver [guia de configuração OpenAI](docs/OPENAI-SETUP.md). Não registrar chaves, dados de alunos ou transcrições nos commits.
