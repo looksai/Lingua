@@ -164,7 +164,14 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
             </label>
             <p className="text-xs leading-5 text-ink-muted">O navegador não informa de forma confiável se uma voz é masculina ou feminina; por isso exibimos os nomes reais disponíveis. A alteração de timbre pode soar diferente conforme a voz escolhida. Essa leitura não avalia pronúncia.</p>
           </div>
-          {false&&<label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={allowAIFeedback} onChange={e=>setAllowAIFeedback(e.target.checked)}/><span>Autorizar envio de respostas textuais à OpenAI para feedback opcional por IA.</span></label>}
+          <details className="border-t border-ink/10 pt-4">
+            <summary className="cursor-pointer text-sm font-semibold">Privacidade e opções avançadas</summary>
+            <label className="mt-3 flex items-start gap-3 text-sm">
+              <input type="checkbox" className="mt-1" checked={allowAIFeedback} onChange={e=>setAllowAIFeedback(e.target.checked)}/>
+              <span>Autorizar feedback opcional da OpenAI nas atividades iniciais, apenas se esse provedor estiver habilitado e com créditos. Isso não afeta as conversas atuais com Groq.</span>
+            </label>
+            <p className="mt-2 text-xs text-ink-muted">O envio de conversas ao Groq é autorizado separadamente quando você conversa pela primeira vez. Você pode revogar essa autorização nas configurações do chat.</p>
+          </details>
           <p className="text-xs text-ink-muted">Idiomas desta primeira versão: interface pt-BR, explicação em português, aprendizado de inglês. O tom de conversa é independente da voz usada na leitura.</p>
           {preferences.error && <p role="alert" className="text-sm text-red-700">{preferences.error.message}</p>}
           {saved && <p role="status" className="text-sm text-teal">Preferências salvas.</p>}
