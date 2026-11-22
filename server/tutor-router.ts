@@ -11,6 +11,7 @@ import { createOpenAITutor, speechConfigured } from "./tutor-provider";
 import { paidTutorAllowed, freeTutorAllowed, geminiDemoAllowed, tutorMode, withTutorBudget } from "./tutor-budget";
 import { geminiTestSpeech, GEMINI_TEST_PHRASES, GROQ_RATE_LIMIT_MESSAGE, isGroqRateLimitError } from "./tutor-free-provider";
 import { createSelectedTutor } from "./tutor-provider-selector";
+import { tutorFailureReply } from "./tutor-fallback";
 
 async function profileFor(userId:number): Promise<TutorProfile> {
   const db = await getDb();
@@ -83,7 +84,7 @@ export const tutorRouter = router({
     return withTutorBudget(ctx.user.id,async()=>{
       let text:string;
       try { const adapter=input.provider==="groq"?createGroqTutor():createOpenAITutor(); text=await adapter.reply(p,input.history,input.message); }
-      catch(error) { return {text:isGroqRateLimitError(error)?GROQ_RATE_LIMIT_MESSAGE:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const}; }
+      catch(error) { return tutorFailureReply(error,input.message,input.voice); }
       return {text,source:"ai" as const,...await optionalSpeech(text,input.provider==="openai"&&input.voice)};
     });
   }),
