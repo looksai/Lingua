@@ -1,15 +1,26 @@
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
 import ReviewDeck from "@/components/ReviewDeck";
-import TutorChat from "@/components/TutorChat";
+import TutorChat, { type TutorVoiceSettings } from "@/components/TutorChat";
+import {availableLocalVoices,selectLocalVoice} from "@/lib/tutor-speech";
 import { supportedFirstAccessLanguages, tutorPersonaLabels, interestLabels, type TutorPersona, type LearnerInterest } from "@shared/onboarding";
 
 type Snapshot = inferRouterOutputs<AppRouter>["onboarding"]["me"];
 type View = "dashboard" | "read" | "review" | "settings";
+const DEFAULT_VOICE:TutorVoiceSettings={voiceURI:"",rate:0.95,pitch:1};
+function loadVoiceSettings():TutorVoiceSettings {
+  if(typeof window==="undefined")return DEFAULT_VOICE;
+  try {
+    const stored=JSON.parse(window.localStorage.getItem("lingua:tutor-voice:v1")??"null") as Partial<TutorVoiceSettings>|null;
+    if(stored&&typeof stored.voiceURI==="string" && typeof stored.rate==="number" && stored.rate>=0.75&&stored.rate<=1.15 && typeof stored.pitch==="number"&&stored.pitch>=0.8&&stored.pitch<=1.2)
+      return {voiceURI:stored.voiceURI,rate:stored.rate,pitch:stored.pitch};
+  }catch{/* Browser storage unavailable. */}
+  return DEFAULT_VOICE;
+}
 
 export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; email: string }) {
   const profile = snapshot.profile!;
@@ -19,6 +30,20 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   const [interest, setInterest] = useState<LearnerInterest>(profile.interest);
   const [allowAIFeedback, setAllowAIFeedback] = useState(profile.allowAIFeedback === 1);
   const [saved, setSaved] = useState(false);
+  const [voiceSettings,setVoiceSettings]=useState<TutorVoiceSettings>(loadVoiceSettings);
+  const [voices,setVoices]=useState<SpeechSynthesisVoice[]>([]);
+  const selectedVoice=selectLocalVoice(voices,voiceSettings.voiceURI);
+  useEffect(()=>{
+    try{window.localStorage.setItem("lingua:tutor-voice:v1",JSON.stringify(voiceSettings));}catch{/* Local playback still works in this session. */}
+  },[voiceSettings]);
+  useEffect(()=>{
+    if(typeof window.speechSynthesis==="undefined")return;
+    const synth=window.speechSynthesis;
+    const refresh=()=>setVoices(synth.getVoices());
+    refresh();
+    synth.addEventListener?.("voiceschanged",refresh);
+    return ()=>synth.removeEventListener?.("voiceschanged",refresh);
+  },[]);
   const utils = trpc.useUtils();
   const preferences = trpc.onboarding.saveProfile.useMutation();
   const resume = trpc.onboarding.resume.useMutation();
@@ -120,8 +145,27 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           <label className="block text-sm font-semibold">Nome<input required maxLength={40} value={tutorName} onChange={e => setTutorName(e.target.value)} className="mt-2 w-full rounded-lg border p-3 font-normal" /></label>
           <label className="block text-sm font-semibold">Tom<select value={tutorPersona} onChange={e=>setTutorPersona(e.target.value as TutorPersona)} className="mt-2 w-full rounded-lg border p-3 font-normal">{Object.entries(tutorPersonaLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
           <label className="block text-sm font-semibold">Interesse<select value={interest} onChange={e=>setInterest(e.target.value as LearnerInterest)} className="mt-2 w-full rounded-lg border p-3 font-normal">{Object.entries(interestLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
-          <label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={allowAIFeedback} onChange={e=>setAllowAIFeedback(e.target.checked)}/><span>Autorizar envio de respostas textuais à OpenAI para feedback opcional por IA.</span></label>
-          <p className="text-xs text-ink-muted">Idiomas desta primeira versão: interface pt-BR, explicação em português, aprendizado de inglês. Voz ainda não disponível no onboarding.</p>
+          <div className="space-y-4 border-t border-ink/10 pt-5">
+            <h2 className="font-display text-2xl">Voz do tutor</h2>
+            <p className="text-sm leading-6 text-ink-muted">Escolha uma voz de leitura instalada no seu dispositivo. Os nomes e sotaques disponíveis variam por navegador e sistema operacional.</p>
+            <label className="block text-sm font-semibold">Voz e sotaque
+              <select aria-label="Selecionar voz do tutor" disabled={!selectedVoice} value={selectedVoice?.voiceURI??""}
+                onChange={e=>setVoiceSettings(p=>({...p,voiceURI:e.target.value}))}
+                className="mt-2 w-full rounded-lg border border-ink/20 bg-white p-3 font-normal disabled:opacity-50">
+                {!selectedVoice?<option value="">Nenhuma voz local encontrada</option>:availableLocalVoices(voices).map(v=><option key={v.voiceURI} value={v.voiceURI}>{v.lang} — {v.name}</option>)}
+              </select>
+            </label>
+            {!selectedVoice&&<p role="status" className="text-sm text-ink-muted">Este navegador não disponibiliza vozes locais. A conversa por texto continua funcionando.</p>}
+            <label className="block text-sm font-semibold">Timbre — mais grave / mais agudo ({voiceSettings.pitch.toFixed(2)})
+              <input type="range" min="0.8" max="1.2" step="0.05" value={voiceSettings.pitch} onChange={e=>setVoiceSettings(p=>({...p,pitch:Number(e.target.value)}))} className="mt-2 w-full"/>
+            </label>
+            <label className="block text-sm font-semibold">Velocidade da fala ({voiceSettings.rate.toFixed(2)}×)
+              <input type="range" min="0.75" max="1.15" step="0.05" value={voiceSettings.rate} onChange={e=>setVoiceSettings(p=>({...p,rate:Number(e.target.value)}))} className="mt-2 w-full"/>
+            </label>
+            <p className="text-xs leading-5 text-ink-muted">O navegador não informa de forma confiável se uma voz é masculina ou feminina; por isso exibimos os nomes reais disponíveis. A alteração de timbre pode soar diferente conforme a voz escolhida. Essa leitura não avalia pronúncia.</p>
+          </div>
+          {false&&<label className="flex items-start gap-3 text-sm"><input type="checkbox" className="mt-1" checked={allowAIFeedback} onChange={e=>setAllowAIFeedback(e.target.checked)}/><span>Autorizar envio de respostas textuais à OpenAI para feedback opcional por IA.</span></label>}
+          <p className="text-xs text-ink-muted">Idiomas desta primeira versão: interface pt-BR, explicação em português, aprendizado de inglês. O tom de conversa é independente da voz usada na leitura.</p>
           {preferences.error && <p role="alert" className="text-sm text-red-700">{preferences.error.message}</p>}
           {saved && <p role="status" className="text-sm text-teal">Preferências salvas.</p>}
           <button disabled={preferences.isPending || !tutorName.trim()} className="rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white disabled:opacity-50">Salvar preferências</button>
@@ -129,6 +173,6 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       </section>}
       {logout.error && <p role="alert" className="mt-5 text-sm text-red-700">Não foi possível sair. Tente novamente.</p>}
     </main>
-    <TutorChat profile={profile}/>
+    <TutorChat profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")}/>
   </div>;
 }
