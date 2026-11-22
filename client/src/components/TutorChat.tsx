@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "
 import { MessageCircle, Mic, Minus, Send, Square, Volume2, Settings2, ChevronLeft } from "lucide-react";
 import {availableLocalVoices,selectLocalVoice,speechText} from "@/lib/tutor-speech";
 import {englishExcerpt} from "@/lib/english-example";
+import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
   TUTOR_MAX_TEXT, tutorAudioTypes, type TutorAudioType, type TutorHistory, type TutorProfile } from "@shared/tutor";
@@ -53,11 +54,16 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const gemini = trpc.tutor.geminiDemo.useMutation();
   const neural = trpc.tutor.neuralEnglish.useMutation();
   const [neuralAudios,setNeuralAudios]=useState<Record<number,string>>({});
+  const [previewVoiceAudio,setPreviewVoiceAudio]=useState<string|null>(null);
+  const [previewVoiceNotice,setPreviewVoiceNotice]=useState("");
+  const [memoryChoice,setMemoryChoice]=useState<{scope:string;enabled:boolean}>({scope:"",enabled:false});
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousConsentKey=useRef<string|null>(null);
   const consentKey=provider&&provider!=="off"?`lingua:provider-consent:v1:${accountEmail.trim().toLowerCase()}:${provider}`:null;
   const localVoice=selectLocalVoice(localVoices,selectedVoiceURI);
+  const memoryKeys=provider&&provider!=="off"?conversationStorageKeys(accountEmail,provider):null;
+  const memoryScope=memoryKeys?.conversation??"";
   useEffect(()=>{
     if(typeof window.speechSynthesis==="undefined")return;
     const synth=window.speechSynthesis;
@@ -77,6 +83,33 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     setConsent(accepted);setTermsAccepted(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);
     setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
   },[provider,consentKey]);
+
+  // Local history is optional, account-scoped and never includes audio.
+  useEffect(()=>{
+    if(!memoryKeys)return;
+    const saved=loadChatMemory(window.localStorage,memoryKeys);
+    const restored:Message[]=[{id:0,role:"assistant",text:greeting(profile),source:"local"},...saved.messages];
+    sequence.current=Math.max(0,...saved.messages.map(x=>x.id));
+    setMessages(restored);setNeuralAudios({});
+    setMemoryChoice({scope:memoryScope,enabled:saved.enabled});
+  },[memoryScope]);
+  useEffect(()=>{
+    if(!memoryKeys||memoryChoice.scope!==memoryScope||!memoryChoice.enabled)return;
+    saveChatMemory(window.localStorage,memoryKeys,messages.filter(m=>m.id>0).map(({id,role,text,source})=>({id,role,text,source})));
+  },[messages,memoryChoice,memoryScope]);
+  function setMemoryEnabled(enabled:boolean){
+    if(!memoryKeys)return;
+    if(enabled){
+      if(!enableChatMemory(window.localStorage,memoryKeys)){setNotice("Este navegador não permite salvar o histórico local.");return;}
+      saveChatMemory(window.localStorage,memoryKeys,messages.filter(m=>m.id>0).map(({id,role,text,source})=>({id,role,text,source})));
+    }else clearChatMemory(window.localStorage,memoryKeys,true);
+    setMemoryChoice({scope:memoryScope,enabled});
+  }
+  function eraseConversation(){
+    if(memoryKeys)clearChatMemory(window.localStorage,memoryKeys);
+    setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
+    sequence.current=0;setNeuralAudios({});setPreviewVoiceAudio(null);setNotice("Histórico apagado neste dispositivo.");
+  }
 
   function stopCapture(send:boolean) {
     held.current=false;
@@ -186,6 +219,21 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       if(mounted.current)setNeuralAudios(old=>({...old,[message.id]:result.audioBase64}));
     }catch{
       if(mounted.current)setNotice("A voz neural está indisponível ou atingiu a cota. O texto permanece; a voz local é opcional nas configurações.");
+    }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+  }
+  async function previewNeuralVoice(){
+    if(inFlight.current)return;
+    if(!consent){setSettingsOpen(false);setPrivacyPrompt(true);return;}
+    if(!enabled||!capabilities.data?.neuralEnglish){setPreviewVoiceNotice("Voz neural não habilitada nesta conta.");return;}
+    inFlight.current=true;setBusy(true);setPreviewVoiceNotice("");setPreviewVoiceAudio(null);
+    try{
+      const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",
+        text:"Hello! I am your English tutor. Let us practice together."});
+      if(mounted.current)setPreviewVoiceAudio(result.audioBase64);
+    }catch(error){
+      if(mounted.current)setPreviewVoiceNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?
+        "Limite gratuito de voz atingido. Aguarde a renovação da cota.":
+        "Não foi possível gerar a prévia neural. A voz local continua disponível.");
     }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   async function playGeminiDemo(){
@@ -303,11 +351,18 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         <p className="text-sm font-semibold">Voz neural em inglês · Groq Orpheus</p>
         <p className="text-xs leading-5 text-ink-muted">Lê uma frase em inglês da resposta, até 200 caracteres. Pode consumir sua cota gratuita do Groq. Para explicações em português, continue usando texto.</p>
         <label className="block text-sm font-semibold">Voz neural
-          <select value={voiceSettings.neuralVoice??"troy"} onChange={e=>onVoiceSettingsChange({...voiceSettings,neuralVoice:e.target.value as NonNullable<TutorVoiceSettings["neuralVoice"]>})}
+          <select value={voiceSettings.neuralVoice??"troy"} onChange={e=>{setPreviewVoiceAudio(null);setPreviewVoiceNotice("");onVoiceSettingsChange({...voiceSettings,neuralVoice:e.target.value as NonNullable<TutorVoiceSettings["neuralVoice"]>});}}
             className="mt-2 w-full rounded-lg border border-ink/20 bg-white p-3 font-normal">
             {(["troy","daniel","austin","autumn","diana","hannah"] as const).map(id=><option key={id} value={id}>{id[0].toUpperCase()+id.slice(1)}</option>)}
           </select>
         </label>
+        <button type="button" disabled={busy||recording||permissionPending} onClick={()=>void previewNeuralVoice()}
+          className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+          {busy?"Gerando prévia…":"Testar esta voz neural"}
+        </button>
+        {!consent&&<p className="text-xs text-ink-muted">A prévia requer autorização para enviar a frase fictícia ao Groq.</p>}
+        {previewVoiceAudio&&<audio controls autoPlay preload="none" className="w-full" src={"data:audio/wav;base64,"+previewVoiceAudio}/>}
+        {previewVoiceNotice&&<p role="status" className="text-xs text-ink-muted">{previewVoiceNotice}</p>}
       </div>}
       <div className="space-y-3">
         <label className="block text-sm font-semibold">Voz local de contingência
@@ -328,6 +383,15 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         <button type="button" disabled={!localVoice} onClick={()=>browserSpeak("Hello! Vamos praticar inglês.",-1)} className="inline-flex items-center gap-2 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">
           <Volume2 size={16}/>{speakingId===-1?"Parar teste":"Testar voz"}
         </button>
+      </div>
+      <div className="border-t border-ink/10 pt-5 space-y-3">
+        <h3 className="font-semibold">Histórico da conversa</h3>
+        <label className="flex items-start gap-2 text-sm leading-5">
+          <input type="checkbox" checked={memoryChoice.scope===memoryScope&&memoryChoice.enabled} onChange={e=>setMemoryEnabled(e.target.checked)} className="mt-1"/>
+          Guardar mensagens de texto neste navegador por até 30 dias
+        </label>
+        <p className="text-xs leading-5 text-ink-muted">Opcional e por conta: recupera o chat após atualizar a página, somente neste navegador. Não salva gravações nem áudio neural, não sincroniza dispositivos e não é memória permanente do tutor. Evite dados sensíveis em dispositivos compartilhados.</p>
+        <button type="button" onClick={eraseConversation} className="text-sm font-semibold text-red-700 underline">Apagar conversa neste aparelho</button>
       </div>
       <div className="border-t border-ink/10 pt-5">
         <h3 className="font-semibold">Privacidade da conversa</h3>
@@ -375,6 +439,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       </div>
       <div className="shrink-0 space-y-2 border-t border-ink/10 bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
         {!enabled&&<p className="text-xs text-ink-muted">Conversa com IA temporariamente indisponível. Você pode continuar com sugestões locais.</p>}
+        {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
+        {memoryKeys&&memoryChoice.scope===memoryScope&&memoryChoice.enabled&&<p className="text-[10px] text-ink-muted">Histórico local ativado · até 30 dias · apagar nas configurações</p>}
         {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
         {transcriptReady&&<p className="text-xs font-semibold text-teal">Confira o texto reconhecido antes de enviar.</p>}
         <form onSubmit={send} className="flex items-end gap-2">
