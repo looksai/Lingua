@@ -56,8 +56,10 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       setVoicePreviewAudio(result.audioBase64);
     }catch(error){
       const code=(error as {data?:{code?:string}})?.data?.code;
+      const message=(error as {message?:unknown})?.message;
+      const diagnosed=typeof message==="string"&&message.startsWith("Groq recusou a voz neural (HTTP 400):")&&message.length<=180;
       setVoicePreviewNotice(code==="TOO_MANY_REQUESTS"?"O limite gratuito de voz foi atingido. Tente novamente após a renovação da cota.":
-        "Não foi possível gerar a prévia neural agora. A voz local continua disponível.");
+        diagnosed?message:"Erro ao gerar voz neural do Groq. O navegador não substituiu automaticamente pelo Orpheus.");
     }
   }
   useEffect(()=>{
