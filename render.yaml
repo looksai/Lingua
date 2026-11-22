@@ -25,3 +25,11 @@ services:
       # App-owned JWT signing key. Generate securely in Render; never commit.
       - key: SESSION_SECRET
         sync: false
+
+      # Optional, staging-only paid tutor. Set secrets only through Render.
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: LINGUA_TUTOR_ALLOWED_EMAILS
+        sync: false
+      - key: LINGUA_TUTOR_ENABLED
+        value: "false"
