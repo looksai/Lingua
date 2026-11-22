@@ -12,6 +12,7 @@ import { paidTutorAllowed, freeTutorAllowed, geminiDemoAllowed, tutorMode, withT
 import { geminiTestSpeech, GEMINI_TEST_PHRASES, GROQ_RATE_LIMIT_MESSAGE, isGroqRateLimitError } from "./tutor-free-provider";
 import { createSelectedTutor } from "./tutor-provider-selector";
 import { tutorFailureReply } from "./tutor-fallback";
+import { synthesizeEnglish, GROQ_ENGLISH_VOICES } from "./groq-tts";
 
 async function profileFor(userId:number): Promise<TutorProfile> {
   const db = await getDb();
@@ -41,7 +42,7 @@ async function optionalSpeech(text:string, requested:boolean):Promise<AudioResul
 export const tutorRouter = router({
   capabilities:protectedProcedure.query(({ctx})=>{
     const openai=paidTutorAllowed(ctx.user.email), groq=freeTutorAllowed(ctx.user.email);
-    return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),geminiDemo:geminiDemoAllowed(ctx.user.email)};
+    return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),neuralEnglish:groq,geminiDemo:geminiDemoAllowed(ctx.user.email)};
   }),
   welcomeAudio:protectedProcedure.input(z.object({consent,provider})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
@@ -66,6 +67,23 @@ export const tutorRouter = router({
       }catch(error){
         if(isGroqRateLimitError(error))throw new TRPCError({code:"TOO_MANY_REQUESTS",message:GROQ_RATE_LIMIT_MESSAGE});
         throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível transcrever. Tente novamente ou digite a mensagem."});
+      }
+    });
+  }),
+  neuralEnglish:protectedProcedure.input(z.object({
+    consent:z.literal(true),provider:z.literal("groq"),
+    text:z.string().trim().min(4).max(200),
+    voice:z.enum(GROQ_ENGLISH_VOICES),
+  })).mutation(async ({ctx,input})=>{
+    checkRequestOrigin(ctx.req);
+    if(!freeTutorAllowed(ctx.user.email)||tutorMode()!=="groq")
+      throw new TRPCError({code:"PRECONDITION_FAILED",message:"Voz neural de inglês indisponível."});
+    await profileFor(ctx.user.id);
+    return withTutorBudget(ctx.user.id,async()=>{
+      try{return await synthesizeEnglish(input.text,input.voice);}
+      catch(error){
+        if(isGroqRateLimitError(error))throw new TRPCError({code:"TOO_MANY_REQUESTS",message:GROQ_RATE_LIMIT_MESSAGE});
+        throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar a voz neural. Use a voz local ou continue por texto."});
       }
     });
   }),

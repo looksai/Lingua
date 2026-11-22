@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { MessageCircle, Mic, Minus, Send, Square, Volume2, Settings2, ChevronLeft } from "lucide-react";
 import {availableLocalVoices,selectLocalVoice,speechText} from "@/lib/tutor-speech";
+import {englishExcerpt} from "@/lib/english-example";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
   TUTOR_MAX_TEXT, tutorAudioTypes, type TutorAudioType, type TutorHistory, type TutorProfile } from "@shared/tutor";
@@ -11,7 +12,7 @@ type Message = TutorHistory & {
 type Capture = { recorder: MediaRecorder; stream: MediaStream; timer?: ReturnType<typeof setTimeout>; chunks: Blob[]; size:number; send:boolean };
 const MAX_MESSAGES = 24;
 
-export type TutorVoiceSettings={voiceURI:string;rate:number;pitch:number};
+export type TutorVoiceSettings={voiceURI:string;rate:number;pitch:number;neuralVoice?:"troy"|"daniel"|"austin"|"autumn"|"diana"|"hannah"};
 export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings}: {
   profile:TutorProfile;
   accountEmail:string;
@@ -50,6 +51,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const enabled = capabilities.data?.chat === true;
   const provider=capabilities.data?.provider;
   const gemini = trpc.tutor.geminiDemo.useMutation();
+  const neural = trpc.tutor.neuralEnglish.useMutation();
+  const [neuralAudios,setNeuralAudios]=useState<Record<number,string>>({});
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousConsentKey=useRef<string|null>(null);
@@ -172,6 +175,19 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     utterance.onerror=(e)=>{if(currentSpeech.current===utterance){currentSpeech.current=null;setSpeakingId(null);if(e.error!=="canceled"&&e.error!=="interrupted")setNotice("Não foi possível reproduzir a voz local. O texto continua disponível.");}};
     currentSpeech.current=utterance;setSpeakingId(id);setNotice("");synth.speak(utterance);
   }
+  async function playNeural(message:Message){
+    if(!consent||!enabled||!capabilities.data?.neuralEnglish)return;
+    const phrase=englishExcerpt(message.text);
+    if(!phrase){setNotice("Ainda não há uma frase em inglês identificável nesta resposta.");return;}
+    if(inFlight.current)return;
+    inFlight.current=true;setBusy(true);setNotice("");
+    try{
+      const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",text:phrase});
+      if(mounted.current)setNeuralAudios(old=>({...old,[message.id]:result.audioBase64}));
+    }catch{
+      if(mounted.current)setNotice("A voz neural está indisponível ou atingiu a cota. O texto permanece; a voz local é opcional nas configurações.");
+    }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+  }
   async function playGeminiDemo(){
     if(inFlight.current||!demoConsent||!capabilities.data?.geminiDemo)return;
     inFlight.current=true;setBusy(true);setNotice("");
@@ -244,7 +260,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function updateConsent(next:boolean){
     if(!next){if(consentKey)try{window.localStorage.removeItem(consentKey);}catch{/* no local storage */}
       stopSpeech();stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
-      setMessages(previous=>previous.map(m=>({...m,audioBase64:null}))); }
+      setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));setNeuralAudios({}); }
     setConsent(next);
   }
 
@@ -283,8 +299,18 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         <p className="mt-2 text-sm text-ink-muted">Escolha como as mensagens serão lidas neste dispositivo.</p>
       </div>
       <button type="button" onClick={()=>{stopSpeech();setSettingsOpen(false);setOpen(false);onOpenTutorSettings();}} className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Abrir Meu Tutor para escolher voz e personalidade</button>
+      {provider==="groq"&&<div className="space-y-3 border-b border-ink/10 pb-5">
+        <p className="text-sm font-semibold">Voz neural em inglês · Groq Orpheus</p>
+        <p className="text-xs leading-5 text-ink-muted">Lê uma frase em inglês da resposta, até 200 caracteres. Pode consumir sua cota gratuita do Groq. Para explicações em português, continue usando texto.</p>
+        <label className="block text-sm font-semibold">Voz neural
+          <select value={voiceSettings.neuralVoice??"troy"} onChange={e=>onVoiceSettingsChange({...voiceSettings,neuralVoice:e.target.value as NonNullable<TutorVoiceSettings["neuralVoice"]>})}
+            className="mt-2 w-full rounded-lg border border-ink/20 bg-white p-3 font-normal">
+            {(["troy","daniel","austin","autumn","diana","hannah"] as const).map(id=><option key={id} value={id}>{id[0].toUpperCase()+id.slice(1)}</option>)}
+          </select>
+        </label>
+      </div>}
       <div className="space-y-3">
-        <label className="block text-sm font-semibold">Voz disponível
+        <label className="block text-sm font-semibold">Voz local de contingência
           <select aria-label="Selecionar voz de leitura" value={localVoice?.voiceURI??""} disabled={availableLocalVoices(localVoices).length===0}
             onChange={e=>{stopSpeech();onVoiceSettingsChange({...voiceSettings,voiceURI:e.target.value});}}
             className="mt-2 w-full rounded-lg border border-ink/20 bg-white p-3 font-normal disabled:opacity-50">
@@ -328,10 +354,17 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
             {m.source==="local"&&<p className="mt-2 text-[11px] text-ink-muted">Resposta local · IA indisponível ou não autorizada</p>}
             {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
+            {m.role==="assistant"&&!m.audioBase64&&provider==="groq"&&consent&&capabilities.data?.neuralEnglish&&englishExcerpt(m.text)&&<div className="mt-2 space-y-2">
+              {neuralAudios[m.id]?<audio controls preload="none" className="w-full" src={"data:audio/wav;base64,"+neuralAudios[m.id]}/>:
+                <button type="button" disabled={busy||recording||permissionPending} onClick={()=>void playNeural(m)}
+                  className="inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40">
+                  <Volume2 size={14}/> Ouvir exemplo em inglês (voz neural)
+                </button>}
+            </div>}
             {m.role==="assistant"&&!m.audioBase64&&localVoice&&<button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,m.id)}
               className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40" aria-label={(speakingId===m.id?"Parar áudio de ":"Ouvir mensagem de ")+profile.tutorName}>
               {speakingId===m.id?<Square size={14}/>:<Volume2 size={14}/>}
-              {speakingId===m.id?"Parar":"Ouvir"}
+              {speakingId===m.id?"Parar":"Voz local (alternativa)"}
             </button>}
             {m.voiceStatus==="unavailable"&&<p className="mt-1 text-xs text-ink-muted">Áudio externo indisponível. Mensagem preservada.</p>}
             {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
