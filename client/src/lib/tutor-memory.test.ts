@@ -30,7 +30,7 @@ describe("Opt-in tutor text memory",()=>{
     saveChatMemory(store,keys,messages,100);
     const raw=store.getItem(keys.conversation)!;
     expect(raw).not.toContain("private");
-    expect(loadChatMemory(store,keys,100).messages).toHaveLength(23);
+    expect(loadChatMemory(store,keys,100).messages).toHaveLength(24);
   });
   it("expires history after 30 days and can revoke storage",()=>{
     const store=fakeStorage(),keys=conversationStorageKeys("a@b.com","groq");
