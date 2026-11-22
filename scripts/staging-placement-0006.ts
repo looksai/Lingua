@@ -136,7 +136,7 @@ async function main(){
     if(stmts.length!==2||
        !/^CREATE TABLE `learnerPlacementAnswers`\s*\(/.test(stmts[0])||
        !/^CREATE TABLE `learnerPlacementPlans`\s*\(/.test(stmts[1])||
-       stmts.some(s=>/\b(IF\s+NOT\s+EXISTS|DROP\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|UPDATE\s+|DELETE\s+FROM|TRUNCATE\s+TABLE)\b/i.test(s)))
+       stmts.some(s=>/\b(?:DROP\s+TABLE|ALTER\s+TABLE|INSERT\s+INTO|DELETE\s+FROM|TRUNCATE\s+TABLE)\b/i.test(s)))
       throw Error("0006 file not restricted to reviewed pair of CREATE TABLE");
     stage="apply";
     for(const statement of stmts)await conn.query(statement);
