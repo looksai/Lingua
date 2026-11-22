@@ -8,7 +8,8 @@ import { router, protectedProcedure } from "./_core/trpc";
 import { greeting, localReply, TUTOR_MAX_TEXT, TUTOR_MAX_HISTORY, TUTOR_MAX_AUDIO_BYTES,
   tutorAudioTypes, type TutorProfile } from "../shared/tutor";
 import { createOpenAITutor, speechConfigured } from "./tutor-provider";
-import { paidTutorAllowed, withTutorBudget } from "./tutor-budget";
+import { paidTutorAllowed, freeTutorAllowed, geminiDemoAllowed, tutorMode, withTutorBudget } from "./tutor-budget";
+import { createGroqTutor, geminiTestSpeech, GEMINI_TEST_PHRASES } from "./tutor-free-provider";
 
 async function profileFor(userId:number): Promise<TutorProfile> {
   const db = await getDb();
@@ -22,6 +23,7 @@ const history = z.array(z.object({
   text:z.string().trim().min(1).max(TUTOR_MAX_TEXT),
 })).max(TUTOR_MAX_HISTORY);
 const consent = z.boolean();
+const provider = z.enum(["groq","openai","off"]).optional();
 const audioSchema = z.object({
   mime:z.enum(tutorAudioTypes),
   base64:z.string().min(4).max(Math.ceil(TUTOR_MAX_AUDIO_BYTES/3)*4).regex(/^[A-Za-z0-9+/]+={0,2}$/),
@@ -36,20 +38,20 @@ async function optionalSpeech(text:string, requested:boolean):Promise<AudioResul
 }
 export const tutorRouter = router({
   capabilities:protectedProcedure.query(({ctx})=>{
-    const allowed=paidTutorAllowed(ctx.user.email);
-    return {chat:allowed,asr:allowed,tts:allowed&&speechConfigured()};
+    const openai=paidTutorAllowed(ctx.user.email), groq=freeTutorAllowed(ctx.user.email);
+    return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),geminiDemo:geminiDemoAllowed(ctx.user.email)};
   }),
-  welcomeAudio:protectedProcedure.input(z.object({consent})).mutation(async ({ctx,input})=>{
+  welcomeAudio:protectedProcedure.input(z.object({consent,provider})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
-    if (!input.consent || !paidTutorAllowed(ctx.user.email) || !speechConfigured())
+    if (input.provider!=="openai" || !input.consent || !paidTutorAllowed(ctx.user.email) || !speechConfigured())
       return {audioBase64:null,voiceStatus:"unavailable" as const,text:null};
     const profile=await profileFor(ctx.user.id);
     const text=greeting(profile);
     return withTutorBudget(ctx.user.id,async()=>({text,...await optionalSpeech(text,true)}));
   }),
-  transcribe:protectedProcedure.input(z.object({consent,audio:audioSchema})).mutation(async ({ctx,input})=>{
+  transcribe:protectedProcedure.input(z.object({consent,provider,audio:audioSchema})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
-    if(!input.consent||!paidTutorAllowed(ctx.user.email))
+    if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
       throw new TRPCError({code:"PRECONDITION_FAILED",message:"Transcrição indisponível. Autorize a IA e use uma conta de teste habilitada."});
     await profileFor(ctx.user.id);
     const bytes=Buffer.from(input.audio.base64,"base64");
@@ -57,22 +59,30 @@ export const tutorRouter = router({
       throw new TRPCError({code:"BAD_REQUEST",message:"Gravação inválida ou grande demais."});
     return withTutorBudget(ctx.user.id,async()=>{
       try{
-        return {text:await createOpenAITutor().transcribe(bytes,input.audio.mime)};
+        const adapter=input.provider==="groq"?createGroqTutor():createOpenAITutor();
+        return {text:await adapter.transcribe(bytes,input.audio.mime)};
       }catch{
         throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível transcrever. Tente novamente ou digite a mensagem."});
       }
     });
   }),
-  reply:protectedProcedure.input(z.object({consent,voice:z.boolean(),message:z.string().trim().min(1).max(TUTOR_MAX_TEXT),history})).mutation(async ({ctx,input})=>{
+  geminiDemo:protectedProcedure.input(z.object({consent:z.literal(true),phraseIndex:z.number().int().min(0).max(GEMINI_TEST_PHRASES.length-1)})).mutation(async ({ctx,input})=>{
+    checkRequestOrigin(ctx.req);
+    if(!geminiDemoAllowed(ctx.user.email))throw new TRPCError({code:"PRECONDITION_FAILED",message:"Demonstração de voz indisponível."});
+    return withTutorBudget(ctx.user.id,async()=>{
+      try{return await geminiTestSpeech(input.phraseIndex);}catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar o áudio de teste."});}
+    });
+  }),
+  reply:protectedProcedure.input(z.object({consent,provider,voice:z.boolean(),message:z.string().trim().min(1).max(TUTOR_MAX_TEXT),history})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
     const p=await profileFor(ctx.user.id);
-    if(!input.consent||!paidTutorAllowed(ctx.user.email))
+    if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
       return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const};
     return withTutorBudget(ctx.user.id,async()=>{
       let text:string;
-      try { text=await createOpenAITutor().reply(p,input.history,input.message); }
+      try { const adapter=input.provider==="groq"?createGroqTutor():createOpenAITutor(); text=await adapter.reply(p,input.history,input.message); }
       catch { return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const}; }
-      return {text,source:"ai" as const,...await optionalSpeech(text,input.voice)};
+      return {text,source:"ai" as const,...await optionalSpeech(text,input.provider==="openai"&&input.voice)};
     });
   }),
 });
