@@ -42,7 +42,7 @@ describe("No-credit staging provider",()=>{
   it("does not retry or switch to a paid vendor on quota exhaustion",async()=>{
     const req=vi.fn<typeof fetch>().mockResolvedValue(new Response("private error",{status:429}));
     const p=createGroqTutor(env,req);
-    await expect(p.reply({tutorName:"Tutor",tutorPersona:"neutral",interest:"work"},[],"test")).rejects.toThrow("provider rejected request");
+    await expect(p.reply({tutorName:"Tutor",tutorPersona:"neutral",interest:"work"},[],"test")).rejects.toThrow(GroqRateLimitError);
     expect(req).toHaveBeenCalledTimes(1);
   });
   it("free mode never selects or calls OpenAI even when an OpenAI key exists",async()=>{
