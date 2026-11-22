@@ -180,7 +180,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
           {m.source==="local"&&<p className="mt-2 text-[10px] text-ink-muted">Mensagem guiada local</p>}
           {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
           {m.voiceStatus==="unavailable"&&<p className="mt-2 text-xs text-ink-muted">Voz indisponível · texto preservado</p>}
-          {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Ouvir boas-vindas</button>}
+          {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
         </div>
       </div>)}
       {busy&&<p className="text-xs text-ink-muted">Processando…</p>}
@@ -193,7 +193,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
         <span>Autorizo enviar o texto, histórico recente, perfil pedagógico e gravações que eu decidir enviar à OpenAI nesta sessão.</span>
       </label>
       <label className="flex items-center gap-2 text-xs">
-        <input type="checkbox" disabled={!consent||!capabilities.data?.tts||busy||recording||permissionPending} checked={voice} onChange={e=>setVoice(e.target.checked)}/>
+        <input type="checkbox" disabled={!consent||!capabilities.data?.tts||busy||recording||permissionPending} checked={voice} onChange={e=>{const next=e.target.checked;setVoice(next);if(next&&messages.some(m=>m.id===0&&!m.audioBase64))void speakWelcome();}}/>
         Receber respostas em voz artificial
       </label>
       {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
