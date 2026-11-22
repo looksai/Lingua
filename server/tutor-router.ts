@@ -12,7 +12,8 @@ import { paidTutorAllowed, freeTutorAllowed, geminiDemoAllowed, tutorMode, withT
 import { geminiTestSpeech, GEMINI_TEST_PHRASES, GROQ_RATE_LIMIT_MESSAGE, isGroqRateLimitError } from "./tutor-free-provider";
 import { createSelectedTutor } from "./tutor-provider-selector";
 import { tutorFailureReply } from "./tutor-fallback";
-import { synthesizeEnglish, GROQ_ENGLISH_VOICES } from "./groq-tts";
+import { GROQ_ENGLISH_VOICES } from "./groq-tts";
+import { createVoiceProvider } from "./voice-provider";
 
 async function profileFor(userId:number): Promise<TutorProfile> {
   const db = await getDb();
@@ -80,7 +81,7 @@ export const tutorRouter = router({
       throw new TRPCError({code:"PRECONDITION_FAILED",message:"Voz neural de inglês indisponível."});
     await profileFor(ctx.user.id);
     return withTutorBudget(ctx.user.id,async()=>{
-      try{return await synthesizeEnglish(input.text,input.voice);}
+      try{return await createVoiceProvider("groq").synthesize({text:input.text,voice:input.voice,language:"en-US",format:"wav"});}
       catch(error){
         if(isGroqRateLimitError(error))throw new TRPCError({code:"TOO_MANY_REQUESTS",message:GROQ_RATE_LIMIT_MESSAGE});
         throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar a voz neural. Use a voz local ou continue por texto."});
