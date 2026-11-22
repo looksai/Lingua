@@ -1,0 +1,36 @@
+name: Lingua Aiven placement 0006 (trusted ops branch, guarded)
+on:
+  push:
+    branches:
+      - ops/aiven-0006-placement
+permissions:
+  contents: read
+concurrency:
+  group: lingua-aiven-staging
+  cancel-in-progress: false
+jobs:
+  verify-or-apply-0006:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check types
+        run: pnpm check
+      - name: Inspect or apply 0006 in exact Aiven staging only
+        env:
+          LINGUA_STAGING_CONFIRMATION: APLICAR_0006_PLACEMENT_SOMENTE_LINGUA
+          LINGUA_STAGING_DATABASE_URL: ${{ secrets.LINGUA_STAGING_DATABASE_URL }}
+          LINGUA_STAGING_CA_BASE64: ${{ secrets.LINGUA_STAGING_CA_BASE64 }}
+        run: pnpm exec tsx scripts/staging-placement-0006.ts
