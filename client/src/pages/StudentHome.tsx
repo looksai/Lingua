@@ -11,13 +11,15 @@ import { supportedFirstAccessLanguages, tutorPersonaLabels, interestLabels, type
 
 type Snapshot = inferRouterOutputs<AppRouter>["onboarding"]["me"];
 type View = "dashboard" | "read" | "review" | "settings";
-const DEFAULT_VOICE:TutorVoiceSettings={voiceURI:"",rate:0.95,pitch:1};
+const NEURAL_VOICES = ["troy","daniel","austin","autumn","diana","hannah"] as const;
+const DEFAULT_VOICE:TutorVoiceSettings={voiceURI:"",rate:0.95,pitch:1,neuralVoice:"troy"};
 function loadVoiceSettings():TutorVoiceSettings {
   if(typeof window==="undefined")return DEFAULT_VOICE;
   try {
     const stored=JSON.parse(window.localStorage.getItem("lingua:tutor-voice:v1")??"null") as Partial<TutorVoiceSettings>|null;
     if(stored&&typeof stored.voiceURI==="string" && typeof stored.rate==="number" && stored.rate>=0.75&&stored.rate<=1.15 && typeof stored.pitch==="number"&&stored.pitch>=0.8&&stored.pitch<=1.2)
-      return {voiceURI:stored.voiceURI,rate:stored.rate,pitch:stored.pitch};
+      return {voiceURI:stored.voiceURI,rate:stored.rate,pitch:stored.pitch,
+        neuralVoice:NEURAL_VOICES.find(v=>v===stored.neuralVoice)??"troy"};
   }catch{/* Browser storage unavailable. */}
   return DEFAULT_VOICE;
 }
@@ -33,6 +35,31 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   const [voiceSettings,setVoiceSettings]=useState<TutorVoiceSettings>(loadVoiceSettings);
   const [voices,setVoices]=useState<SpeechSynthesisVoice[]>([]);
   const selectedVoice=selectLocalVoice(voices,voiceSettings.voiceURI);
+  const speechCapabilities=trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
+  const neuralPreview=trpc.tutor.neuralEnglish.useMutation();
+  const [voicePreviewAudio,setVoicePreviewAudio]=useState<string|null>(null);
+  const [voicePreviewNotice,setVoicePreviewNotice]=useState("");
+  async function previewNeuralVoice(){
+    setVoicePreviewAudio(null);setVoicePreviewNotice("");
+    if(speechCapabilities.data?.provider!=="groq"||!speechCapabilities.data.neuralEnglish){
+      setVoicePreviewNotice("A voz neural não está habilitada nesta conta de testes.");return;
+    }
+    const key=`lingua:provider-consent:v1:${email.trim().toLowerCase()}:groq`;
+    let accepted=false;
+    try{const raw=JSON.parse(window.localStorage.getItem(key)??"null") as {accepted?:boolean;version?:number}|null;
+      accepted=raw?.accepted===true&&raw.version===1;}catch{/* prompt required */}
+    if(!accepted){setVoicePreviewNotice("Antes de testar, abra a conversa com o tutor e autorize o envio ao Groq.");return;}
+    const chosen=voiceSettings.neuralVoice??"troy";
+    try{
+      const result=await neuralPreview.mutateAsync({consent:true,provider:"groq",voice:chosen,
+        text:"Hello! I am your English tutor. Let us practice together."});
+      setVoicePreviewAudio(result.audioBase64);
+    }catch(error){
+      const code=(error as {data?:{code?:string}})?.data?.code;
+      setVoicePreviewNotice(code==="TOO_MANY_REQUESTS"?"O limite gratuito de voz foi atingido. Tente novamente após a renovação da cota.":
+        "Não foi possível gerar a prévia neural agora. A voz local continua disponível.");
+    }
+  }
   useEffect(()=>{
     try{window.localStorage.setItem("lingua:tutor-voice:v1",JSON.stringify(voiceSettings));}catch{/* Local playback still works in this session. */}
   },[voiceSettings]);
@@ -152,11 +179,17 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
               <p className="mt-1 text-xs leading-5 text-ink-muted">O Orpheus fala frases curtas em inglês. O áudio é gerado quando você solicita e usa a cota da sua conta Groq; não é a voz das explicações em português.</p>
               <label className="mt-3 block text-sm font-semibold">Escolher voz neural
                 <select value={voiceSettings.neuralVoice??"troy"}
-                  onChange={e=>setVoiceSettings(p=>({...p,neuralVoice:e.target.value as NonNullable<TutorVoiceSettings["neuralVoice"]>}))}
+                  onChange={e=>{setVoicePreviewAudio(null);setVoicePreviewNotice("");setVoiceSettings(p=>({...p,neuralVoice:e.target.value as NonNullable<TutorVoiceSettings["neuralVoice"]>}));}}
                   className="mt-2 w-full rounded-lg border border-ink/20 bg-white p-3 font-normal">
                   {(["troy","daniel","austin","autumn","diana","hannah"] as const).map(id=><option key={id} value={id}>{id[0].toUpperCase()+id.slice(1)}</option>)}
                 </select>
               </label>
+              <button type="button" disabled={neuralPreview.isPending} onClick={()=>void previewNeuralVoice()}
+                className="mt-3 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                {neuralPreview.isPending?"Gerando prévia…":"Testar esta voz neural"}
+              </button>
+              {voicePreviewAudio&&<audio controls autoPlay preload="none" className="mt-3 w-full" src={"data:audio/wav;base64,"+voicePreviewAudio}/>}
+              {voicePreviewNotice&&<p role="status" className="mt-2 text-xs text-ink-muted">{voicePreviewNotice}</p>}
             </div>
             <p className="text-sm leading-6 text-ink-muted">Escolha uma voz de leitura instalada no seu dispositivo. Os nomes e sotaques disponíveis variam por navegador e sistema operacional.</p>
             <label className="block text-sm font-semibold">Voz e sotaque
