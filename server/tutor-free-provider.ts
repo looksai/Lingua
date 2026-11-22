@@ -1,6 +1,9 @@
 import { TUTOR_MAX_AUDIO_BYTES,TUTOR_MAX_TEXT,systemInstructions,type TutorAudioType,type TutorHistory,type TutorProfile } from "../shared/tutor";
 
 const GROQ="https://api.groq.com/openai/v1/";
+export const GROQ_RATE_LIMIT_MESSAGE="O tutor está descansando. Tente novamente em alguns minutos.";
+export class GroqRateLimitError extends Error {constructor(){super("Groq rate limit");this.name="GroqRateLimitError";}}
+export function isGroqRateLimitError(error:unknown):error is GroqRateLimitError{return error instanceof GroqRateLimitError;}
 const GOOGLE="https://generativelanguage.googleapis.com/v1beta/interactions";
 export const GEMINI_TEST_PHRASES = [
   "Hello! Let's practice English together.",
@@ -17,6 +20,7 @@ async function requestJson(url:string,headers:Record<string,string>,body:BodyIni
     if(!res.ok){
       await res.body?.cancel();
       console.warn("[tutor-free] provider="+provider+" status="+res.status);
+      if(provider.startsWith("groq-")&&res.status===429)throw new GroqRateLimitError();
       throw Error("provider rejected request");
     }
     const reader=res.body?.getReader();
