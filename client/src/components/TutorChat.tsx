@@ -90,7 +90,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     try{
       const res=await welcome.mutateAsync({consent:true});
       if(!mounted.current)return;
-      setMessages(previous=>previous.map(m=>m.id===0?{...m,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus}:m));
+      setMessages(previous=>previous.map(m=>m.id===0?{...m,text:res.text??m.text,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus}:m));
       if(!res.audioBase64)setNotice("Voz indisponível; a mensagem de boas-vindas continua em texto.");
     }catch{if(mounted.current)setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
     finally{inFlight.current=false;if(mounted.current)setBusy(false);}
