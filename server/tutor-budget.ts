@@ -8,11 +8,23 @@ let total = 0;
 const perUser = new Map<number, number>();
 const active = new Set<number>();
 
-export function paidTutorAllowed(email: string | null | undefined, env = process.env) {
-  const allowed = (env.LINGUA_TUTOR_ALLOWED_EMAILS ?? "").split(",")
-    .map(x => x.trim().toLowerCase()).filter(Boolean);
-  return Boolean(env.OPENAI_API_KEY && env.LINGUA_TUTOR_ENABLED === "true" &&
-    email && allowed.includes(email.trim().toLowerCase()));
+export function tutorMode(env=process.env):"groq"|"openai"|"off" {
+  if(env.LINGUA_TUTOR_PROVIDER==="groq-gemini")return "groq";
+  if(env.LINGUA_TUTOR_PROVIDER==="openai")return "openai";
+  return "off";
+}
+function testerAllowed(email:string|null|undefined,env:NodeJS.ProcessEnv){
+  const allowed=(env.LINGUA_TUTOR_ALLOWED_EMAILS??"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean);
+  return Boolean(env.LINGUA_TUTOR_ENABLED==="true"&&email&&allowed.includes(email.trim().toLowerCase()));
+}
+export function paidTutorAllowed(email:string|null|undefined,env=process.env){
+  return tutorMode(env)==="openai"&&Boolean(env.OPENAI_API_KEY)&&testerAllowed(email,env);
+}
+export function freeTutorAllowed(email:string|null|undefined,env=process.env){
+  return tutorMode(env)==="groq"&&Boolean(env.GROQ_API_KEY)&&testerAllowed(email,env);
+}
+export function geminiDemoAllowed(email:string|null|undefined,env=process.env){
+  return tutorMode(env)==="groq"&&Boolean(env.GEMINI_API_KEY)&&testerAllowed(email,env);
 }
 export async function withTutorBudget<T>(userId: number, operation: () => Promise<T>, now = Date.now()): Promise<T> {
   const today = Math.floor(now / DAY);
