@@ -171,3 +171,26 @@ export const introductoryResponses = mysqlTable("introductoryResponses", {
 
 export type LearnerProfile = typeof learnerProfiles.$inferSelect;
 export type IntroductoryResponse = typeof introductoryResponses.$inferSelect;
+
+
+/**
+ * P1 staging: optional preliminary writing observations and noncertifying plan.
+ * Explicitly NOT the official competency evidence store or SRS state.
+ * Requires reviewed 0006 migration BEFORE deploying this branch.
+ */
+export const learnerPlacementAnswers=mysqlTable("learnerPlacementAnswers",{
+  id:int("id").autoincrement().primaryKey(),
+  userId:int("userId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  taskId:varchar("taskId",{length:40}).notNull(),
+  answer:text("answer").notNull(),
+  modality:mysqlEnum("modality",["text","asr_text"]).notNull().default("text"),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+},table=>({userTaskUnique:unique("learnerPlacementAnswers_user_task_unique").on(table.userId,table.taskId)}));
+export const learnerPlacementPlans=mysqlTable("learnerPlacementPlans",{
+  userId:int("userId").primaryKey().references(()=>users.id,{onDelete:"cascade"}),
+  planJson:text("planJson").notNull(),
+  source:mysqlEnum("source",["groq_suggestion","rule_based"]).notNull(),
+  version:int("version").notNull().default(1),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+  updatedAt:timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
+});

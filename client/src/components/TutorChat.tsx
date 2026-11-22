@@ -14,12 +14,14 @@ type Capture = { recorder: MediaRecorder; stream: MediaStream; timer?: ReturnTyp
 const MAX_MESSAGES = 24;
 
 export type TutorVoiceSettings={voiceURI:string;rate:number;pitch:number;neuralVoice?:"troy"|"daniel"|"austin"|"autumn"|"diana"|"hannah"};
-export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings}: {
+export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings,placementRequested,onPlacementCompleted}: {
   profile:TutorProfile;
   accountEmail:string;
   voiceSettings:TutorVoiceSettings;
   onVoiceSettingsChange:(prefs:TutorVoiceSettings)=>void;
   onOpenTutorSettings:()=>void;
+  placementRequested:boolean;
+  onPlacementCompleted:()=>void;
 }) {
   const [open,setOpen] = useState(true);
   const [messages,setMessages] = useState<Message[]>(()=>[{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
@@ -49,6 +51,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const reply = trpc.tutor.reply.useMutation();
   const transcribe = trpc.tutor.transcribe.useMutation();
   const welcome = trpc.tutor.welcomeAudio.useMutation();
+  const placement=trpc.placement.me.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
+  const placementSubmit=trpc.placement.submit.useMutation();
+  const placementGenerate=trpc.placement.generate.useMutation();
+  const [placementActive,setPlacementActive]=useState(false);
   const enabled = capabilities.data?.chat === true;
   const provider=capabilities.data?.provider;
   const gemini = trpc.tutor.geminiDemo.useMutation();
@@ -145,17 +151,54 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     setMessages(previous=>[...previous,entry].slice(-MAX_MESSAGES).map((m,i,all)=>
       i<all.length-8 ? {...m,audioBase64:null} : m));
   }
+  function beginPlacement(){
+    if(placementActive||!placement.data?.nextTask||busy)return;
+    setOpen(true);setSettingsOpen(false);setPlacementActive(true);
+    setNotice("A sondagem inicial é opcional. Não produz nível CEFR; escuta, leitura e fala exigem outras tarefas.");
+    append({role:"assistant",text:placement.data.nextTask.prompt});
+  }
+  useEffect(()=>{
+    if(placementRequested&&placement.data&&!placementActive&&placement.data.nextTask){
+      beginPlacement();
+    }
+  },[placementRequested,placement.data,placementActive]);
+  async function buildPlan(){
+    if(!consent){setTermsAccepted(false);setPrivacyPrompt(true);return;}
+    if(!placementActive||placement.data?.nextTask||busy)return;
+    inFlight.current=true;setBusy(true);setNotice("");
+    try{
+      const res=await placementGenerate.mutateAsync({consent:true});
+      if(!mounted.current)return;
+      await placement.refetch();
+      append({role:"assistant",text:"Seu plano de quatro semanas foi salvo como sugestão provisória, sem classificação CEFR. Acesse Meu início para conferir as atividades e as habilidades ainda não avaliadas."});
+      if(res.source==="rule_based")setNotice("A IA não conseguiu gerar sugestões. Foi salvo um plano básico transparente, que pode ser revisto.");
+      setPlacementActive(false);onPlacementCompleted();
+    }catch{if(mounted.current)setNotice("Não foi possível gerar ou salvar o plano agora. Suas três respostas continuam registradas.");}
+    finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+  }
   async function submitMessage(authorized:boolean){
     const text=draft.trim();
     if(!text||inFlight.current||capture.current||held.current)return;
+    if(placementActive&&text.length>800){setNotice("Nesta sondagem, use até 800 caracteres por resposta.");return;}
+    const isPlacement=placementActive&&Boolean(placement.data?.nextTask);
+    const viaASR=transcriptReady;
     inFlight.current=true;setBusy(true);setNotice("");setTranscriptReady(false);
     setDraft("");
     const history=messages.slice(-TUTOR_MAX_HISTORY).map(({role,text})=>({role,text}));
     append({role:"user",text});
     try{
-      const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice});
-      if(!mounted.current)return;
-      append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
+      if(isPlacement&&placement.data?.nextTask){
+        await placementSubmit.mutateAsync({consent:true,taskId:placement.data.nextTask.id,
+          answer:text,modality:viaASR?"asr_text":"text"});
+        if(!mounted.current)return;
+        const next=await placement.refetch();
+        if(next.data?.nextTask)append({role:"assistant",text:next.data.nextTask.prompt});
+        else append({role:"assistant",text:"Obrigado! Agora temos três amostras de texto. Elas não bastam para atribuir um nível, mas podemos criar um plano inicial de quatro semanas. Clique em Gerar plano provisório."});
+      }else{
+        const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice});
+        if(!mounted.current)return;
+        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
+      }
     }catch{
       if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);}
     }finally{
@@ -438,6 +481,13 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         <div ref={scrollAnchor}/>
       </div>
       <div className="shrink-0 space-y-2 border-t border-ink/10 bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        {!placementActive&&placement.data?.nextTask&&<button type="button" disabled={busy||recording} onClick={beginPlacement}
+          className="rounded-full border border-teal px-4 py-2 text-xs font-semibold text-teal">Quero descobrir por onde começar · 3 perguntas</button>}
+        {placementActive&&<div className="flex flex-wrap items-center gap-3 text-xs">
+          <span className="font-semibold">Sondagem de escrita · {placement.data?.answers.length??0}/3</span>
+          {placement.data&&!placement.data.nextTask&&<button type="button" disabled={busy} onClick={()=>void buildPlan()} className="rounded-full bg-ink px-3 py-2 font-semibold text-white">Gerar plano provisório</button>}
+          <button type="button" onClick={()=>{setPlacementActive(false);setNotice("Sondagem pausada. Suas respostas já enviadas foram salvas.");}} className="text-ink-muted underline">Sair da sondagem</button>
+        </div>}
         {!enabled&&<p className="text-xs text-ink-muted">Conversa com IA temporariamente indisponível. Você pode continuar com sugestões locais.</p>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&memoryChoice.enabled&&<p className="text-[10px] text-ink-muted">Histórico local ativado · até 30 dias · apagar nas configurações</p>}
