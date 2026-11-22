@@ -234,54 +234,112 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
   </button>;
 
   return <aside aria-label={"Chat com "+profile.tutorName}
-    className="fixed bottom-3 right-3 z-40 flex h-[min(640px,calc(100dvh-24px))] max-h-[85vh] w-[calc(100%-24px)] flex-col overflow-hidden rounded-2xl border border-ink/15 bg-white text-ink shadow-2xl sm:bottom-5 sm:right-5 sm:w-[420px]">
+    className="fixed inset-0 z-40 flex h-[100dvh] w-screen flex-col overflow-hidden bg-white text-ink shadow-2xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100dvh-40px))] sm:w-[min(620px,calc(100vw-40px))] sm:rounded-2xl sm:border sm:border-ink/15">
     <header className="flex shrink-0 items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
-      <div className="min-w-0"><p className="truncate font-semibold">{profile.tutorName}</p><p className="text-xs text-white/75">Seu tutor de inglês · IA</p></div>
-      <button type="button" onClick={minimize} aria-label="Minimizar tutor" className="rounded p-2 hover:bg-white/10"><Minus size={20}/></button>
-    </header>
-    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4" role="log" aria-live="polite">
-      {messages.map(m=><div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
-        <div className={m.role==="user"?"max-w-[88%] rounded-2xl bg-ink px-4 py-3 text-sm text-white":"max-w-[95%] rounded-2xl bg-paper px-4 py-3 text-sm"}>
-          <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
-          {m.source==="local"&&<p className="mt-2 text-[10px] text-ink-muted">Mensagem guiada local</p>}
-          {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
-          {m.role==="assistant"&&!m.audioBase64&&<div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold text-teal"><button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,"pt-BR")}>Ouvir local PT</button><button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,"en-US")}>Ouvir local EN</button></div>}
-          {m.voiceStatus==="unavailable"&&<p className="mt-2 text-xs text-ink-muted">Voz indisponível · texto preservado</p>}
-          {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
-        </div>
-      </div>)}
-      {busy&&<p className="text-xs text-ink-muted">Processando…</p>}
-      <div ref={scrollAnchor}/>
-    </div>
-    <div className="shrink-0 space-y-2 border-t border-ink/10 p-3">
-      {!enabled&&<p className="text-xs text-ink-muted">IA externa indisponível nesta conta. Você pode continuar com sugestões locais.</p>}
-      <label className="flex items-start gap-2 text-xs leading-4">
-        <input type="checkbox" disabled={busy||recording||permissionPending} checked={consent} onChange={e=>updateConsent(e.target.checked)}/>
-        <span>Autorizo enviar o texto, histórico recente, perfil pedagógico e gravações que eu decidir enviar {provider==="groq"?"ao Groq":provider==="openai"?"à OpenAI":"ao provedor indicado (ainda indisponível)"} nesta sessão. Não inclua dados sensíveis.</span>
-      </label>
-      {provider==="openai"&&<label className="flex items-center gap-2 text-xs">
-        <input type="checkbox" disabled={!consent||!capabilities.data?.tts||busy||recording||permissionPending} checked={voice} onChange={e=>{const next=e.target.checked;setVoice(next);if(next&&messages.some(m=>m.id===0&&!m.audioBase64))void speakWelcome();}}/>
-        Receber respostas em voz artificial
-      </label>}
-      {provider==="groq"&&capabilities.data?.geminiDemo&&<details className="text-xs"><summary className="cursor-pointer font-semibold text-teal">Testar voz Gemini (frase fictícia)</summary><p className="mt-2 leading-4">Somente teste adulto de homologação. O Google pode usar o conteúdo gratuito para melhorar produtos. Nenhuma conversa, perfil ou gravação será enviada ao Gemini.</p><label className="mt-2 flex gap-2"><input type="checkbox" checked={demoConsent} disabled={busy} onChange={e=>{setDemoConsent(e.target.checked);if(!e.target.checked)setDemo(null);}}/>Autorizo enviar a frase fixa de teste ao Google.</label><button type="button" disabled={!demoConsent||busy||recording||permissionPending} onClick={()=>void playGeminiDemo()} className="mt-2 text-teal underline disabled:opacity-40">Gerar áudio de teste</button>{demo&&<div className="mt-2"><p>{demo.text}</p><audio controls preload="none" className="w-full" src={"data:"+demo.audioMime+";base64,"+demo.audioBase64}/></div>}</details>}
-      {provider==="groq"&&<p className="text-[10px] text-ink-muted">A voz local depende das vozes instaladas no dispositivo. PT/EN escolhe o idioma de leitura, não uma avaliação de pronúncia.</p>}
-      {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
-      {transcriptReady&&<p className="text-xs font-semibold text-teal">Transcrição para conferir antes de enviar.</p>}
-      <form onSubmit={send} className="flex items-end gap-2">
-        <textarea aria-label="Sua mensagem" rows={2} maxLength={TUTOR_MAX_TEXT} value={draft}
-          onChange={e=>setDraft(e.target.value)} disabled={busy||recording||permissionPending}
-          placeholder="Pergunte ou pratique em inglês..." className="min-w-0 flex-1 resize-none rounded-xl border border-ink/20 p-2 text-sm"/>
-        <button type="button" aria-label={recording?"Soltar para transcrever":"Segure para falar; teclado: ativar e parar"}
-          disabled={!consent||!capabilities.data?.asr||busy}
-          onPointerDown={pointerStart} onPointerUp={()=>stopCapture(true)} onPointerCancel={()=>stopCapture(false)}
-          onLostPointerCapture={()=>{if(held.current)stopCapture(false);}}
-          onClick={e=>{if(e.detail===0){if(held.current)stopCapture(true);else void startCapture();}}}
-          className={"touch-none rounded-full p-3 text-white disabled:opacity-35 "+(recording?"bg-red-700":"bg-ink")}>
-          {recording?<Square size={19}/>:<Mic size={19}/>}
+      <div className="min-w-0"><p className="truncate font-semibold">{profile.tutorName}</p><p className="text-xs text-white/75">Converse e pratique inglês</p></div>
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={()=>{stopSpeech();setPrivacyPrompt(false);setSettingsOpen(p=>!p);}}
+          aria-label={settingsOpen?"Voltar à conversa":"Configurações de conversa e voz"}
+          title="Configurações" className="rounded-lg p-2 hover:bg-white/10">
+          {settingsOpen?<ChevronLeft size={20}/>:<Settings2 size={20}/>}
         </button>
-        <button type="submit" disabled={busy||recording||permissionPending||!draft.trim()} aria-label="Enviar mensagem" className="rounded-full bg-ink p-3 text-white disabled:opacity-35"><Send size={18}/></button>
-      </form>
-      <p className="text-[10px] text-ink-muted">{recording?"Gravando · solte para transcrever (máx. 20 s)":permissionPending?"Aguardando permissão do microfone":"Segure o microfone para falar. Histórico apenas nesta sessão de tela."}</p>
-    </div>
+        <button type="button" onClick={minimize} aria-label="Minimizar tutor" className="rounded-lg p-2 hover:bg-white/10"><Minus size={20}/></button>
+      </div>
+    </header>
+    {privacyPrompt ? <section role="dialog" aria-label="Autorização da conversa" className="flex min-h-0 flex-1 flex-col justify-center gap-5 overflow-y-auto p-6">
+      <div>
+        <h2 className="font-display text-2xl">Pronto para conversar?</h2>
+        <p className="mt-3 text-sm leading-6">Para responder, {provider==="groq"?"o Groq":provider==="openai"?"a OpenAI":"um serviço externo"} processará sua mensagem, seu perfil de estudo, o histórico recente e as gravações que você decidir enviar. Não inclua informações sensíveis.</p>
+        <p className="mt-3 text-xs leading-5 text-ink-muted">A autorização vale apenas nesta sessão. Você pode desativá-la em Configurações. Nada será enviado a esse serviço antes da sua confirmação.</p>
+      </div>
+      <div className="flex flex-wrap gap-3">
+        <button type="button" autoFocus onClick={acceptPrivacy} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">{draft.trim()?"Autorizar e enviar":"Autorizar conversa"}</button>
+        <button type="button" onClick={()=>setPrivacyPrompt(false)} className="rounded-full border border-ink/20 px-5 py-3 text-sm font-semibold">Agora não</button>
+      </div>
+    </section> : settingsOpen ? <section aria-label="Preferências da conversa" className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
+      <div>
+        <h2 className="font-display text-2xl">Configurações de voz</h2>
+        <p className="mt-2 text-sm text-ink-muted">Escolha como as mensagens serão lidas neste dispositivo.</p>
+      </div>
+      <div className="space-y-3">
+        <label className="block text-sm font-semibold">Voz disponível
+          <select aria-label="Selecionar voz de leitura" value={localVoice?.voiceURI??""} disabled={availableLocalVoices(localVoices).length===0}
+            onChange={e=>{stopSpeech();setSelectedVoiceURI(e.target.value);}}
+            className="mt-2 w-full rounded-lg border border-ink/20 bg-white p-3 font-normal disabled:opacity-50">
+            {availableLocalVoices(localVoices).length===0?<option value="">Nenhuma voz local disponível</option>:availableLocalVoices(localVoices).map(v=><option key={v.voiceURI} value={v.voiceURI}>{v.name} · {v.lang}</option>)}
+          </select>
+        </label>
+        {!localVoice&&<p role="status" className="text-sm text-ink-muted">Não há voz local disponível neste navegador. Você pode continuar por texto, ou experimentar um navegador/dispositivo com vozes instaladas.</p>}
+        {localVoice&&<p className="text-xs text-ink-muted">Voz selecionada: {localVoice.lang}. A qualidade e os idiomas disponíveis dependem do seu dispositivo; uma mesma voz pode pronunciar incorretamente trechos de outro idioma.</p>}
+        <label className="block text-sm font-semibold">Velocidade · {speechRate.toFixed(2)}×
+          <input type="range" min="0.75" max="1.15" step="0.05" value={speechRate} onChange={e=>setSpeechRate(Number(e.target.value))} className="mt-2 w-full" />
+        </label>
+        <label className="block text-sm font-semibold">Altura da voz · {speechPitch.toFixed(2)}
+          <input type="range" min="0.8" max="1.2" step="0.05" value={speechPitch} onChange={e=>setSpeechPitch(Number(e.target.value))} className="mt-2 w-full" />
+        </label>
+        <button type="button" disabled={!localVoice} onClick={()=>browserSpeak("Hello! Vamos praticar inglês.",-1)} className="inline-flex items-center gap-2 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">
+          <Volume2 size={16}/>{speakingId===-1?"Parar teste":"Testar voz"}
+        </button>
+      </div>
+      <div className="border-t border-ink/10 pt-5">
+        <h3 className="font-semibold">Privacidade da conversa</h3>
+        <p className="mt-2 text-xs leading-5 text-ink-muted">Seu chat pode enviar texto e gravações ao {provider==="groq"?"Groq":provider==="openai"?"serviço OpenAI":"provedor externo"} somente após autorização. Esta escolha não é gravada como consentimento permanente.</p>
+        {consent?<button type="button" onClick={()=>{updateConsent(false);setNotice("Envio à IA desativado nesta sessão.");}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Desativar envio à IA</button>:
+          <button type="button" disabled={!enabled} onClick={()=>{setSettingsOpen(false);setPrivacyPrompt(true);}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">Autorizar envio à IA</button>}
+      </div>
+      {provider==="openai"&&<label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={voice} disabled={!consent||!capabilities.data?.tts||busy} onChange={e=>setVoice(e.target.checked)}/>
+        Gerar áudio pelo serviço configurado
+      </label>}
+      {provider==="groq"&&capabilities.data?.geminiDemo&&<details className="border-t border-ink/10 pt-5 text-sm">
+        <summary className="cursor-pointer font-semibold">Laboratório: teste de voz Gemini</summary>
+        <p className="mt-3 text-xs leading-5 text-ink-muted">Apenas uma frase fictícia predefinida será enviada ao Google. Na modalidade gratuita, o Google pode usar o conteúdo para melhorar produtos. O histórico, nome e perfil do estudante não são enviados.</p>
+        <label className="mt-3 flex items-start gap-2 text-xs leading-5"><input type="checkbox" className="mt-1" checked={demoConsent} disabled={busy} onChange={e=>{setDemoConsent(e.target.checked);if(!e.target.checked)setDemo(null);}}/>Autorizo enviar a frase fictícia ao Google apenas para testar a voz.</label>
+        <button type="button" disabled={!demoConsent||busy||recording||permissionPending} onClick={()=>void playGeminiDemo()} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-xs font-semibold disabled:opacity-40">Gerar áudio de teste</button>
+        {demo&&<div className="mt-3 space-y-2"><p className="text-xs">{demo.text}</p><audio controls preload="none" className="w-full" src={"data:"+demo.audioMime+";base64,"+demo.audioBase64}/></div>}
+      </details>}
+      <button type="button" onClick={()=>setSettingsOpen(false)} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Voltar à conversa</button>
+    </section> : <>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5" role="log" aria-live="polite">
+        {messages.map(m=><div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
+          <div className={m.role==="user"?"max-w-[86%] rounded-2xl bg-ink px-4 py-3 text-sm text-white":"max-w-[92%] rounded-2xl bg-paper px-4 py-3 text-sm"}>
+            <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
+            {m.source==="local"&&<p className="mt-2 text-[11px] text-ink-muted">Resposta local · IA indisponível ou não autorizada</p>}
+            {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
+            {m.role==="assistant"&&!m.audioBase64&&localVoice&&<button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,m.id)}
+              className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40" aria-label={(speakingId===m.id?"Parar áudio de ":"Ouvir mensagem de ")+profile.tutorName}>
+              {speakingId===m.id?<Square size={14}/>:<Volume2 size={14}/>}
+              {speakingId===m.id?"Parar":"Ouvir"}
+            </button>}
+            {m.voiceStatus==="unavailable"&&<p className="mt-1 text-xs text-ink-muted">Áudio externo indisponível. Mensagem preservada.</p>}
+            {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
+          </div>
+        </div>)}
+        {busy&&<p className="text-xs text-ink-muted">Preparando resposta…</p>}
+        <div ref={scrollAnchor}/>
+      </div>
+      <div className="shrink-0 space-y-2 border-t border-ink/10 bg-white px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        {!enabled&&<p className="text-xs text-ink-muted">Conversa com IA temporariamente indisponível. Você pode continuar com sugestões locais.</p>}
+        {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
+        {transcriptReady&&<p className="text-xs font-semibold text-teal">Confira o texto reconhecido antes de enviar.</p>}
+        <form onSubmit={send} className="flex items-end gap-2">
+          <textarea aria-label="Sua mensagem" rows={2} maxLength={TUTOR_MAX_TEXT} value={draft}
+            onChange={e=>setDraft(e.target.value)} disabled={busy||recording||permissionPending}
+            placeholder="Converse com seu tutor..." className="min-w-0 flex-1 resize-none rounded-xl border border-ink/20 p-3 text-sm"/>
+          <button type="button" aria-label={recording?"Soltar para transcrever":"Segure para falar; teclado: ativar e parar"}
+            disabled={!enabled||!capabilities.data?.asr||busy}
+            onPointerDown={pointerStart} onPointerUp={()=>stopCapture(true)} onPointerCancel={()=>stopCapture(false)}
+            onLostPointerCapture={()=>{if(held.current)stopCapture(false);}}
+            onClick={e=>{if(e.detail===0){if(held.current)stopCapture(true);else void startCapture();}}}
+            className={"touch-none rounded-full p-3 text-white disabled:opacity-35 "+(recording?"bg-red-700":"bg-ink")}>
+            {recording?<Square size={19}/>:<Mic size={19}/>}
+          </button>
+          <button type="submit" disabled={busy||recording||permissionPending||!draft.trim()} aria-label="Enviar mensagem"
+            className="rounded-full bg-ink p-3 text-white disabled:opacity-35"><Send size={18}/></button>
+        </form>
+        {recording&&<p className="text-xs text-ink-muted">Gravando… Solte o microfone para transcrever.</p>}
+        {permissionPending&&<p className="text-xs text-ink-muted">Verifique a permissão do microfone no navegador.</p>}
+      </div>
+    </>}
   </aside>;
 }
