@@ -36,17 +36,40 @@ export function createOpenAITutor(env = process.env, request: typeof fetch = fet
   const key = env.OPENAI_API_KEY;
   const asrModel = env.LINGUA_TUTOR_ASR_MODEL || "gpt-transcribe";
   const textModel = env.LINGUA_TUTOR_TEXT_MODEL || "gpt-4o-mini";
-  async function call(path: string, body: BodyInit, json: boolean, cap: number) {
+  async function call(path: "audio/transcriptions"|"chat/completions"|"audio/speech", body: BodyInit, json: boolean, cap: number) {
     if (!key) throw Error("provider unavailable");
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 18_000);
+    let phase: "request"|"response" = "request";
+    let httpStatus: number | null = null;
     try {
       const response = await request("https://api.openai.com/v1/" + path, {
         method: "POST", body, signal: controller.signal, redirect: "error",
         headers: { Authorization: "Bearer " + key, ...(json ? {"Content-Type":"application/json"} : {}) },
       });
-      if (!response.ok) { await response.body?.cancel(); throw Error("provider rejected request"); }
-      return await boundedBytes(response, cap);
+      httpStatus = response.status;
+      phase = "response";
+      if (!response.ok) {
+        // Never log the vendor body, headers, token, request body, learner data or raw errors.
+        let code = "other";
+        try {
+          const raw = await boundedBytes(response, 16_384);
+          const payload = JSON.parse(new TextDecoder().decode(raw)) as {error?:{code?:unknown}};
+          const allowed = ["insufficient_quota","rate_limit_exceeded","invalid_api_key","model_not_found","unsupported_country_region_territory","invalid_request_error","billing_hard_limit_reached","permission_denied"];
+          if(typeof payload.error?.code === "string" && allowed.includes(payload.error.code)) code = payload.error.code;
+        } catch { /* status alone remains useful */ }
+        console.warn("[tutor-provider] endpoint="+path+" status="+httpStatus+" code="+code);
+        throw Error("provider rejected request");
+      }
+      const bytes = await boundedBytes(response, cap);
+      if (!bytes.length) console.warn("[tutor-provider] endpoint="+path+" empty_response");
+      return bytes;
+    } catch (error) {
+      // HTTP rejections are logged above; network, timeout and streaming failures here.
+      if (httpStatus === null || (httpStatus >= 200 && httpStatus < 300)) {
+        console.warn("[tutor-provider] endpoint="+path+" phase="+phase+" reason="+(controller.signal.aborted?"timeout":"transport_or_body_failure"));
+      }
+      throw error;
     } finally { clearTimeout(timeout); }
   }
   function extractText(value: unknown, max: number) {

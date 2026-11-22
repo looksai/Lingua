@@ -34,6 +34,29 @@ describe("Tutor staging",()=>{
     expect(await p.speak("Olá")).toBeNull();
     expect(request).toHaveBeenCalledTimes(2);
   });
+  it("returns nonempty MP3 audio from the configured TTS adapter",async()=>{
+    const mp3=new Uint8Array([73,68,51,4,0,0]);
+    const request=vi.fn<typeof fetch>().mockResolvedValue(new Response(mp3,{headers:{"Content-Type":"audio/mpeg"}}));
+    const p=createOpenAITutor({OPENAI_API_KEY:"test",LINGUA_TUTOR_TTS_PROVIDER:"openai-legacy",LINGUA_TUTOR_TTS_MODEL:"tts-1"},request);
+    // Fixed clock so the temporary integration test survives its planned sunset.
+    const clock=vi.spyOn(Date,"now").mockReturnValue(Date.parse("2026-11-21T00:00:00Z"));
+    try {
+      expect(await p.speak("Olá")).toBe(Buffer.from(mp3).toString("base64"));
+      expect(request.mock.calls[0][0]).toBe("https://api.openai.com/v1/audio/speech");
+      expect(JSON.parse(String(request.mock.calls[0][1]?.body))).toEqual({model:"tts-1",voice:"alloy",input:"Olá",response_format:"mp3"});
+    } finally {clock.mockRestore();}
+  });
+  it("logs only allowlisted vendor codes and status, not secrets or learner text",async()=>{
+    const log=vi.spyOn(console,"warn").mockImplementation(()=>{});
+    const request=vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({error:{code:"insufficient_quota",message:"private student text secret-key"}}),{status:429}));
+    const p=createOpenAITutor({OPENAI_API_KEY:"secret-key"},request);
+    try {
+      await expect(p.reply(profile,[],"private student text")).rejects.toThrow("provider rejected request");
+      expect(log).toHaveBeenCalledWith("[tutor-provider] endpoint=chat/completions status=429 code=insufficient_quota");
+      expect(JSON.stringify(log.mock.calls)).not.toContain("secret-key");
+      expect(JSON.stringify(log.mock.calls)).not.toContain("private student text");
+    } finally {log.mockRestore();}
+  });
   it("counts failed paid requests and caps daily usage",async()=>{
     const now=Date.parse("2030-02-01");
     for(let i=0;i<30;i++)await expect(withTutorBudget(54321,async()=>{throw Error("failed");},now)).rejects.toThrow("failed");
