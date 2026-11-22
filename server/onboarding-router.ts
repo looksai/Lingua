@@ -5,6 +5,7 @@ import { learnerProfiles, introductoryResponses } from "../drizzle/schema";
 import { firstAccessTasks, provisionalPath, supportedFirstAccessLanguages, tutorPersonaLabels } from "../shared/onboarding";
 import { checkRequestOrigin, rateLimit } from "./auth-local";
 import { getDb } from "./db";
+import { paidTutorAllowed, withTutorBudget } from "./tutor-budget";
 import { protectedProcedure, router } from "./_core/trpc";
 
 const profileInput = z.object({
@@ -155,13 +156,15 @@ export const onboardingRouter = router({
     });
     if (!outcome.inserted) return { saved: true as const, tutorReply: outcome.response.tutorReply ?? safeReply(outcome.profile.tutorName) };
     const task = firstAccessTasks.find(item => item.id === input.taskId)!;
-    const reply = await generateReply({
+    const reply = paidTutorAllowed(ctx.user.email) && outcome.profile.allowAIFeedback === 1
+      ? await withTutorBudget(ctx.user.id, () => generateReply({
       tutorName: outcome.profile.tutorName,
       tutorPersona: outcome.profile.tutorPersona,
       allowAIFeedback: outcome.profile.allowAIFeedback === 1,
       taskMessage: task.message,
       learnerAnswer: input.answer,
-    });
+    })).catch(() => safeReply(outcome.profile.tutorName))
+      : safeReply(outcome.profile.tutorName);
     // Feedback is not a grade; answer was already committed, so provider failure is non-fatal.
     await db.update(introductoryResponses).set({ tutorReply: reply }).where(and(
       eq(introductoryResponses.userId, ctx.user.id), eq(introductoryResponses.taskId, input.taskId),
