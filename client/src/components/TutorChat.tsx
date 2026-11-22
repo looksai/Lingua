@@ -52,7 +52,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const gemini = trpc.tutor.geminiDemo.useMutation();
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
-  const previousProvider=useRef(provider);
+  const previousConsentKey=useRef<string|null>(null);
   const consentKey=provider&&provider!=="off"?`lingua:provider-consent:v1:${accountEmail.trim().toLowerCase()}:${provider}`:null;
   const localVoice=selectLocalVoice(localVoices,selectedVoiceURI);
   useEffect(()=>{
@@ -64,8 +64,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     return ()=>synth.removeEventListener?.("voiceschanged",refresh);
   },[]);
   useEffect(()=>{
-    if(previousProvider.current===provider)return;
-    previousProvider.current=provider;
+    if(previousConsentKey.current===consentKey)return;
+    previousConsentKey.current=consentKey;
     let accepted=false;
     if(consentKey){try{
       const stored=JSON.parse(window.localStorage.getItem(consentKey)??"null") as {accepted?:boolean;version?:number}|null;
@@ -282,7 +282,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         <h2 className="font-display text-2xl">Configurações de voz</h2>
         <p className="mt-2 text-sm text-ink-muted">Escolha como as mensagens serão lidas neste dispositivo.</p>
       </div>
-      <button type="button" onClick={()=>{setSettingsOpen(false);onOpenTutorSettings();}} className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Abrir Meu Tutor para escolher voz e personalidade</button>
+      <button type="button" onClick={()=>{stopSpeech();setSettingsOpen(false);setOpen(false);onOpenTutorSettings();}} className="rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Abrir Meu Tutor para escolher voz e personalidade</button>
       <div className="space-y-3">
         <label className="block text-sm font-semibold">Voz disponível
           <select aria-label="Selecionar voz de leitura" value={localVoice?.voiceURI??""} disabled={availableLocalVoices(localVoices).length===0}
