@@ -33,3 +33,11 @@ services:
         sync: false
       - key: LINGUA_TUTOR_ENABLED
         value: "false"
+
+      # Explicit opt-in provider selection, disabled by default.
+      - key: LINGUA_TUTOR_PROVIDER
+        value: "off"
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

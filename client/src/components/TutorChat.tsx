@@ -33,6 +33,12 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
   const transcribe = trpc.tutor.transcribe.useMutation();
   const welcome = trpc.tutor.welcomeAudio.useMutation();
   const enabled = capabilities.data?.chat === true;
+  const provider=capabilities.data?.provider;
+  const gemini = trpc.tutor.geminiDemo.useMutation();
+  const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
+  const [demoConsent,setDemoConsent]=useState(false);
+  const previousProvider=useRef(provider);
+  useEffect(()=>{if(previousProvider.current!==provider){previousProvider.current=provider;setConsent(false);setVoice(false);setDemoConsent(false);setDemo(null);setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));}},[provider]);
 
   function stopCapture(send:boolean) {
     held.current=false;
@@ -48,6 +54,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     mounted.current=true;
     return ()=>{
       mounted.current=false;
+      if(typeof window.speechSynthesis!=="undefined")window.speechSynthesis.cancel();
       generation.current++;
       held.current=false;
       const current=capture.current;
@@ -75,7 +82,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     const history=messages.slice(-TUTOR_MAX_HISTORY).map(({role,text})=>({role,text}));
     append({role:"user",text});
     try{
-      const res=await reply.mutateAsync({message:text,history,consent,voice:consent&&voice});
+      const res=await reply.mutateAsync({message:text,history,consent,provider,voice:consent&&voice});
       if(!mounted.current)return;
       append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
     }catch{
@@ -88,11 +95,28 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     if(inFlight.current||!consent||!capabilities.data?.tts)return;
     inFlight.current=true;setBusy(true);setNotice("");
     try{
-      const res=await welcome.mutateAsync({consent:true});
+      const res=await welcome.mutateAsync({consent:true,provider});
       if(!mounted.current)return;
       setMessages(previous=>previous.map(m=>m.id===0?{...m,text:res.text??m.text,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus}:m));
       if(!res.audioBase64)setNotice("Voz indisponível; a mensagem de boas-vindas continua em texto.");
     }catch{if(mounted.current)setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
+    finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+  }
+  function browserSpeak(text:string,lang:"pt-BR"|"en-US"){
+    if(typeof window.speechSynthesis==="undefined"||typeof SpeechSynthesisUtterance==="undefined"){setNotice("Este navegador não oferece síntese local.");return;}
+    const synth=window.speechSynthesis;
+    const voices=synth.getVoices().filter(v=>v.localService===true&&v.lang.toLowerCase().startsWith(lang.slice(0,2)));
+    const selected=voices.find(v=>v.lang.toLowerCase()===lang.toLowerCase())??voices[0];
+    if(!selected){setNotice("Não encontramos uma voz local neste idioma. Use o texto ou o teste de voz Gemini.");return;}
+    synth.cancel();const utterance=new SpeechSynthesisUtterance(text);utterance.lang=lang;utterance.voice=selected;
+    utterance.onerror=()=>{if(mounted.current)setNotice("Falha na voz local. O texto foi preservado.");};
+    synth.speak(utterance);setNotice("");
+  }
+  async function playGeminiDemo(){
+    if(inFlight.current||!demoConsent||!capabilities.data?.geminiDemo)return;
+    inFlight.current=true;setBusy(true);setNotice("");
+    try {const res=await gemini.mutateAsync({consent:true,phraseIndex:1});if(mounted.current)setDemo(res);}
+    catch{if(mounted.current)setNotice("Voz Gemini indisponível. O chat e a voz local continuam separados.");}
     finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   async function startCapture(){
@@ -132,12 +156,12 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
             reader.readAsDataURL(blob);
           });
           if(!mounted.current)return;
-          const result=await transcribe.mutateAsync({consent:true,audio:{mime:mime as TutorAudioType,base64}});
+          const result=await transcribe.mutateAsync({consent:true,provider,audio:{mime:mime as TutorAudioType,base64}});
           if(mounted.current){
             setDraft(result.text);setTranscriptReady(true);
             setNotice("Confira a transcrição e envie quando estiver correta. Ela não é uma nota de pronúncia.");
           }
-        }catch{if(mounted.current)setNotice("Não foi possível transcrever. Tente novamente ou digite.");}
+        }catch(error){if(mounted.current)setNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?"O tutor está descansando. Tente novamente em alguns minutos.":"Não foi possível transcrever. Tente novamente ou digite.");}
         finally{inFlight.current=false;if(mounted.current)setBusy(false);}
       };
       recorder.onerror=()=>{stopCapture(false);if(mounted.current)setNotice("Falha na gravação. Use o teclado.");};
@@ -155,7 +179,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
     event.currentTarget.setPointerCapture(event.pointerId);
     void startCapture();
   }
-  function minimize(){stopCapture(false);setOpen(false);}
+  function minimize(){stopCapture(false);if(typeof window.speechSynthesis!=="undefined")window.speechSynthesis.cancel();setOpen(false);}
   function updateConsent(next:boolean){
     if(!next){stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
       setMessages(previous=>previous.map(m=>({...m,audioBase64:null}))); }
@@ -179,6 +203,7 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
           <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
           {m.source==="local"&&<p className="mt-2 text-[10px] text-ink-muted">Mensagem guiada local</p>}
           {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
+          {m.role==="assistant"&&!m.audioBase64&&<div className="mt-2 flex flex-wrap gap-3 text-xs font-semibold text-teal"><button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,"pt-BR")}>Ouvir local PT</button><button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,"en-US")}>Ouvir local EN</button></div>}
           {m.voiceStatus==="unavailable"&&<p className="mt-2 text-xs text-ink-muted">Voz indisponível · texto preservado</p>}
           {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
         </div>
@@ -190,12 +215,14 @@ export default function TutorChat({profile}: {profile:TutorProfile}) {
       {!enabled&&<p className="text-xs text-ink-muted">IA externa indisponível nesta conta. Você pode continuar com sugestões locais.</p>}
       <label className="flex items-start gap-2 text-xs leading-4">
         <input type="checkbox" disabled={busy||recording||permissionPending} checked={consent} onChange={e=>updateConsent(e.target.checked)}/>
-        <span>Autorizo enviar o texto, histórico recente, perfil pedagógico e gravações que eu decidir enviar à OpenAI nesta sessão.</span>
+        <span>Autorizo enviar o texto, histórico recente, perfil pedagógico e gravações que eu decidir enviar {provider==="groq"?"ao Groq":provider==="openai"?"à OpenAI":"ao provedor indicado (ainda indisponível)"} nesta sessão. Não inclua dados sensíveis.</span>
       </label>
-      <label className="flex items-center gap-2 text-xs">
+      {provider==="openai"&&<label className="flex items-center gap-2 text-xs">
         <input type="checkbox" disabled={!consent||!capabilities.data?.tts||busy||recording||permissionPending} checked={voice} onChange={e=>{const next=e.target.checked;setVoice(next);if(next&&messages.some(m=>m.id===0&&!m.audioBase64))void speakWelcome();}}/>
         Receber respostas em voz artificial
-      </label>
+      </label>}
+      {provider==="groq"&&capabilities.data?.geminiDemo&&<details className="text-xs"><summary className="cursor-pointer font-semibold text-teal">Testar voz Gemini (frase fictícia)</summary><p className="mt-2 leading-4">Somente teste adulto de homologação. O Google pode usar o conteúdo gratuito para melhorar produtos. Nenhuma conversa, perfil ou gravação será enviada ao Gemini.</p><label className="mt-2 flex gap-2"><input type="checkbox" checked={demoConsent} disabled={busy} onChange={e=>{setDemoConsent(e.target.checked);if(!e.target.checked)setDemo(null);}}/>Autorizo enviar a frase fixa de teste ao Google.</label><button type="button" disabled={!demoConsent||busy||recording||permissionPending} onClick={()=>void playGeminiDemo()} className="mt-2 text-teal underline disabled:opacity-40">Gerar áudio de teste</button>{demo&&<div className="mt-2"><p>{demo.text}</p><audio controls preload="none" className="w-full" src={"data:"+demo.audioMime+";base64,"+demo.audioBase64}/></div>}</details>}
+      {provider==="groq"&&<p className="text-[10px] text-ink-muted">A voz local depende das vozes instaladas no dispositivo. PT/EN escolhe o idioma de leitura, não uma avaliação de pronúncia.</p>}
       {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
       {transcriptReady&&<p className="text-xs font-semibold text-teal">Transcrição para conferir antes de enviar.</p>}
       <form onSubmit={send} className="flex items-end gap-2">
