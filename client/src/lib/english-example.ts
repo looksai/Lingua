@@ -3,7 +3,7 @@ import {speechText} from "./tutor-speech";
 // Do not silently send the entire bilingual/Portuguese response to an English TTS.
 function looksEnglish(line:string):boolean {
   if(/[\u00c0-\u024f]/.test(line))return false;
-  return /\b(i|my|we|you|your|the|a|an|this|that|have|has|am|are|is|work|working|welding|welder|want|can|would|please|hello|good|morning)\b/i.test(line)
+  return /\b(i|my|we|you|your|the|this|that|have|has|am|are|is|work|working|welding|welder|want|can|would|please|hello|good|morning)\b/i.test(line)
     && line.trim().split(/\s+/).length>=3;
 }
 export function englishExcerpt(message:string):string|null {
