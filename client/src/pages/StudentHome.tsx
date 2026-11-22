@@ -76,6 +76,8 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   const resume = trpc.onboarding.resume.useMutation();
   const logout = trpc.auth.logout.useMutation();
   const items = trpc.learning.listItems.useQuery({ limit: 100 }, { retry: false });
+  const placement=trpc.placement.me.useQuery(undefined,{retry:false});
+  const [requestPlacement,setRequestPlacement]=useState(false);
   const recorded = snapshot.responses.length;
   const plan = snapshot.plan!;
   const deferred = profile.onboardingStatus === "deferred";
@@ -131,11 +133,14 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
         <p className="mt-4 max-w-2xl leading-7 text-ink-muted">Seu percurso começa com o que você escolheu. Não inventamos níveis, notas ou experiências que você ainda não viveu.</p>
         <div className="mt-10 grid gap-5 md:grid-cols-[1.3fr_0.7fr]">
           <section className="rounded-2xl border border-ink/10 bg-white p-7">
-            <p className="text-xs font-bold uppercase tracking-widest text-teal">Seu plano inicial • exploratório</p>
-            <h2 className="mt-3 font-display text-3xl">{plan.title}</h2>
-            <p className="mt-4 text-sm leading-6">{plan.objective}</p>
-            <p className="mt-2 text-sm leading-6 text-ink-muted">Exemplos próximos de {plan.context}.</p>
-            <p className="mt-3 border-l-2 border-teal pl-3 text-xs leading-5 text-ink-muted">{plan.reason} {plan.limits}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-teal">{placement.data?.plan?"Plano de quatro semanas • provisório":"Seu plano inicial • exploratório"}</p>
+            <h2 className="mt-3 font-display text-3xl">{placement.data?.plan?.title??plan.title}</h2>
+            {placement.data?.plan?<div className="mt-4 space-y-4">{placement.data.plan.weeks.map(w=><div key={w.week} className="rounded-xl border border-ink/10 p-4"><p className="font-semibold">Semana {w.week}: {w.goal}</p><p className="mt-2 text-sm">{w.practice}</p><p className="mt-2 text-xs text-ink-muted">Como conferir: {w.check}</p></div>)}</div>:<p className="mt-4 text-sm leading-6">{plan.objective}</p>}
+            {!placement.data?.plan&&<p className="mt-2 text-sm leading-6 text-ink-muted">Exemplos próximos de {plan.context}.</p>}
+            {placement.data?.plan&&<><p className="mt-3 text-xs text-ink-muted">Estas são sugestões de estudo geradas a partir de três amostras de texto, não um currículo certificado nem uma avaliação CEFR.</p><p className="mt-2 text-sm font-semibold">Pistas a verificar</p>{placement.data.plan.observations.map((v,i)=><p key={i} className="text-sm">{v}</p>)}<p className="mt-2 text-sm font-semibold">Ainda precisamos avaliar</p>{placement.data.plan.nextChecks.map((v,i)=><p key={i} className="text-sm text-ink-muted">{v}</p>)}</>}
+            {!placement.data?.plan&&<p className="mt-3 border-l-2 border-teal pl-3 text-xs leading-5 text-ink-muted">{plan.reason} {plan.limits}</p>}
+            {placement.data&&!placement.data.plan&&<button type="button" onClick={()=>setRequestPlacement(v=>!v)} className="mt-5 rounded-full border border-teal px-5 py-2 text-sm font-semibold text-teal">Descobrir por onde começar — 3 perguntas</button>}
+            {placement.isError&&<p className="mt-3 text-xs text-ink-muted">A sondagem estará disponível quando a atualização do banco for aprovada.</p>}
             <div className="mt-6 flex flex-wrap gap-3">
               <button onClick={() => setView("read")} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Praticar leitura</button>
               <button onClick={() => setView("review")} className="rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold">Ver minhas revisões</button>
@@ -224,6 +229,6 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       </section>}
       {logout.error && <p role="alert" className="mt-5 text-sm text-red-700">Não foi possível sair. Tente novamente.</p>}
     </main>
-    <TutorChat profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")}/>
+    <TutorChat profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")} placementRequested={requestPlacement} onPlacementCompleted={()=>{setRequestPlacement(false);void placement.refetch();setView("dashboard");}}/>
   </div>;
 }
