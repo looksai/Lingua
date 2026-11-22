@@ -83,7 +83,7 @@ export const tutorRouter = router({
       return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const};
     return withTutorBudget(ctx.user.id,async()=>{
       let text:string;
-      try { const adapter=input.provider==="groq"?createGroqTutor():createOpenAITutor(); text=await adapter.reply(p,input.history,input.message); }
+      try { const adapter=createSelectedTutor(input.provider!); text=await adapter.reply(p,input.history,input.message); }
       catch(error) { return tutorFailureReply(error,input.message,input.voice); }
       return {text,source:"ai" as const,...await optionalSpeech(text,input.provider==="openai"&&input.voice)};
     });
