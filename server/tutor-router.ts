@@ -42,9 +42,10 @@ export const tutorRouter = router({
   welcomeAudio:protectedProcedure.input(z.object({consent})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
     if (!input.consent || !paidTutorAllowed(ctx.user.email) || !speechConfigured())
-      return {audioBase64:null,voiceStatus:"unavailable" as const};
+      return {audioBase64:null,voiceStatus:"unavailable" as const,text:null};
     const profile=await profileFor(ctx.user.id);
-    return withTutorBudget(ctx.user.id,()=>optionalSpeech(greeting(profile),true));
+    const text=greeting(profile);
+    return withTutorBudget(ctx.user.id,async()=>({text,...await optionalSpeech(text,true)}));
   }),
   transcribe:protectedProcedure.input(z.object({consent,audio:audioSchema})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
