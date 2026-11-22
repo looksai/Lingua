@@ -1,5 +1,7 @@
 import {describe,it,expect,vi} from "vitest";
-import {createGroqTutor,geminiTestSpeech,GEMINI_TEST_PHRASES} from "./tutor-free-provider";
+import {createGroqTutor,geminiTestSpeech,GEMINI_TEST_PHRASES,GroqRateLimitError,GROQ_RATE_LIMIT_MESSAGE} from "./tutor-free-provider";
+import {createSelectedTutor} from "./tutor-provider-selector";
+import {tutorFailureReply} from "./tutor-fallback";
 import {freeTutorAllowed,paidTutorAllowed,geminiDemoAllowed,tutorMode} from "./tutor-budget";
 import {appRouter} from "./routers";
 
@@ -42,6 +44,71 @@ describe("No-credit staging provider",()=>{
     const p=createGroqTutor(env,req);
     await expect(p.reply({tutorName:"Tutor",tutorPersona:"neutral",interest:"work"},[],"test")).rejects.toThrow("provider rejected request");
     expect(req).toHaveBeenCalledTimes(1);
+  });
+  it("free mode never selects or calls OpenAI even when an OpenAI key exists",async()=>{
+    const request=vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({choices:[{message:{content:"I can help you learn."}}]})));
+    const forbidden={...env,OPENAI_API_KEY:"sk-must-not-be-used"};
+    expect(()=>createSelectedTutor("openai",forbidden,request)).toThrow("tutor provider disabled");
+    const adapter=createSelectedTutor("groq",forbidden,request);
+    expect(await adapter.reply({tutorName:"Tutor",tutorPersona:"curious",interest:"work"},[],"Help me")).toBe("I can help you learn.");
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(String(request.mock.calls[0][0])).toBe("https://api.groq.com/openai/v1/chat/completions");
+    expect(JSON.stringify(request.mock.calls)).not.toContain("sk-must-not-be-used");
+    expect(JSON.stringify(request.mock.calls)).not.toContain("api.openai.com");
+  });
+  it.each([401,403,429,500])("handles Groq HTTP %i without a key leak and returns a safe fallback",async(status)=>{
+    const secret="sk-test-never-log-phrase";
+    const warn=vi.spyOn(console,"warn").mockImplementation(()=>{});
+    const request=vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({error:{message:secret,code:"dangerous_private_error"}}),{status}));
+    try {
+      const adapter=createSelectedTutor("groq",{...env,OPENAI_API_KEY:secret},request);
+      const error=await adapter.reply({tutorName:"Tutor",tutorPersona:"neutral",interest:"work"},[],"I work with TIG welding.").then(()=>null,e=>e);
+      expect(error).toBeInstanceOf(Error);
+      if(status===429)expect(error).toBeInstanceOf(GroqRateLimitError);
+      else expect(error).toMatchObject({message:"provider rejected request"});
+      const fallback=tutorFailureReply(error,"I work with TIG welding.",false);
+      expect(fallback.source).toBe("local");
+      if(status===429)expect(fallback.text).toBe(GROQ_RATE_LIMIT_MESSAGE);
+      else expect(fallback.text).toContain("indisponível");
+      expect(warn).toHaveBeenCalledWith("[tutor-free] provider=groq-chat status="+status);
+      expect(JSON.stringify(warn.mock.calls)).not.toContain(secret);
+      expect(JSON.stringify(fallback)).not.toContain(secret);
+      expect(JSON.stringify(request.mock.calls)).not.toContain("api.openai.com");
+      expect(request).toHaveBeenCalledTimes(1);
+    }finally {warn.mockRestore();}
+  });
+  it("handles Groq timeout without retry, vendor fallback or secret logging",async()=>{
+    vi.useFakeTimers();
+    const warn=vi.spyOn(console,"warn").mockImplementation(()=>{});
+    const request=vi.fn<typeof fetch>().mockImplementation((_url,options)=>new Promise((_resolve,reject)=>{
+      options?.signal?.addEventListener("abort",()=>reject(new Error("mock aborted")),{once:true});
+    }));
+    try{
+      const adapter=createSelectedTutor("groq",{...env,OPENAI_API_KEY:"sk-no-use"},request);
+      const settled=adapter.reply({tutorName:"Tutor",tutorPersona:"neutral",interest:"work"},[],"practice").then(()=>null,e=>e);
+      await vi.advanceTimersByTimeAsync(25_100);
+      const error=await settled;
+      expect(error).toBeInstanceOf(Error);
+      expect(tutorFailureReply(error,"practice",false).source).toBe("local");
+      expect(warn).toHaveBeenCalledWith("[tutor-free] provider=groq-chat timeout");
+      expect(request).toHaveBeenCalledTimes(1);
+      expect(JSON.stringify(warn.mock.calls)).not.toContain("sk-no-use");
+    }finally {warn.mockRestore();vi.useRealTimers();}
+  });
+  it("isolates Gemini fixed prompt from any learner profile or history",async()=>{
+    const wav=Buffer.alloc(48);wav.write("RIFF",0);wav.write("WAVE",8);
+    const request=vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({steps:[{type:"model_output",content:[{type:"audio",data:wav.toString("base64")}]}]})));
+    const secret="private-learner-name@secret.local";
+    const response=await geminiTestSpeech(0,{...env,LINGUA_TUTOR_ALLOWED_EMAILS:secret},request);
+    const serialized=String(request.mock.calls[0][1]?.body);
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain("history");
+    expect(serialized).not.toContain("tutorName");
+    expect(serialized).not.toContain("studentId");
+    expect(serialized).not.toContain("email");
+    expect(serialized).not.toContain("OPENAI_API_KEY");
+    expect(response.audioMime).toBe("audio/wav");
+    expect(Buffer.from(response.audioBase64,"base64").subarray(0,4).toString()).toBe("RIFF");
   });
   it("rejects anonymous Gemini audio calls",async()=>{
     const c=appRouter.createCaller({user:null,req:{} as never,res:{} as never});
