@@ -1,4 +1,5 @@
 import { TUTOR_MAX_AUDIO_BYTES,TUTOR_MAX_TEXT,systemInstructions,type TutorAudioType,type TutorHistory,type TutorProfile } from "../shared/tutor";
+import {learnerMemoryPrompt,memoryDraftResponse,memoryQuoteCandidate,type MemoryFact} from "./learner-memory-logic";
 
 const GROQ="https://api.groq.com/openai/v1/";
 export const GROQ_RATE_LIMIT_MESSAGE="O tutor está descansando. Tente novamente em alguns minutos.";
@@ -57,6 +58,29 @@ export function createGroqTutor(env=process.env,request:typeof fetch=fetch){
         messages:[{role:"system",content:systemInstructions(profile)},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
       }),request,64_000,"groq-chat") as {choices?:Array<{message?:{content?:unknown}}>};
       return textResult(raw.choices?.[0]?.message?.content);
+    },
+    async replyWithMemory(profile:TutorProfile,history:TutorHistory[],message:string,memories:readonly MemoryFact[]){
+      // One Groq request gives the tutor reply and *optional* quoted evidence.
+      // No agent fan-out, no database write and no second provider call.
+      const instructions=systemInstructions(profile)+"\n"+learnerMemoryPrompt(memories)+"\n"+
+        "Responda APENAS com um objeto JSON: "+
+        '{"reply":"sua resposta normal curta em português com exemplos em inglês","memory":null ou {"quote":"trecho exato da mensagem ATUAL do aluno","category":"profession|goal|interest|preference"}}. '+
+        "O campo memory é somente uma PROPOSTA para o aluno autorizar na interface; NUNCA diga que salvou. "+
+        "No máximo UM trecho de 8 a 180 caracteres, copiado LITERALMENTE da última mensagem do aluno, jamais do histórico, do perfil ou de uma resposta do tutor. "+
+        "Proponha somente fatos autodeclarados e úteis para personalizar o aprendizado. Não proponha senhas, contatos, documentos, saúde, religião, política ou dados sensíveis. "+
+        "Se não houver declaração explícita útil, defina memory:null. Nunca inferir que falta uma certificação porque não foi mencionada. "+
+        "O campo reply sempre contém a resposta ao aluno, independentemente de memory ser null.";
+      const raw=await requestJson(GROQ+"chat/completions",{...headers(),"Content-Type":"application/json"},JSON.stringify({
+        model,max_completion_tokens:950,temperature:0.5,
+        ...(model.startsWith("openai/gpt-oss-")?{reasoning_effort:"low",include_reasoning:false}:{}),
+        response_format:{type:"json_object"},
+        messages:[{role:"system",content:instructions},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
+      }),request,64_000,"groq-chat") as {choices?:Array<{message?:{content?:unknown}}>};
+      const content=raw.choices?.[0]?.message?.content;
+      if(typeof content!=="string")throw Error("missing tutor JSON response");
+      const parsed=memoryDraftResponse.safeParse(JSON.parse(content));
+      if(!parsed.success)throw Error("invalid tutor JSON schema");
+      return {text:textResult(parsed.data.reply),candidate:memoryQuoteCandidate(message,parsed.data.memory)};
     },
     async transcribe(bytes:Uint8Array,mime:TutorAudioType){
       if(!bytes.length||bytes.length>TUTOR_MAX_AUDIO_BYTES)throw Error("invalid audio size");
