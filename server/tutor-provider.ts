@@ -87,7 +87,7 @@ export function createOpenAITutor(env = process.env, request: typeof fetch = fet
         ],
       }),true,64_000);
       const parsed = JSON.parse(new TextDecoder().decode(raw)) as {choices?:Array<{message?:{content?:unknown}}>};
-      return parseTutorMemoryEnvelope(extractText(parsed.choices?.[0]?.message?.content,TUTOR_MAX_TEXT),message);
+      return parseTutorMemoryEnvelope(extractText(parsed.choices?.[0]?.message?.content,3000),message);
     },
     async speak(text) {
       if (!speechConfigured(env)) return null;
