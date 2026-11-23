@@ -276,6 +276,8 @@ export const billingCheckoutAttempts = mysqlTable("billingCheckoutAttempts", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull().references(() => users.id, {onDelete:"cascade"}),
   attemptId: varchar("attemptId", {length:80}).notNull(),
+  currency: mysqlEnum("currency", ["usd","brl"]).notNull(),
+  stripePriceId: varchar("stripePriceId", {length:100}).notNull(),
   state: mysqlEnum("state", ["creating","created","failed"]).notNull().default("creating"),
   stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", {length:120}),
   sessionUrl: text("sessionUrl"),
