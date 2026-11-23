@@ -14,6 +14,7 @@ import { createSelectedTutor } from "./tutor-provider-selector";
 import { tutorFailureReply } from "./tutor-fallback";
 import { GROQ_ENGLISH_VOICES, GroqTtsBadRequest, type GroqTtsBadRequestReason } from "./groq-tts";
 import { createVoiceProvider } from "./voice-provider";
+import { guardTutorLearnerClaims } from "./tutor-fact-guard";
 
 async function profileFor(userId:number): Promise<TutorProfile> {
   const db = await getDb();
@@ -112,7 +113,9 @@ export const tutorRouter = router({
       let text:string;
       try { const adapter=createSelectedTutor(input.provider!); text=await adapter.reply(p,input.history,input.message); }
       catch(error) { return tutorFailureReply(error,input.message,input.voice); }
-      return {text,source:"ai" as const,...await optionalSpeech(text,input.provider==="openai"&&input.voice)};
+      const checked=guardTutorLearnerClaims(text,input.history,input.message);
+      if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const};
+      return {text:checked.text,source:"ai" as const,...await optionalSpeech(checked.text,input.provider==="openai"&&input.voice)};
     });
   }),
 });
