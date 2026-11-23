@@ -271,3 +271,17 @@ export const tutorUsage = mysqlTable("tutorUsage", {
   userInteractionUnique: unique("tutorUsage_user_interaction_unique").on(table.userId, table.interactionId),
   userTimeIdx: index("tutorUsage_user_created_idx").on(table.userId, table.createdAt),
 }));
+
+export const billingCheckoutAttempts = mysqlTable("billingCheckoutAttempts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, {onDelete:"cascade"}),
+  attemptId: varchar("attemptId", {length:80}).notNull(),
+  state: mysqlEnum("state", ["creating","created","failed"]).notNull().default("creating"),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", {length:120}),
+  sessionUrl: text("sessionUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt").notNull(),
+}, table => ({
+  userAttemptUnique: unique("billingCheckoutAttempts_user_attempt_unique").on(table.userId, table.attemptId),
+  userExpiryIdx: index("billingCheckoutAttempts_user_expiry_idx").on(table.userId, table.expiresAt),
+}));
