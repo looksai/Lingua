@@ -12,7 +12,7 @@ import { paidTutorAllowed, freeTutorAllowed, geminiDemoAllowed, tutorMode, withT
 import { geminiTestSpeech, GEMINI_TEST_PHRASES, GROQ_RATE_LIMIT_MESSAGE, isGroqRateLimitError } from "./tutor-free-provider";
 import { createSelectedTutor } from "./tutor-provider-selector";
 import { tutorFailureReply } from "./tutor-fallback";
-import { GROQ_ENGLISH_VOICES } from "./groq-tts";
+import { GROQ_ENGLISH_VOICES, GroqTtsBadRequest, type GroqTtsBadRequestReason } from "./groq-tts";
 import { createVoiceProvider } from "./voice-provider";
 
 async function profileFor(userId:number): Promise<TutorProfile> {
@@ -84,7 +84,15 @@ export const tutorRouter = router({
       try{return await createVoiceProvider("groq").synthesize({text:input.text,voice:input.voice,language:"en-US",format:"wav"});}
       catch(error){
         if(isGroqRateLimitError(error))throw new TRPCError({code:"TOO_MANY_REQUESTS",message:GROQ_RATE_LIMIT_MESSAGE});
-        throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar a voz neural. Use a voz local ou continue por texto."});
+        if(error instanceof GroqTtsBadRequest) {
+          const reason:Record<GroqTtsBadRequestReason,string>={
+            voice:"identificador de voz",model:"modelo Orpheus",format:"formato de áudio",
+            input:"texto de entrada",access:"permissão da conta Groq",unknown:"motivo não identificado"
+          };
+          throw new TRPCError({code:"PRECONDITION_FAILED",
+            message:"Groq recusou a voz neural (HTTP 400): "+reason[error.reason]+". Nenhum áudio foi gerado."});
+        }
+        throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar a voz neural. Não houve troca automática de provedor."});
       }
     });
   }),

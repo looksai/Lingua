@@ -274,9 +274,13 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         text:"Hello! I am your English tutor. Let us practice together."});
       if(mounted.current)setPreviewVoiceAudio(result.audioBase64);
     }catch(error){
-      if(mounted.current)setPreviewVoiceNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?
-        "Limite gratuito de voz atingido. Aguarde a renovação da cota.":
-        "Não foi possível gerar a prévia neural. A voz local continua disponível.");
+      if(mounted.current){
+        const message=(error as {message?:unknown})?.message;
+        const diagnosed=typeof message==="string"&&message.startsWith("Groq recusou a voz neural (HTTP 400):")&&message.length<=180;
+        setPreviewVoiceNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?
+          "Limite gratuito de voz atingido. Aguarde a renovação da cota.":
+          diagnosed?message:"Erro na voz neural Groq. Nenhum fallback de áudio externo foi acionado.");
+      }
     }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   async function playGeminiDemo(){
