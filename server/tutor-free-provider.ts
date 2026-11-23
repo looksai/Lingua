@@ -41,9 +41,9 @@ async function requestJson(url:string,headers:Record<string,string>,body:BodyIni
     throw error;
   }finally{clearTimeout(timeout);}
 }
-function textResult(value:unknown){
+function textResult(value:unknown,cap=TUTOR_MAX_TEXT){
   if(typeof value!=="string"||!value.trim())throw Error("empty provider text");
-  return value.trim().slice(0,TUTOR_MAX_TEXT);
+  return value.trim().slice(0,cap);
 }
 export function createGroqTutor(env=process.env,request:typeof fetch=fetch){
   const key=env.GROQ_API_KEY;
@@ -65,7 +65,7 @@ export function createGroqTutor(env=process.env,request:typeof fetch=fetch){
         ...(model.startsWith("openai/gpt-oss-")?{reasoning_effort:"low",include_reasoning:false}:{}),
         messages:[{role:"system",content:systemInstructions(profile,memoryFacts,true)},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
       }),request,64_000,"groq-chat") as {choices?:Array<{message?:{content?:unknown}}};
-      return parseTutorMemoryEnvelope(textResult(raw.choices?.[0]?.message?.content),message);
+      return parseTutorMemoryEnvelope(textResult(raw.choices?.[0]?.message?.content,3000),message);
     },
     async transcribe(bytes:Uint8Array,mime:TutorAudioType){
       if(!bytes.length||bytes.length>TUTOR_MAX_AUDIO_BYTES)throw Error("invalid audio size");
