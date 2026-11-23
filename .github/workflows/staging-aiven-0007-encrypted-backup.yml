@@ -1,0 +1,97 @@
+name: Lingua Aiven pre-0007 encrypted backup (manual guarded)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type BACKUP_CRIPTOGRAFADO_LINGUA_0007 to authorize READ-ONLY export"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-aiven-staging
+  cancel-in-progress: false
+
+jobs:
+  encrypted-backup:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'BACKUP_CRIPTOGRAFADO_LINGUA_0007'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Guard exact staging MySQL 8.4, TLS and pre-0007 schema
+        env:
+          LINGUA_STAGING_DATABASE_URL: ${{ secrets.LINGUA_STAGING_DATABASE_URL }}
+          LINGUA_STAGING_CA_BASE64: ${{ secrets.LINGUA_STAGING_CA_BASE64 }}
+        run: pnpm exec tsx scripts/staging-aiven-backup-0007.ts
+      - name: Stream full logical backup into AES-256 encrypted GPG artifact
+        shell: bash
+        env:
+          BACKUP_SECRET: ${{ secrets.LINGUA_STAGING_BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          work="${RUNNER_TEMP}/lingua-aiven-0007"
+          if [[ ${#BACKUP_SECRET} -lt 32 ]]; then
+            echo 'Backup secret missing or too short; aborting'
+            exit 1
+          fi
+          printf '%s' "$BACKUP_SECRET" > "$work/passphrase"
+          unset BACKUP_SECRET
+          docker pull mysql:8.4 > /dev/null
+          docker run --rm --network host \
+            --mount "type=bind,source=$work,target=/secure,readonly" \
+            mysql:8.4 mysqldump \
+            --defaults-extra-file=/secure/client.cnf \
+            --single-transaction --quick --skip-lock-tables \
+            --routines --triggers --events --no-tablespaces \
+            --set-gtid-purged=OFF --hex-blob --column-statistics=0 \
+            defaultdb \
+            | gzip -1 \
+            | gpg --quiet --batch --yes --pinentry-mode loopback \
+                --passphrase-file "$work/passphrase" --symmetric \
+                --cipher-algo AES256 --output "$work/lingua-pre-0007.sql.gz.gpg"
+          test -s "$work/lingua-pre-0007.sql.gz.gpg"
+          gpg --quiet --batch --yes --pinentry-mode loopback \
+            --passphrase-file "$work/passphrase" \
+            --decrypt "$work/lingua-pre-0007.sql.gz.gpg" \
+            | gzip -dc \
+            | awk '
+                /^CREATE TABLE `users` [(]/ {u=1}
+                /^CREATE TABLE `learnerProfiles` [(]/ {p=1}
+                /^CREATE TABLE `learnerPlacementPlans` [(]/ {l=1}
+                /^CREATE TABLE `learnerPlacementAnswers` [(]/ {a=1}
+                END { if (!(u && p && l && a)) exit 1 }
+              '
+          echo 'Backup encrypted; decryption, gzip integrity, expected schema structures verified'
+      - name: Upload ONLY encrypted backup, short retention
+        uses: actions/upload-artifact@v4
+        with:
+          name: lingua-aiven-pre-0007-encrypted-${{ github.run_id }}
+          path: ${{ runner.temp }}/lingua-aiven-0007/lingua-pre-0007.sql.gz.gpg
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+      - name: Remove temporary connection/password/CA files
+        if: always()
+        shell: bash
+        run: |
+          set +x
+          rm -f "${RUNNER_TEMP}/lingua-aiven-0007/client.cnf" \
+                "${RUNNER_TEMP}/lingua-aiven-0007/ca.pem" \
+                "${RUNNER_TEMP}/lingua-aiven-0007/passphrase"
