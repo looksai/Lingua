@@ -113,8 +113,8 @@ export async function createBillingCheckout(
     if(other)throw new TRPCError({code:"CONFLICT",message:"Já existe um checkout em andamento para esta conta."});
     const match=active.find(a=>a.attemptId===attemptId);
     if(match){
-      if(match.state==="failed")unavailable();
-      return {cached:checkoutUrl(match.sessionUrl),reserved:true};
+      if(match.state==="failed"||match.currency!==currency||match.stripePriceId!==price)unavailable();
+      return {cached:checkoutUrl(match.sessionUrl),expiresAt:match.expiresAt};
     }
     // A prior timed-out attempt cannot be reused with a new Stripe idempotency
     // window: the old session may still have been paid asynchronously.
@@ -122,9 +122,9 @@ export async function createBillingCheckout(
       .where(and(eq(billingCheckoutAttempts.userId,userId),eq(billingCheckoutAttempts.attemptId,attemptId))).limit(1);
     if(old)unavailable();
     await tx.insert(billingCheckoutAttempts).values({
-      userId,attemptId,state:"creating",expiresAt:new Date(now.getTime()+30*60000),
+      userId,attemptId,currency,stripePriceId:price,state:"creating",expiresAt:new Date(now.getTime()+35*60000),
     });
-    return {cached:null,reserved:false};
+    return {cached:null,expiresAt:new Date(now.getTime()+35*60000)};
   });
   if(cached.cached)return {url:cached.cached};
   // Read the authoritative Stripe state, not solely possibly delayed webhooks.
@@ -135,7 +135,7 @@ export async function createBillingCheckout(
     success_url:process.env.PUBLIC_APP_URL+"/billing/success?session_id={CHECKOUT_SESSION_ID}",
     cancel_url:process.env.PUBLIC_APP_URL+"/premium",
     "subscription_data[metadata][lingua_user_id]":String(userId),
-    expires_at:String(Math.floor(now.getTime()/1000)+1800),
+    expires_at:String(Math.floor(cached.expiresAt.getTime()/1000)),
   },"lingua-checkout-v1:"+userId+":"+attemptId);
   const url=checkoutUrl(session.url),sessionId=stripeId(session.id,"cs");
   if(!sessionId || !url || session.mode!=="subscription" || session.livemode!==false ||
