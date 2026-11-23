@@ -270,4 +270,4 @@ export const tutorUsage = mysqlTable("tutorUsage", {
 }, table => ({
   userInteractionUnique: unique("tutorUsage_user_interaction_unique").on(table.userId, table.interactionId),
   userTimeIdx: index("tutorUsage_user_created_idx").on(table.userId, table.createdAt),
-});
+}));
