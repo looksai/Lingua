@@ -34,9 +34,9 @@ function explicitlyStatedYears(text:string){
 const SAFE_REPLY="Vamos praticar sua apresentação sem presumir certificações ou anos de experiência. Uma opção é: **I work in [your field].** (Eu trabalho na área de [sua área].) Qual profissão, certificação e tempo de experiência você gostaria de informar?";
 
 export function guardTutorLearnerClaims(
-  tutorText:string,history:readonly TutorHistory[],currentUserMessage:string
+  tutorText:string,history:readonly TutorHistory[],currentUserMessage:string, memoryFacts:readonly string[]=[]
 ):{text:string;blocked:boolean}{
-  const evidence=[...history.filter(x=>x.role==="user").map(x=>x.text),currentUserMessage].join("\n");
+  const evidence=[...memoryFacts,...history.filter(x=>x.role==="user").map(x=>x.text),currentUserMessage].join("\n");
   const inventedCredential=CERTIFICATION_CLAIM.test(tutorText)&&!statedCredentials(evidence);
   const knownYears=explicitlyStatedYears(evidence);
   const claimedYears=[
