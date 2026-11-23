@@ -212,3 +212,62 @@ export const learnerPlacementPlans=mysqlTable("learnerPlacementPlans",{
   createdAt:timestamp("createdAt").notNull().defaultNow(),
   updatedAt:timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
 });
+
+
+/**
+ * Stripe/paywall candidate. Disabled until billing migration, reconciliation,
+ * quota guard and founder-approved release are complete. Never use a raw
+ * isPremium boolean as entitlement authority.
+ */
+export const billingCustomers = mysqlTable("billingCustomers", {
+  userId: int("userId").primaryKey().references(() => users.id, {onDelete:"cascade"}),
+  stripeCustomerId: varchar("stripeCustomerId", {length:80}).notNull().unique(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const billingSubscriptions = mysqlTable("billingSubscriptions", {
+  stripeSubscriptionId: varchar("stripeSubscriptionId", {length:100}).primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, {onDelete:"cascade"}),
+  stripePriceId: varchar("stripePriceId", {length:100}).notNull(),
+  currency: varchar("currency", {length:3}).notNull(),
+  status: varchar("status", {length:32}).notNull(),
+  currentPeriodEnd: timestamp("currentPeriodEnd"),
+  paidThroughAt: timestamp("paidThroughAt"),
+  cancelAtPeriodEnd: int("cancelAtPeriodEnd").notNull().default(0),
+  lastSyncedAt: timestamp("lastSyncedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => ({
+  userStatusIdx: index("billingSubscriptions_user_status_idx").on(table.userId, table.status),
+}));
+
+export const stripeWebhookEvents = mysqlTable("stripeWebhookEvents", {
+  stripeEventId: varchar("stripeEventId", {length:100}).primaryKey(),
+  eventType: varchar("eventType", {length:100}).notNull(),
+  eventCreatedAt: timestamp("eventCreatedAt").notNull(),
+  status: mysqlEnum("status", ["processing","done","failed"]).notNull(),
+  receivedAt: timestamp("receivedAt").defaultNow().notNull(),
+  processedAt: timestamp("processedAt"),
+});
+
+export const tutorTrialState = mysqlTable("tutorTrialState", {
+  userId: int("userId").primaryKey().references(() => users.id, {onDelete:"cascade"}),
+  trialStartedAt: timestamp("trialStartedAt"),
+  trialEndsAt: timestamp("trialEndsAt"),
+  successfulReplies: int("successfulReplies").notNull().default(0),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const tutorUsage = mysqlTable("tutorUsage", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, {onDelete:"cascade"}),
+  interactionId: varchar("interactionId", {length:120}).notNull(),
+  kind: mysqlEnum("kind", ["chat","asr","tts"]).notNull(),
+  state: mysqlEnum("state", ["reserved","succeeded","failed"]).notNull().default("reserved"),
+  countable: int("countable").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+}, table => ({
+  userInteractionUnique: unique("tutorUsage_user_interaction_unique").on(table.userId, table.interactionId),
+  userTimeIdx: index("tutorUsage_user_created_idx").on(table.userId, table.createdAt),
+});
