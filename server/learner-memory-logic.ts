@@ -51,7 +51,9 @@ export function issueMemoryProposal(userId:number,fact:MemoryFact,secret:string,
   if(!secret||!Number.isSafeInteger(userId)||userId<=0)return null;
   const payload:SignedPayload={v:1,u:userId,f:fact.fato,c:fact.categoria,t:now};
   const data=Buffer.from(JSON.stringify(payload)).toString("base64url");
-  return {...fact,token:data+"."+sign(data,secret)};
+  const token=data+"."+sign(data,secret);
+  if(token.length>600)return null;
+  return {...fact,token};
 }
 export function verifyMemoryProposal(token:string,userId:number,secret:string,now=Date.now()):MemoryFact|null{
   if(!secret||token.length>600||token.length<20)return null;
