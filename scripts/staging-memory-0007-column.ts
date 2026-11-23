@@ -23,3 +23,15 @@ export function describeUserIdColumn(row: UserIdMetadata | undefined): string {
     typeof value === "string" && /^[a-zA-Z0-9_() ]{1,40}$/.test(value) ? value : "(unexpected)";
   return `users.id metadata: dataType=${safe(row?.dataType)}, columnType=${safe(row?.columnType)}, nullable=${safe(row?.nullable)}`;
 }
+
+/** Strip standalone review comments, then allow exactly one DDL statement.
+ * Comments mentioning SHOW CREATE TABLE must not be counted as executable SQL.
+ */
+export function memory0007CreateStatement(sql: string): string {
+  const active = sql.split(/\r?\n/).filter(line => !/^\s*--/.test(line)).join("\n").trim();
+  if (!/^CREATE TABLE \x60learnerMemories\x60 \([\s\S]*\);$/.test(active) ||
+      (active.match(/\bCREATE\s+TABLE\b/gi) ?? []).length !== 1 ||
+      (active.match(/;/g) ?? []).length !== 1)
+    throw new Error("Unexpected migration file; refusing execution");
+  return active;
+}
