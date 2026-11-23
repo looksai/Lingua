@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import mysql, { type RowDataPacket } from "mysql2/promise";
 import { buildMysqlPoolOptions } from "../server/mysql-pool-options";
 import { assertStagingTarget, STAGING_SCHEMA } from "./staging-aiven-guard";
-import { signedIntUserIdColumn, describeUserIdColumn } from "./staging-memory-0007-column";
+import { signedIntUserIdColumn, describeUserIdColumn, memory0007CreateStatement } from "./staging-memory-0007-column";
 
 const CONFIRM = "APLICAR_0007_MEMORIA_SOMENTE_LINGUA";
 const BACKUP_CONFIRM = "BACKUP_AIVEN_CONFIRMADO";
@@ -74,10 +74,7 @@ async function main() {
     if (Number(check[0]?.total) !== 0) throw new Error("Concurrent schema change detected");
 
     const sql = readFileSync(new URL("../drizzle/0007_learner_memories.sql", import.meta.url), "utf8");
-    const statement = sql.match(/CREATE TABLE `learnerMemories` \([\s\S]*?\);/);
-    if (!statement || (sql.match(/\bCREATE\s+TABLE\b/gi)||[]).length!==1)
-      throw new Error("Unexpected migration file; refusing execution");
-    await conn.query(statement[0]);
+    await conn.query(memory0007CreateStatement(sql));
 
     const [columns] = await conn.execute<RowDataPacket[]>(
       "SELECT COLUMN_NAME AS name FROM information_schema.columns WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='learnerMemories'"
