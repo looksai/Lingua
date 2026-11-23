@@ -72,7 +72,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousConsentKey=useRef<string|null>(null);
-  const consentKey=provider&&provider!=="off"?`lingua:provider-consent:v1:${accountEmail.trim().toLowerCase()}:${provider}`:null;
+  const consentVersion=capabilities.data?.memory?2:1;
+  const consentKey=provider&&provider!=="off"?`lingua:provider-consent:v${consentVersion}:${accountEmail.trim().toLowerCase()}:${provider}`:null;
   const localVoice=selectLocalVoice(localVoices,selectedVoiceURI);
   const memoryKeys=provider&&provider!=="off"?conversationStorageKeys(accountEmail,provider):null;
   const memoryScope=memoryKeys?.conversation??"";
@@ -90,7 +91,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     let accepted=false;
     if(consentKey){try{
       const stored=JSON.parse(window.localStorage.getItem(consentKey)??"null") as {accepted?:boolean;version?:number}|null;
-      accepted=stored?.accepted===true&&stored?.version===1;
+      accepted=stored?.accepted===true&&stored?.version===consentVersion;
     }catch{/* Storage blocked: ask once in memory only. */}}
     setConsent(accepted);setTermsAccepted(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);
     setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
@@ -240,7 +241,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function acceptPrivacy(){
     if(!enabled||!termsAccepted)return;
     setConsent(true);setPrivacyPrompt(false);setTermsAccepted(false);
-    if(consentKey)try{window.localStorage.setItem(consentKey,JSON.stringify({version:1,accepted:true,agreedAt:new Date().toISOString()}));}catch{/* Consent still valid in this tab. */}
+    if(consentKey)try{window.localStorage.setItem(consentKey,JSON.stringify({version:consentVersion,accepted:true,agreedAt:new Date().toISOString()}));}catch{/* Consent still valid in this tab. */}
 
     if(draft.trim())void submitMessage(true);
     else setNotice("Pode falar! Para gravar, segure o microfone.");
@@ -406,7 +407,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     {privacyPrompt ? <section role="dialog" aria-label="Autorização da conversa" className="flex min-h-0 flex-1 flex-col justify-center gap-5 overflow-y-auto p-6">
       <div>
         <h2 className="font-display text-2xl">Pronto para conversar?</h2>
-        <p className="mt-3 text-sm leading-6">Para responder, {provider==="groq"?"o Groq":provider==="openai"?"a OpenAI":"um serviço externo"} processará sua mensagem, seu perfil de estudo, o histórico recente e as gravações que você decidir enviar. Não inclua informações sensíveis.</p>
+        <p className="mt-3 text-sm leading-6">Para responder, {provider==="groq"?"o Groq":provider==="openai"?"a OpenAI":"um serviço externo"} processará sua mensagem, seu perfil de estudo, o histórico recente, as memórias pessoais que você tiver aprovado (se o recurso estiver habilitado) e as gravações que você decidir enviar. Não inclua informações sensíveis.</p>
         <p className="mt-3 text-xs leading-5 text-ink-muted">O aceite fica lembrado neste navegador para esta conta e este provedor. Você pode revogar em Configurações. Em outro dispositivo ou provedor, solicitaremos novamente. Nada será enviado antes da confirmação.</p>
       </div>
       <div className="flex flex-wrap gap-3">
