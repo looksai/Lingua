@@ -14,7 +14,7 @@ export function signedIntUserIdColumn(row: UserIdMetadata | undefined): boolean 
   const dataType = typeof row.dataType === "string" ? row.dataType.toLowerCase() : "";
   const columnType = typeof row.columnType === "string" ? row.columnType.toLowerCase() : "";
   // Signed INT only: the foreign key in 0007 is defined as INT, not UNSIGNED/BIGINT.
-  return dataType === "int" && /^int(?:\\(\\d+\\))?$/.test(columnType);
+  return dataType === "int" && /^int(?:[(][0-9]+[)])?$/.test(columnType);
 }
 
 export function describeUserIdColumn(row: UserIdMetadata | undefined): string {
