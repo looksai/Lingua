@@ -65,7 +65,7 @@ export function asObject(value:unknown):StripeJson|null {
   return value && typeof value==="object"&&!Array.isArray(value) ? value as StripeJson : null;
 }
 export function stripeId(value:unknown,prefix:string):string|null {
-  return typeof value==="string" && new RegExp("^"+prefix+"_[A-Za-z0-9]{6,100}$").test(value) ? value : null;
+  return typeof value==="string" && new RegExp("^"+prefix+"_[A-Za-z0-9_]{6,160}$").test(value) ? value : null;
 }
 export function stripeRefId(value:unknown,prefix:string):string|null {
   if(typeof value==="string") return stripeId(value,prefix);
