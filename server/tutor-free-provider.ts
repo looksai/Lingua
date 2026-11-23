@@ -1,3 +1,4 @@
+import { needsAbsoluteBeginnerSupport } from "../shared/tutor-language";
 import { parseTutorMemoryEnvelope } from "./learner-memory";
 import { TUTOR_MAX_AUDIO_BYTES,TUTOR_MAX_TEXT,systemInstructions,type TutorAudioType,type TutorHistory,type TutorProfile } from "../shared/tutor";
 
@@ -55,7 +56,7 @@ export function createGroqTutor(env=process.env,request:typeof fetch=fetch){
       const raw=await requestJson(GROQ+"chat/completions",{...headers(),"Content-Type":"application/json"},JSON.stringify({
         model,max_completion_tokens:768,temperature:0.6,
         ...(model.startsWith("openai/gpt-oss-")?{reasoning_effort:"low",include_reasoning:false}:{}),
-        messages:[{role:"system",content:systemInstructions(profile,memoryFacts)},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
+        messages:[{role:"system",content:systemInstructions(profile,memoryFacts,false,needsAbsoluteBeginnerSupport(history,message,memoryFacts))},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
       }),request,64_000,"groq-chat") as {choices?:Array<{message?:{content?:unknown}}>};
       return textResult(raw.choices?.[0]?.message?.content);
     },
@@ -63,7 +64,7 @@ export function createGroqTutor(env=process.env,request:typeof fetch=fetch){
       const raw=await requestJson(GROQ+"chat/completions",{...headers(),"Content-Type":"application/json"},JSON.stringify({
         model,max_completion_tokens:850,temperature:0.3,response_format:{type:"json_object"},
         ...(model.startsWith("openai/gpt-oss-")?{reasoning_effort:"low",include_reasoning:false}:{}),
-        messages:[{role:"system",content:systemInstructions(profile,memoryFacts,true)},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
+        messages:[{role:"system",content:systemInstructions(profile,memoryFacts,true,needsAbsoluteBeginnerSupport(history,message,memoryFacts))},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
       }),request,64_000,"groq-chat") as {choices?:Array<{message?:{content?:unknown}}>};
       return parseTutorMemoryEnvelope(textResult(raw.choices?.[0]?.message?.content,3000),message);
     },
