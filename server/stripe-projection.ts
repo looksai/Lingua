@@ -81,3 +81,18 @@ export function projectStripeSubscription(
     cancelAtPeriodEnd:sub.cancel_at_period_end===true,
   };
 }
+
+/** Check the actual Stripe Price, not only our configured identifier. */
+export function validStripeMonthlyPrice(
+  value:StripeJson,
+  expectedId:string,
+  currency:"usd"|"brl",
+):boolean{
+  const recurring=asObject(value.recurring);
+  const amount=stripeInt(value.unit_amount);
+  return value.id===expectedId && value.livemode===false &&
+    value.active===true && value.type==="recurring" && value.currency===currency &&
+    recurring?.interval==="month" && recurring.interval_count===1 &&
+    recurring.usage_type==="licensed" &&
+    amount!==null && amount>0 && (currency!=="usd" || amount===990);
+}
