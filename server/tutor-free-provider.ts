@@ -1,3 +1,4 @@
+import { parseTutorMemoryEnvelope } from "./learner-memory";
 import { TUTOR_MAX_AUDIO_BYTES,TUTOR_MAX_TEXT,systemInstructions,type TutorAudioType,type TutorHistory,type TutorProfile } from "../shared/tutor";
 
 const GROQ="https://api.groq.com/openai/v1/";
@@ -50,13 +51,21 @@ export function createGroqTutor(env=process.env,request:typeof fetch=fetch){
   const model=env.LINGUA_GROQ_TEXT_MODEL||"openai/gpt-oss-120b";
   const asr=env.LINGUA_GROQ_ASR_MODEL||"whisper-large-v3-turbo";
   return {
-    async reply(profile:TutorProfile,history:TutorHistory[],message:string){
+    async reply(profile:TutorProfile,history:TutorHistory[],message:string,memoryFacts:readonly string[]=[]){
       const raw=await requestJson(GROQ+"chat/completions",{...headers(),"Content-Type":"application/json"},JSON.stringify({
         model,max_completion_tokens:768,temperature:0.6,
         ...(model.startsWith("openai/gpt-oss-")?{reasoning_effort:"low",include_reasoning:false}:{}),
-        messages:[{role:"system",content:systemInstructions(profile)},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
+        messages:[{role:"system",content:systemInstructions(profile,memoryFacts)},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
       }),request,64_000,"groq-chat") as {choices?:Array<{message?:{content?:unknown}}>};
       return textResult(raw.choices?.[0]?.message?.content);
+    },
+    async replyWithProposal(profile:TutorProfile,history:TutorHistory[],message:string,memoryFacts:readonly string[]){
+      const raw=await requestJson(GROQ+"chat/completions",{...headers(),"Content-Type":"application/json"},JSON.stringify({
+        model,max_completion_tokens:850,temperature:0.3,response_format:{type:"json_object"},
+        ...(model.startsWith("openai/gpt-oss-")?{reasoning_effort:"low",include_reasoning:false}:{}),
+        messages:[{role:"system",content:systemInstructions(profile,memoryFacts,true)},...history.map(m=>({role:m.role,content:m.text})),{role:"user",content:message}]
+      }),request,64_000,"groq-chat") as {choices?:Array<{message?:{content?:unknown}}};
+      return parseTutorMemoryEnvelope(textResult(raw.choices?.[0]?.message?.content),message);
     },
     async transcribe(bytes:Uint8Array,mime:TutorAudioType){
       if(!bytes.length||bytes.length>TUTOR_MAX_AUDIO_BYTES)throw Error("invalid audio size");
