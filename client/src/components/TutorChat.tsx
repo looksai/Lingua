@@ -49,6 +49,12 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const scrollAnchor = useRef<HTMLDivElement>(null);
   const capabilities = trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
   const reply = trpc.tutor.reply.useMutation();
+  const memoryList=trpc.memory.list.useQuery(undefined,{enabled:capabilities.data?.longTermMemory===true,retry:false,refetchOnWindowFocus:false});
+  const confirmMemory=trpc.memory.confirm.useMutation();
+  const deleteMemory=trpc.memory.delete.useMutation();
+  const clearMemories=trpc.memory.clear.useMutation();
+  const [pendingMemory,setPendingMemory]=useState<{fato:string;categoria:string;token:string}|null>(null);
+  const [memoryNotice,setMemoryNotice]=useState("");
   const transcribe = trpc.tutor.transcribe.useMutation();
   const welcome = trpc.tutor.welcomeAudio.useMutation();
   const placement=trpc.placement.me.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
@@ -110,6 +116,35 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       saveChatMemory(window.localStorage,memoryKeys,messages.filter(m=>m.id>0).map(({id,role,text,source})=>({id,role,text,source})));
     }else clearChatMemory(window.localStorage,memoryKeys,true);
     setMemoryChoice({scope:memoryScope,enabled});
+  }
+  async function acceptMemory(){
+    if(!pendingMemory||confirmMemory.isPending)return;
+    setMemoryNotice("");
+    try{
+      await confirmMemory.mutateAsync({token:pendingMemory.token,accepted:true});
+      setPendingMemory(null);
+      setMemoryNotice("Lembrança guardada na sua conta. Você pode apagá-la nas configurações.");
+      await memoryList.refetch();
+    }catch{
+      setPendingMemory(null);
+      setMemoryNotice("A autorização expirou ou a memória está indisponível. Nenhum fato foi salvo.");
+    }
+  }
+  async function removeMemory(id:number){
+    try{
+      await deleteMemory.mutateAsync({id});
+      await memoryList.refetch();
+      setMemoryNotice("Lembrança apagada da sua conta.");
+    }catch{setMemoryNotice("Não foi possível apagar esta lembrança agora.");}
+  }
+  async function eraseAllMemories(){
+    if(!window.confirm("Apagar todas as lembranças de longo prazo da sua conta? Isso não apaga o histórico local."))return;
+    try{
+      await clearMemories.mutateAsync();
+      setPendingMemory(null);
+      await memoryList.refetch();
+      setMemoryNotice("Todas as lembranças confirmadas foram apagadas.");
+    }catch{setMemoryNotice("Não foi possível apagar as lembranças agora.");}
   }
   function eraseConversation(){
     if(memoryKeys)clearChatMemory(window.localStorage,memoryKeys);
@@ -181,6 +216,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(!text||inFlight.current||capture.current||held.current)return;
     if(placementActive&&text.length>800){setNotice("Nesta sondagem, use até 800 caracteres por resposta.");return;}
     const isPlacement=placementActive&&Boolean(placement.data?.nextTask);
+    setPendingMemory(null);
     const viaASR=transcriptReady;
     inFlight.current=true;setBusy(true);setNotice("");setTranscriptReady(false);
     setDraft("");
@@ -198,6 +234,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice});
         if(!mounted.current)return;
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
+        if(capabilities.data?.longTermMemory&&res.memoryProposal)setPendingMemory(res.memoryProposal);
       }
     }catch{
       if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);}
@@ -355,7 +392,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function updateConsent(next:boolean){
     if(!next){if(consentKey)try{window.localStorage.removeItem(consentKey);}catch{/* no local storage */}
       stopSpeech();stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
-      setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));setNeuralAudios({}); }
+      setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));setNeuralAudios({});setPendingMemory(null); }
     setConsent(next);
   }
 
@@ -440,6 +477,23 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         <p className="text-xs leading-5 text-ink-muted">Opcional e por conta: recupera o chat após atualizar a página, somente neste navegador. Não salva gravações nem áudio neural, não sincroniza dispositivos e não é memória permanente do tutor. Evite dados sensíveis em dispositivos compartilhados.</p>
         <button type="button" onClick={eraseConversation} className="text-sm font-semibold text-red-700 underline">Apagar conversa neste aparelho</button>
       </div>
+      {capabilities.data?.longTermMemory&&<div className="space-y-3 border-t border-ink/10 pt-5">
+        <h3 className="font-semibold">Memórias de longo prazo · sua conta</h3>
+        <p className="text-xs leading-5 text-ink-muted">Só fatos que você confirmou ficam salvos no Aiven e podem aparecer em outras sessões e dispositivos. São autodeclarações, não certificados, provas de domínio ou informações verificadas por terceiros. Isso é diferente do histórico local deste navegador.</p>
+        {memoryList.isError&&<p role="status" className="text-xs text-ink-muted">Memórias indisponíveis neste momento. O chat continua funcionando.</p>}
+        {memoryList.data?.length===0&&<p className="text-xs text-ink-muted">Nenhuma lembrança autorizada ainda.</p>}
+        {memoryList.data?.map(m=><div key={m.id} className="rounded-lg border border-ink/10 p-3 text-sm">
+          <p className="break-words">{m.fato}</p>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-ink-muted">Autodeclarado · {m.categoria}</span>
+            <button type="button" disabled={deleteMemory.isPending||clearMemories.isPending}
+              onClick={()=>void removeMemory(m.id)} className="text-xs font-semibold text-red-700 underline disabled:opacity-40">Apagar</button>
+          </div>
+        </div>)}
+        {Boolean(memoryList.data?.length)&&<button type="button" disabled={clearMemories.isPending||deleteMemory.isPending}
+          onClick={()=>void eraseAllMemories()} className="text-xs font-semibold text-red-700 underline disabled:opacity-40">Apagar todas as lembranças</button>}
+        {memoryNotice&&<p role="status" className="text-xs text-ink-muted">{memoryNotice}</p>}
+      </div>}
       <div className="border-t border-ink/10 pt-5">
         <h3 className="font-semibold">Privacidade da conversa</h3>
         <p className="mt-2 text-xs leading-5 text-ink-muted">Seu chat pode enviar texto e gravações ao {provider==="groq"?"Groq":provider==="openai"?"serviço OpenAI":"provedor externo"} somente após autorização. O aceite é lembrado apenas neste navegador, por conta e provedor, até você revogar ou limpar os dados locais. Não constitui registro de consentimento auditado no servidor.</p>
@@ -481,6 +535,19 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
           </div>
         </div>)}
+        {pendingMemory&&capabilities.data?.longTermMemory&&!placementActive&&<section aria-label="Autorizar uma lembrança" className="rounded-xl border border-teal/30 bg-paper p-4 text-sm">
+          <p className="font-semibold">Posso guardar uma lembrança para personalizar suas próximas aulas?</p>
+          <p className="mt-2 break-words leading-5">Você disse: “{pendingMemory.fato}”</p>
+          <p className="mt-2 text-xs leading-5 text-ink-muted">Se autorizar, ela ficará salva na sua conta. É uma declaração sua, não uma comprovação externa. Você poderá apagá-la depois.</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button type="button" disabled={confirmMemory.isPending||busy}
+              onClick={()=>void acceptMemory()} className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white disabled:opacity-40">Guardar</button>
+            <button type="button" disabled={confirmMemory.isPending}
+              onClick={()=>{setPendingMemory(null);setMemoryNotice("Tudo bem. Essa informação não foi salva.");}}
+              className="rounded-full border border-ink/20 px-4 py-2 text-xs font-semibold">Agora não</button>
+          </div>
+        </section>}
+        {memoryNotice&&!settingsOpen&&<p role="status" className="text-xs text-ink-muted">{memoryNotice}</p>}
         {busy&&<p className="text-xs text-ink-muted">Preparando resposta…</p>}
         <div ref={scrollAnchor}/>
       </div>

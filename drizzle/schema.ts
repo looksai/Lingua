@@ -194,3 +194,22 @@ export const learnerPlacementPlans=mysqlTable("learnerPlacementPlans",{
   createdAt:timestamp("createdAt").notNull().defaultNow(),
   updatedAt:timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
 });
+
+/**
+ * Optional, student-confirmed conversational memory. Not a grade, qualification
+ * verification, official learning record, SRS event, or CSLE evidence.
+ * No unconfirmed candidate is ever written to this table.
+ */
+export const learnerMemories = mysqlTable("learnerMemories", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fato: varchar("fato", { length: 220 }).notNull(),
+  categoria: mysqlEnum("categoria", ["profession","goal","interest","preference"]).notNull(),
+  origem: mysqlEnum("origem", ["student_confirmed_chat"]).notNull(),
+  factHash: varchar("factHash", { length: 64 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => ({
+  ownerHashUnique: unique("learnerMemories_owner_hash_unique").on(table.userId, table.factHash),
+  recentByOwner: index("learnerMemories_owner_created_idx").on(table.userId, table.createdAt),
+}));
+export type LearnerMemory = typeof learnerMemories.$inferSelect;
