@@ -1,10 +1,23 @@
 import { describe,it,expect } from "vitest";
-import { eventScope, projectStripeSubscription } from "./stripe-projection";
+import { eventScope, projectStripeSubscription, validStripeMonthlyPrice } from "./stripe-projection";
 const customer="cus_123456", sid="sub_123456", inv="in_123456", price="price_123456";
 const invoice={id:inv,status:"paid",paid:true,customer};
 const sub={id:sid,customer,livemode:false,status:"active",cancel_at_period_end:false,
   latest_invoice:inv,items:{data:[{quantity:1,price:{id:price,currency:"usd"},current_period_end:1800000000}]}};
 const allowed=new Set([price]);
+describe("Stripe Price validation",()=>{
+  const p={id:price,livemode:false,active:true,type:"recurring",currency:"usd",unit_amount:990,
+    recurring:{interval:"month",interval_count:1,usage_type:"licensed"}};
+  it("accepts only a verified monthly licensed 990-cent USD Price",()=>{
+    expect(validStripeMonthlyPrice(p,price,"usd")).toBe(true);
+    expect(validStripeMonthlyPrice({...p,unit_amount:999},price,"usd")).toBe(false);
+    expect(validStripeMonthlyPrice({...p,recurring:{...p.recurring,interval:"year"}},price,"usd")).toBe(false);
+    expect(validStripeMonthlyPrice({...p,livemode:true},price,"usd")).toBe(false);
+    expect(validStripeMonthlyPrice({...p,active:false},price,"usd")).toBe(false);
+    expect(validStripeMonthlyPrice({...p,id:"price_wrongaccount"},price,"usd")).toBe(false);
+    expect(validStripeMonthlyPrice({...p,recurring:{...p.recurring,usage_type:"metered"}},price,"usd")).toBe(false);
+  });
+});
 describe("signed-event projection must stay account-scoped",()=>{
   it("derives paid entitlement from latest invoice, exact customer and item period",()=>{
     const p=projectStripeSubscription(sub,invoice,customer,allowed);
