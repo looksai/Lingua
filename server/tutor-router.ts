@@ -15,6 +15,7 @@ import { tutorFailureReply } from "./tutor-fallback";
 import { GROQ_ENGLISH_VOICES, GroqTtsBadRequest, type GroqTtsBadRequestReason } from "./groq-tts";
 import { createVoiceProvider } from "./voice-provider";
 import { guardTutorLearnerClaims } from "./tutor-fact-guard";
+import { enforceBeginnerPortuguese } from "../shared/tutor-language";
 import {
   memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, loadLearnerMemories,
   listLearnerMemories, saveLearnerMemory, deleteLearnerMemory, clearLearnerMemories,
@@ -138,7 +139,9 @@ export const tutorRouter = router({
       } catch(error) { return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null}; }
       const checked=guardTutorLearnerClaims(text,input.history,input.message,approvedFacts);
       if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
-      return {text:checked.text,source:"ai" as const,memoryCandidate,...await optionalSpeech(checked.text,input.provider==="openai"&&input.voice)};
+      const adapted=enforceBeginnerPortuguese(checked.text,input.history,input.message,approvedFacts);
+      if(adapted.corrected)console.warn("[tutor] beginner language guard corrected an English-dominant reply");
+      return {text:adapted.text,source:"ai" as const,memoryCandidate,...await optionalSpeech(adapted.text,input.provider==="openai"&&input.voice)};
     });
   }),
   // All memory operations are owned by the authenticated user. Optional
