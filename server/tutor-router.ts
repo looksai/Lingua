@@ -15,6 +15,10 @@ import { tutorFailureReply } from "./tutor-fallback";
 import { GROQ_ENGLISH_VOICES, GroqTtsBadRequest, type GroqTtsBadRequestReason } from "./groq-tts";
 import { createVoiceProvider } from "./voice-provider";
 import { guardTutorLearnerClaims } from "./tutor-fact-guard";
+import {
+  memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, loadLearnerMemories,
+  listLearnerMemories, saveLearnerMemory, deleteLearnerMemory, clearLearnerMemories,
+} from "./learner-memory";
 
 async function profileFor(userId:number): Promise<TutorProfile> {
   const db = await getDb();
@@ -44,7 +48,7 @@ async function optionalSpeech(text:string, requested:boolean):Promise<AudioResul
 export const tutorRouter = router({
   capabilities:protectedProcedure.query(({ctx})=>{
     const openai=paidTutorAllowed(ctx.user.email), groq=freeTutorAllowed(ctx.user.email);
-    return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),neuralEnglish:groq,geminiDemo:geminiDemoAllowed(ctx.user.email)};
+    return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),neuralEnglish:groq,geminiDemo:geminiDemoAllowed(ctx.user.email),memory:memoryFeatureEnabled()};
   }),
   welcomeAudio:protectedProcedure.input(z.object({consent,provider})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
@@ -108,14 +112,59 @@ export const tutorRouter = router({
     checkRequestOrigin(ctx.req);
     const p=await profileFor(ctx.user.id);
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
-      return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const};
+      return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const,memoryCandidate:null};
+    // Missing/unmigrated memory storage MUST NOT block basic tutoring.
+    // Never propose or retrieve memory when disabled. No hidden writes.
+    let approvedFacts:string[]=[];
+    let memoryReady=false;
+    if(memoryFeatureEnabled()){
+      try {
+        approvedFacts=(await loadLearnerMemories(ctx.user.id)).map(item=>item.fato);
+        memoryReady=true;
+      } catch {console.warn("[tutor] memory unavailable: feature will fail closed for this turn");}
+    }
     return withTutorBudget(ctx.user.id,async()=>{
       let text:string;
-      try { const adapter=createSelectedTutor(input.provider!); text=await adapter.reply(p,input.history,input.message); }
-      catch(error) { return tutorFailureReply(error,input.message,input.voice); }
-      const checked=guardTutorLearnerClaims(text,input.history,input.message);
-      if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const};
-      return {text:checked.text,source:"ai" as const,...await optionalSpeech(checked.text,input.provider==="openai"&&input.voice)};
+      let memoryCandidate: {fato:string;categoria:"profissao"|"objetivo"|"interesse"|"preferencia_estudo"}|null=null;
+      try {
+        const adapter=createSelectedTutor(input.provider!);
+        if(memoryReady){
+          const proposed=await adapter.replyWithProposal(p,input.history,input.message,approvedFacts);
+          text=proposed.text;
+          memoryCandidate=proposed.memoryCandidate;
+          if(memoryCandidate&&approvedFacts.some(f=>f.trim().toLocaleLowerCase("pt-BR")===memoryCandidate!.fato.toLocaleLowerCase("pt-BR")))
+            memoryCandidate=null;
+        }else text=await adapter.reply(p,input.history,input.message);
+      } catch(error) { return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null}; }
+      const checked=guardTutorLearnerClaims(text,input.history,input.message,approvedFacts);
+      if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
+      return {text:checked.text,source:"ai" as const,memoryCandidate,...await optionalSpeech(checked.text,input.provider==="openai"&&input.voice)};
     });
+  }),
+  // All memory operations are owned by the authenticated user. Optional
+  // and entirely separate from transcript, curriculum and official evidence.
+  memoryList:protectedProcedure.query(async ({ctx})=>{
+    if(!memoryFeatureEnabled())return [];
+    try{return await listLearnerMemories(ctx.user.id);}
+    catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Memórias indisponíveis até a atualização aprovada do banco."});}
+  }),
+  memorySave:protectedProcedure.input(learnerMemoryInput).mutation(async ({ctx,input})=>{
+    checkRequestOrigin(ctx.req);
+    if(!memoryFeatureEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Memória de longo prazo desativada."});
+    if(!safeLearnerFact(input.fato,input.sourceMessage))throw new TRPCError({code:"BAD_REQUEST",message:"Este trecho não pode ser guardado como memória pessoal."});
+    try{return await saveLearnerMemory(ctx.user.id,input);}
+    catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível guardar a memória. Nada foi confirmado."});}
+  }),
+  memoryDelete:protectedProcedure.input(z.object({id:z.number().int().positive()})).mutation(async ({ctx,input})=>{
+    checkRequestOrigin(ctx.req);
+    if(!memoryFeatureEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Memórias desativadas."});
+    try{return await deleteLearnerMemory(ctx.user.id,input.id);}
+    catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível apagar esta memória."});}
+  }),
+  memoryClear:protectedProcedure.mutation(async ({ctx})=>{
+    checkRequestOrigin(ctx.req);
+    if(!memoryFeatureEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Memórias desativadas."});
+    try{return await clearLearnerMemories(ctx.user.id);}
+    catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível apagar as memórias."});}
   }),
 });

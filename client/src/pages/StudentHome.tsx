@@ -44,10 +44,11 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
     if(speechCapabilities.data?.provider!=="groq"||!speechCapabilities.data.neuralEnglish){
       setVoicePreviewNotice("A voz neural não está habilitada nesta conta de testes.");return;
     }
-    const key=`lingua:provider-consent:v1:${email.trim().toLowerCase()}:groq`;
+    const version=speechCapabilities.data?.memory?2:1;
+    const key=`lingua:provider-consent:v${version}:${email.trim().toLowerCase()}:groq`;
     let accepted=false;
     try{const raw=JSON.parse(window.localStorage.getItem(key)??"null") as {accepted?:boolean;version?:number}|null;
-      accepted=raw?.accepted===true&&raw.version===1;}catch{/* prompt required */}
+      accepted=raw?.accepted===true&&raw.version===version;}catch{/* prompt required */}
     if(!accepted){setVoicePreviewNotice("Antes de testar, abra a conversa com o tutor e autorize o envio ao Groq.");return;}
     const chosen=voiceSettings.neuralVoice??"troy";
     try{
