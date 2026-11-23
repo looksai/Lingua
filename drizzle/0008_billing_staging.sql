@@ -58,3 +58,18 @@ CREATE TABLE `tutorUsage` (
   CONSTRAINT `tutorUsage_user_fk` FOREIGN KEY (`userId`) REFERENCES `users` (`id`) ON DELETE CASCADE
 );
 -- Current schema is a review candidate. No runtime route writes to these tables.
+
+CREATE TABLE `billingCheckoutAttempts` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `userId` int NOT NULL,
+  `attemptId` varchar(80) NOT NULL,
+  `state` enum('creating','created','failed') NOT NULL DEFAULT 'creating',
+  `stripeCheckoutSessionId` varchar(120) DEFAULT NULL,
+  `sessionUrl` text NULL,
+  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expiresAt` timestamp NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `billingCheckoutAttempts_user_attempt_unique` (`userId`,`attemptId`),
+  KEY `billingCheckoutAttempts_user_expiry_idx` (`userId`,`expiresAt`),
+  CONSTRAINT `billingCheckoutAttempts_user_fk` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
