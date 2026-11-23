@@ -8,7 +8,7 @@ vi.mock("./db",()=>({getDb:vi.fn()}));
 const cus="cus_123456789",sid="sub_123456789",pid="price_123456789",invoiceId="in_123456789";
 const event={id:"evt_123456789",type:"invoice.paid",livemode:false,created:1763900000,
   data:{object:{id:invoiceId,customer:cus,parent:{subscription_details:{subscription:sid}}}}};
-function fakeDatabase(){
+function fakeDatabase(linkedCustomer=cus){
   const state:{
     event:Record<string,unknown>|null;
     subscription:Record<string,unknown>|null;
@@ -18,7 +18,7 @@ function fakeDatabase(){
   const tx={
     select:()=>{
       return {from:(table:unknown)=>{
-        const rows=()=>table===billingCustomers?[{userId:77,stripeCustomerId:cus}]:
+        const rows=()=>table===billingCustomers?[{userId:77,stripeCustomerId:linkedCustomer}]:
           table===stripeWebhookEvents?(state.event?[state.event]:[]):
           table===billingSubscriptions?(state.subscription?[state.subscription]:[]):[];
         const q:{where:()=>typeof q;limit:()=>typeof q;for:()=>Promise<unknown[]>;then:(f:(r:unknown[])=>unknown)=>Promise<unknown>}={
@@ -84,13 +84,15 @@ describe("durable Stripe event delivery and entitlement reconciliation",()=>{
     vi.mocked(getDb).mockResolvedValue(f.db as never);
     await reconcileSignedStripeEvent(event,stripe.client);
     stripe.setStatus("past_due");stripe.setPaid(false);
+    // The fake DB represents one event row; a second event ID is a distinct row.
+    f.state.event=null;
     const failed={...event,id:"evt_234567890",type:"invoice.payment_failed"};
     expect(await reconcileSignedStripeEvent(failed,stripe.client)).toBe("processed");
     expect(f.state.subscription?.status).toBe("past_due");
     expect(f.state.subscription?.paidThroughAt).toBeNull();
   });
   it("wrong Stripe customer is denied without database entitlement write",async()=>{
-    const f=fakeDatabase(),stripe=fakeStripe();
+    const f=fakeDatabase("cus_wrongaccount"),stripe=fakeStripe();
     vi.mocked(getDb).mockResolvedValue(f.db as never);
     const wrong={...event,data:{object:{...event.data.object,customer:"cus_wrongaccount"}}};
     await expect(reconcileSignedStripeEvent(wrong,stripe.client)).rejects.toThrow();
