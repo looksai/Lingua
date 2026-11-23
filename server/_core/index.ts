@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { enforceSameOrigin } from "../auth-origin";
+import { stripeWebhookHandler } from "../billing-webhook";
 import { publicPlatformScript } from "./publicConfig";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
@@ -11,6 +12,9 @@ import { serveStatic, setupVite } from "./vite";
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  // Stripe signatures require original bytes, before express.json parses anything.
+  // This route is signature-authenticated and MUST NOT use browser CSRF origin checks.
+  app.post("/api/billing/stripe-webhook", express.raw({type:"application/json",limit:"128kb"}), stripeWebhookHandler);
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
