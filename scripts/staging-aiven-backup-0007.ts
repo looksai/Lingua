@@ -60,7 +60,6 @@ async function main() {
     "port=" + options.port,
     "user=" + mysqlOptionValue(options.user),
     "password=" + mysqlOptionValue(options.password),
-    "database=" + mysqlOptionValue(STAGING_SCHEMA),
     "ssl-mode=VERIFY_IDENTITY",
     "ssl-ca=/secure/ca.pem",
     "default-character-set=utf8mb4",
