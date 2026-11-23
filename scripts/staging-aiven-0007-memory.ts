@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import mysql, { type RowDataPacket } from "mysql2/promise";
 import { buildMysqlPoolOptions } from "../server/mysql-pool-options";
 import { assertStagingTarget, STAGING_SCHEMA } from "./staging-aiven-guard";
+import { signedIntUserIdColumn, describeUserIdColumn } from "./staging-memory-0007-column";
 
 const CONFIRM = "APLICAR_0007_MEMORIA_SOMENTE_LINGUA";
 const BACKUP_CONFIRM = "BACKUP_AIVEN_CONFIRMADO";
@@ -42,10 +43,14 @@ async function main() {
     for (const name of ["users", "localCredentials", "learnerProfiles", "introductoryResponses", "learnerPlacementAnswers", "learnerPlacementPlans"]) {
       if (!present.has(name)) throw new Error("Required prior-migration table missing: " + name);
     }
+    // Explicit aliases are required: information_schema metadata may be returned
+    // with uppercase COLUMN_NAME/DATA_TYPE/COLUMN_TYPE keys.
     const [userIdColumns] = await conn.execute<RowDataPacket[]>(
-      "SELECT column_name, data_type, column_type FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name='id'"
+      "SELECT COLUMN_NAME AS columnName, DATA_TYPE AS dataType, COLUMN_TYPE AS columnType, IS_NULLABLE AS nullable FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='users' AND COLUMN_NAME='id'"
     );
-    if (userIdColumns.length !== 1 || userIdColumns[0].data_type !== "int" || !/int\(/.test(String(userIdColumns[0].column_type)) && String(userIdColumns[0].column_type)!=="int")
+    const userIdInfo = userIdColumns.length===1 ? userIdColumns[0] : undefined;
+    console.log("0007 signed FK preflight:", describeUserIdColumn(userIdInfo));
+    if (!signedIntUserIdColumn(userIdInfo))
       throw new Error("users.id schema must be reviewed before migration");
     console.log("Verified Aiven staging / MySQL 8.4 / TLS / required 0005 + 0006 tables");
     console.log("learnerMemories status:", present.has("learnerMemories") ? "present" : "absent");
