@@ -58,7 +58,7 @@ function Router() {
     <Route path="/" component={RootPage} />
     <Route path="/demo" component={DemoPage} />
     <Route path="/login" component={Login} />
-    <Route path="/premium" component={Premium} />
+    <Route path="/premium"><Premium /></Route>
     <Route path="/billing/success">{()=> <Premium success />}</Route>
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
