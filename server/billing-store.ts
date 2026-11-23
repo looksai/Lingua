@@ -11,7 +11,7 @@ import { billingCheckoutAttempts, billingCustomers, billingSubscriptions,
 import { getDb } from "./db";
 import { billingFeatureEnabled, paidOrTrial, premiumAllowed } from "./billing-policy";
 import { asObject, createStripeTransport, stripeId, stripeRefId, type StripeJson, type StripeTransport } from "./stripe-http";
-import { BILLING_EVENT_TYPES, eventScope, projectStripeSubscription } from "./stripe-projection";
+import { BILLING_EVENT_TYPES, eventScope, projectStripeSubscription, validStripeMonthlyPrice } from "./stripe-projection";
 
 function unavailable():never{
   throw new TRPCError({code:"PRECONDITION_FAILED",message:"Cobrança de testes ainda indisponível."});
@@ -129,6 +129,8 @@ export async function createBillingCheckout(
   if(cached.cached)return {url:cached.cached};
   // Read the authoritative Stripe state, not solely possibly delayed webhooks.
   await checkNoStripeSubscription(customerId,client);
+  const stripePrice=await client.get("/v1/prices/"+encodeURIComponent(price));
+  if(!validStripeMonthlyPrice(stripePrice,price,currency))unavailable();
   const session=await client.post("/v1/checkout/sessions",{
     mode:"subscription",customer:customerId,client_reference_id:String(userId),
     "line_items[0][price]":price,"line_items[0][quantity]":"1",
