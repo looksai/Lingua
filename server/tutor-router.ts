@@ -14,6 +14,8 @@ import { createSelectedTutor } from "./tutor-provider-selector";
 import { tutorFailureReply } from "./tutor-fallback";
 import { GROQ_ENGLISH_VOICES, GroqTtsBadRequest, type GroqTtsBadRequestReason } from "./groq-tts";
 import { createVoiceProvider } from "./voice-provider";
+import { memoryWriteEnabled, recentConfirmedMemories } from "./learner-memory-router";
+import { issueMemoryProposal, type MemoryFact } from "./learner-memory-logic";
 import { guardTutorLearnerClaims } from "./tutor-fact-guard";
 
 async function profileFor(userId:number): Promise<TutorProfile> {
@@ -44,7 +46,7 @@ async function optionalSpeech(text:string, requested:boolean):Promise<AudioResul
 export const tutorRouter = router({
   capabilities:protectedProcedure.query(({ctx})=>{
     const openai=paidTutorAllowed(ctx.user.email), groq=freeTutorAllowed(ctx.user.email);
-    return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),neuralEnglish:groq,geminiDemo:geminiDemoAllowed(ctx.user.email)};
+    return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),neuralEnglish:groq,geminiDemo:geminiDemoAllowed(ctx.user.email),longTermMemory:memoryWriteEnabled(ctx.user.email)};
   }),
   welcomeAudio:protectedProcedure.input(z.object({consent,provider})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
@@ -108,14 +110,35 @@ export const tutorRouter = router({
     checkRequestOrigin(ctx.req);
     const p=await profileFor(ctx.user.id);
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
-      return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const};
+      return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const,memoryProposal:null};
     return withTutorBudget(ctx.user.id,async()=>{
+      const memoryOn=input.provider==="groq"&&memoryWriteEnabled(ctx.user.email);
+      let memories:MemoryFact[]=[];
+      if(memoryOn){
+        try{memories=await recentConfirmedMemories(ctx.user.id);}
+        catch{console.warn("[tutor-memory] safe retrieval unavailable; chat continues without stored facts");}
+      }
       let text:string;
-      try { const adapter=createSelectedTutor(input.provider!); text=await adapter.reply(p,input.history,input.message); }
-      catch(error) { return tutorFailureReply(error,input.message,input.voice); }
-      const checked=guardTutorLearnerClaims(text,input.history,input.message);
-      if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const};
-      return {text:checked.text,source:"ai" as const,...await optionalSpeech(checked.text,input.provider==="openai"&&input.voice)};
+      let candidate:MemoryFact|null=null;
+      try {
+        const adapter=createSelectedTutor(input.provider!);
+        if(memoryOn&&input.provider==="groq"&&"replyWithMemory" in adapter){
+          const result=await adapter.replyWithMemory(p,input.history,input.message,memories);
+          text=result.text;candidate=result.candidate;
+        }else text=await adapter.reply(p,input.history,input.message);
+      }catch(error) {
+        return {...tutorFailureReply(error,input.message,input.voice),memoryProposal:null};
+      }
+      // Confirmed quotes may serve as prior student-authored evidence. The
+      // assistant's own previous messages are never treated as facts.
+      const factualHistory=[...input.history,...memories.map(m=>({role:"user" as const,text:m.fato}))];
+      const checked=guardTutorLearnerClaims(text,factualHistory,input.message);
+      if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryProposal:null};
+      const memoryProposal=memoryOn&&candidate?
+        issueMemoryProposal(ctx.user.id,candidate,process.env.MANUS_JWT_SECRET??""):null;
+      return {text:checked.text,source:"ai" as const,
+        ...await optionalSpeech(checked.text,input.provider==="openai"&&input.voice),
+        memoryProposal};
     });
   }),
 });
