@@ -1,8 +1,10 @@
+import { parseTutorMemoryEnvelope } from "./learner-memory";
 import { TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_TEXT, type TutorAudioType, type TutorHistory, type TutorProfile, systemInstructions } from "../shared/tutor";
 
 export type TutorProvider = {
   transcribe(bytes: Uint8Array, mime: TutorAudioType): Promise<string>;
-  reply(profile: TutorProfile, history: TutorHistory[], message: string): Promise<string>;
+  reply(profile: TutorProfile, history: TutorHistory[], message: string, memoryFacts?: readonly string[]): Promise<string>;
+  replyWithProposal(profile: TutorProfile, history: TutorHistory[], message: string, memoryFacts: readonly string[]): Promise<ReturnType<typeof parseTutorMemoryEnvelope>>;
   speak(text: string): Promise<string | null>;
 };
 const extensions: Record<TutorAudioType,string> = {
@@ -63,17 +65,29 @@ export function createOpenAITutor(env = process.env, request: typeof fetch = fet
       const parsed = JSON.parse(new TextDecoder().decode(raw)) as {text?:unknown};
       return extractText(parsed.text,TUTOR_MAX_TEXT);
     },
-    async reply(profile,history,message) {
+    async reply(profile,history,message,memoryFacts=[]) {
       const raw = await call("chat/completions",JSON.stringify({
         model:textModel,max_tokens:240,
         messages:[
-          {role:"system",content:systemInstructions(profile)},
+          {role:"system",content:systemInstructions(profile,memoryFacts)},
           ...history.map(m=>({role:m.role,content:m.text})),
           {role:"user",content:message},
         ],
       }),true,64_000);
       const parsed = JSON.parse(new TextDecoder().decode(raw)) as {choices?:Array<{message?:{content?:unknown}}>};
       return extractText(parsed.choices?.[0]?.message?.content,TUTOR_MAX_TEXT);
+    },
+    async replyWithProposal(profile,history,message,memoryFacts) {
+      const raw = await call("chat/completions",JSON.stringify({
+        model:textModel,max_tokens:350,response_format:{type:"json_object"},
+        messages:[
+          {role:"system",content:systemInstructions(profile,memoryFacts,true)},
+          ...history.map(m=>({role:m.role,content:m.text})),
+          {role:"user",content:message},
+        ],
+      }),true,64_000);
+      const parsed = JSON.parse(new TextDecoder().decode(raw)) as {choices?:Array<{message?:{content?:unknown}}>};
+      return parseTutorMemoryEnvelope(extractText(parsed.choices?.[0]?.message?.content,TUTOR_MAX_TEXT),message);
     },
     async speak(text) {
       if (!speechConfigured(env)) return null;
