@@ -112,7 +112,7 @@ export const tutorRouter = router({
     checkRequestOrigin(ctx.req);
     const p=await profileFor(ctx.user.id);
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
-      return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const};
+      return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const,memoryCandidate:null};
     // Missing/unmigrated memory storage MUST NOT block basic tutoring.
     // Never propose or retrieve memory when disabled. No hidden writes.
     let approvedFacts:string[]=[];
