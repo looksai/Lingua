@@ -30,7 +30,15 @@ export function memoryQuoteCandidate(message:string,raw:unknown):MemoryFact|null
   const quote=canonical(input.quote),source=canonical(message);
   if(quote.length<8||quote.length>MAX_QUOTE||source.length>1200)return null;
   // Crucial: never accept model-paraphrased, invented or prior-assistant facts.
-  if(!source.toLocaleLowerCase("pt-BR").includes(quote.toLocaleLowerCase("pt-BR")))return null;
+  const at=source.toLocaleLowerCase("pt-BR").indexOf(quote.toLocaleLowerCase("pt-BR"));
+  if(at<0)return null;
+  // A substring may silently drop a crucial negation: "não sou soldador"
+  // must never become "sou soldador". A quoted negative itself is allowed.
+  const prefix=source.slice(Math.max(0,at-24),at);
+  if(/\b(?:n[aã]o|nunca|not|never|sem)\s*$/iu.test(prefix))return null;
+  // Guard against turning stored student-supplied instructions into prompt
+  // injections during future retrieval. Confirmed facts remain untrusted.
+  if(/\b(?:ignore|ignora|desconsidere|desobede[cç]a|system prompt|developer message|instru[cç][oõ]es anteriores|prior instructions|api key|segredo de sistema)\b/iu.test(quote))return null;
   if(!categoryMarkers[category.data].test(quote)||sensitive.test(quote))return null;
   if(/\b(?:\d{3}\.\d{3}\.\d{3}[- ]?\d{2}|\d{11}|\d{3}[ .-]?\d{3}[ .-]?\d{4})\b/.test(quote)||quote.includes("@")||/https?:\/\//i.test(quote))return null;
   return {fato:quote,categoria:category.data};
