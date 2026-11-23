@@ -169,6 +169,24 @@ export const introductoryResponses = mysqlTable("introductoryResponses", {
   userTaskUnique: unique("introductoryResponses_user_task_unique").on(table.userId, table.taskId),
 }));
 
+/**
+ * Optional, learner-approved conversational memories. Never official pedagogy,
+ * learning evidence or SRS; only explicit learner-confirmed quotes are stored.
+ */
+export const learnerMemories = mysqlTable("learnerMemories", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fato: varchar("fato", { length: 240 }).notNull(),
+  categoria: mysqlEnum("categoria", ["profissao", "objetivo", "interesse", "preferencia_estudo"]).notNull(),
+  origem: varchar("origem", { length: 64 }).notNull().default("aluno_confirmou_no_chat"),
+  factKey: varchar("factKey", { length: 64 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, table => ({
+  uniqueFact: unique("learnerMemories_user_fact_unique").on(table.userId, table.factKey),
+  recentByUser: index("learnerMemories_user_recent_idx").on(table.userId, table.createdAt, table.id),
+}));
+export type LearnerMemory = typeof learnerMemories.$inferSelect;
+
 export type LearnerProfile = typeof learnerProfiles.$inferSelect;
 export type IntroductoryResponse = typeof introductoryResponses.$inferSelect;
 
