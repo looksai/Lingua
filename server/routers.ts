@@ -1,6 +1,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { onboardingRouter } from "./onboarding-router";
 import { tutorRouter } from "./tutor-router";
+import { billingRouter } from "./billing-router";
 import { placementRouter } from "./placement-router";
 import { issueSession, registerLocalUser, loginLocalUser, rateLimit, checkRequestOrigin, normalizeEmail } from "./auth-local";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -23,6 +24,7 @@ export const appRouter = router({
   system: systemRouter,
   onboarding: onboardingRouter,
   tutor: tutorRouter,
+  billing: billingRouter,
   placement: placementRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
