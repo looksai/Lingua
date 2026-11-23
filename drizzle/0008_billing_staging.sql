@@ -63,6 +63,8 @@ CREATE TABLE `billingCheckoutAttempts` (
   `id` int NOT NULL AUTO_INCREMENT,
   `userId` int NOT NULL,
   `attemptId` varchar(80) NOT NULL,
+  `currency` enum('usd','brl') NOT NULL,
+  `stripePriceId` varchar(100) NOT NULL,
   `state` enum('creating','created','failed') NOT NULL DEFAULT 'creating',
   `stripeCheckoutSessionId` varchar(120) DEFAULT NULL,
   `sessionUrl` text NULL,
