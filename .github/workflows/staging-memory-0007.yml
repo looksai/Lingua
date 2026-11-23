@@ -1,0 +1,53 @@
+name: Lingua Aiven memory 0007 (manual guarded)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "inspect is read-only; apply creates only learnerMemories after verification"
+        required: true
+        type: choice
+        default: inspect
+        options: [inspect, apply]
+      confirmation:
+        description: "For apply only: APLICAR_0007_MEMORIA_SOMENTE_LINGUA"
+        type: string
+        required: false
+      backup_confirmation:
+        description: "For apply only: BACKUP_AIVEN_CONFIRMADO (attestation: must be verified in Aiven)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-aiven-staging
+  cancel-in-progress: false
+
+jobs:
+  guarded-0007:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Inspect or apply 0007 on the exact Aiven staging database only
+        env:
+          LINGUA_STAGING_ACTION: ${{ inputs.action }}
+          LINGUA_STAGING_CONFIRMATION: ${{ inputs.confirmation }}
+          LINGUA_STAGING_BACKUP_CONFIRMATION: ${{ inputs.backup_confirmation }}
+          LINGUA_STAGING_DATABASE_URL: ${{ secrets.LINGUA_STAGING_DATABASE_URL }}
+          LINGUA_STAGING_CA_BASE64: ${{ secrets.LINGUA_STAGING_CA_BASE64 }}
+        run: pnpm exec tsx scripts/staging-aiven-0007-memory.ts
