@@ -37,7 +37,9 @@ const capabilities={data:{
   neuralEnglish:true,memory:false,geminiDemo:false,
 },isLoading:false,isPending:false,error:null,refetch:async()=>({data:capabilities.data})};
 const privacyPreferences={data:{
-  serviceAccepted:false,personalMemoryEnabled:false,legacyAccount:true,
+  serviceAccepted:new URLSearchParams(window.location.search).get("accepted")==="1",
+  personalMemoryEnabled:new URLSearchParams(window.location.search).get("accepted")==="1",
+  legacyAccount:new URLSearchParams(window.location.search).get("accepted")!=="1",
 },isError:false,isPending:false,isLoading:false,
   refetch:async()=>({data:privacyPreferences.data})};
 const placement={data:{nextTask:null,answers:[]},isPending:false,isLoading:false,
