@@ -62,6 +62,18 @@ describe("local authentication security", () => {
     })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
+  it("refuses privacy settings lookups for a different account email", async () => {
+    const ctx = {
+      user: { id: 7, email: "learner-a@example.com" },
+      req: { headers: { origin: "http://lingua.test", host: "lingua.test" } },
+      res: {},
+    } as TrpcContext;
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.tutor.privacyPreferences({
+      accountEmail: "learner-b@example.com",
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
   it("denies anonymous learning and offline review, including forged legacy session", async () => {
     const ctx = { user: null, req: { headers: { cookie: `${COOKIE_NAME}=legacy` } }, res: {} } as TrpcContext;
     const caller = appRouter.createCaller(ctx);
