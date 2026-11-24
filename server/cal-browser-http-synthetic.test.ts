@@ -82,7 +82,7 @@ async function show(page:any){
   const section=page.getByRole("region",{name:"Atividade do catálogo do Lingua"});
   await section.waitFor();
   await section.scrollIntoViewIfNeeded();
-  await page.getByTestId("ack-status").getByText("recorded").waitFor();
+  await page.waitForFunction(()=>document.querySelector('[data-testid="ack-status"]')?.textContent==="recorded");
 }
 
 describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real catalogue React view",()=>{
@@ -148,9 +148,10 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
       await send(page,"Quero praticar Hello");
       await page.getByText("Na frase Hello, qual é o significado?").waitFor();
       expect(calCatalogTutorSessions.inspectForTest(id)?.cal.phase).toBe("ENSINAR");
-      expect(calCatalogTutorSessions.inspectForTest(id)?.task?.renderedDeliveryId).toBeUndefined();
+      expect(calCatalogTutorSessions.inspectForTest(id)?.cal.observations).toEqual([]);
       await show(page);
-      expect(calCatalogTutorSessions.inspectForTest(id)?.task?.renderedDeliveryId).toBeTruthy();
+      const issued=calCatalogTutorSessions.pendingClientTask(id)!;
+      expect(calCatalogTutorSessions.confirmBrowserRender(id,issued.sessionId,issued.deliveryId)).toBe("duplicate");
       await send(page,"Olá");
       expect(calCatalogTutorSessions.inspectForTest(id)?.cal.phase).toBe("PRATICAR");
       expect(calCatalogTutorSessions.inspectForTest(id)?.cal.observations).toEqual([]);
@@ -184,7 +185,7 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
       expect(calCatalogTutorSessions.inspectForTest(a.id)).toEqual(before);
       expect(calCatalogTutorSessions.pendingClientTask(b.id)).toBeNull();
       await show(first.page);
-      expect(calCatalogTutorSessions.inspectForTest(a.id)?.task?.renderedDeliveryId).toBeTruthy();
+      expect(calCatalogTutorSessions.confirmBrowserRender(a.id,ticket.sessionId,ticket.deliveryId)).toBe("duplicate");
       expect(calCatalogTutorSessions.inspectForTest(b.id)).toBeNull();
     }finally{await first.ctx.close();await second.ctx.close();}
   },40_000);
@@ -196,7 +197,7 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
       await first.page.getByText("Na frase Hello, qual é o significado?").waitFor();
       const pending=calCatalogTutorSessions.pendingClientTask(a.id)!;
       await first.page.reload({waitUntil:"networkidle"});
-      await first.page.getByTestId("recovered").getByText("yes").waitFor();
+      await first.page.waitForFunction(()=>document.querySelector('[data-testid="recovered"]')?.textContent==="yes");
       await first.page.getByText(pending.promptText).waitFor();
       await show(first.page);
       const after=calCatalogTutorSessions.pendingClientTask(a.id)!;
@@ -220,7 +221,7 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
     const first=await context();
     try{
       await send(first.page,"Quero praticar Hello");
-      await first.page.getByTestId("error").getByText("UNAUTHORIZED").waitFor();
+      await first.page.waitForFunction(()=>document.querySelector('[data-testid="error"]')?.textContent?.includes("UNAUTHORIZED"));
       const attacker=await fetch(address+"/api/trpc/tutor.reply",{
         method:"POST",
         headers:{"Content-Type":"application/json","Origin":"https://other.invalid"},
@@ -238,10 +239,7 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
       await first.page.getByText("Na frase Hello, qual é o significado?").waitFor();
       const old=calCatalogTutorSessions.pendingClientTask(a.id)!;
       await first.page.getByTestId("reset").click();
-      await first.page.waitForFunction((previous:string)=>{
-        const task=Array.from(document.querySelectorAll('[aria-label="Atividade do catálogo do Lingua"]'));
-        return task.length>0;
-      },old.deliveryId);
+      await first.page.waitForFunction(()=>!(document.querySelector('[data-testid="reset"]') as HTMLButtonElement)?.disabled);
       const current=calCatalogTutorSessions.pendingClientTask(a.id)!;
       expect(current.sessionId).not.toBe(old.sessionId);
       const stale=await first.page.evaluate(async submitted=>{
