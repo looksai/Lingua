@@ -5,6 +5,7 @@
 > **Atualização inicial:** 24/11/2026 UTC (23/11/2026 à noite, horário de Natal/RN).  
 > **Repositório principal:** [looksai/Lingua](https://github.com/looksai/Lingua).  
 > **Estado do trabalho nesta fotografia:** FASE 01 — **Naruto**; PR #39 mergeada; PR #40 **aberta, sem merge nem deploy e com CI mais recente FALHANDO**; branch inicial do catálogo criada, ainda sem arquivos novos; Stripe PR #32 pausada; CSLE independente.  
+> **ESTADO ATUALIZADO — 24/11/2026 UTC:** **PR #40** aberta, head \`d9d3c340\`, CI [#45317554127](https://github.com/looksai/Lingua/actions/runs/45317554127) **VERDE**; **PR #41** aberta em **draft**, head \`b9b2c8a2\`, CI [#45317917864](https://github.com/looksai/Lingua/actions/runs/45317917864) **VERDE**. **AMBAS SEM MERGE E SEM DEPLOY.** Render Live ainda na PR #35; PR #39 está mergeada na main; Stripe #32 pausada; CSLE independente. A seção 18 tem o próximo passo.
 > **Natureza:** passagem de bastão completa, especificações, decisões, histórico, pendências e regras de operação. **Não é autorização para alterar código, migrar DB ou fazer deploy.**
 >
 > **Regra de confiabilidade:** esta é uma fotografia histórica verificável em sua data. Em nova conversa, usar a documentação como contexto, **mas checar o GitHub/CI/Render atuais antes de afirmar o estado de qualquer PR, deploy, migration, custo ou teste**. Datas, PRs e commits podem mudar. O histórico relatado pelo fundador/assistentes deve ser distinguido da evidência direta no código/CI.
@@ -268,13 +269,15 @@ A representação em sequência **não exige seis etapas em todo turno**. Há at
 - Após 3 erros fechados verificáveis pode retornar ENSINAR com outra estratégia (experimental).
 - **Não cobre no chat integrado** tarefas plenas de RETOMAR/TRANSFERIR/COMPROVAR; somente a máquina pura conhece essas transições.
 
-**Status real do CI mais recente à criação do contexto-mestre:**
+**Histórico do CI anterior às correções (RESOLVIDO; ver estado atualizado na seção 18):**
 - [Run #45305579759](https://github.com/looksai/Lingua/actions/runs/45305579759) — **success** para versão antiga da PR, com **185 testes**.
 - Head atual conferido: **\`95501394d71b41eebb58d4295906b4a81b1ee948\`**, que adiciona \`server/cal-router-contract.test.ts\` e endurece o gatilho do piloto.
 - [Run #45316857589](https://github.com/looksai/Lingua/actions/runs/45316857589) — **failure**: os **11 novos testes de contrato passaram**, mas um teste antigo falhou:
   \`server/cal-integration.test.ts\` → «a learner question is not graded as a wrong answer». Antes, esperava \`r?.phase === "ENSINAR"\`; agora o comportamento seguro de pergunta fora de assunto retorna **\`null\`** (bypass CAL) e o teste precisa ser atualizado para conferir ausência de avaliação.
 - O teste de tipo passou nesse run; o build foi pulado devido à falha da suíte.
-- **PR #40 NÃO ESTÁ VERDE NO HEAD ATUAL.** Corrigir o teste *conforme intenção segura*, não afrouxar o gate só para a suíte passar. Rodar CI completo novamente e confirmar versão do SHA.
+- **NOTA HISTÓRICA SUPERADA:** a PR #40 estava vermelha no primeiro head; esta falha foi corrigida e o CI do head atualizado está verde.
+**ATUALIZAÇÃO:** o teste obsoleto foi corrigido na PR #40; CI verde no [run #45317554127](https://github.com/looksai/Lingua/actions/runs/45317554127), SHA `d9d3c340`. O catálogo PR #41 também tem CI verde [#45317917864](https://github.com/looksai/Lingua/actions/runs/45317917864), SHA `b9b2c8a2`. **Ambas sem merge/deploy.**
+
 - **Não mergear #40 nem deployar até CI verde + auditoria.**
 
 **O que foi revelado na auditoria:**
@@ -287,32 +290,24 @@ A representação em sequência **não exige seis etapas em todo turno**. Há at
 
 ---
 
-# 11. Catálogo pedagógico de microcompetências — próxima frente, SEM entrega ainda
+# 11. Catálogo pedagógico de microcompetências — PR #41 ENTREGUE EM BRANCH
 
-**Branch já criada:** \`feat/naruto-microcompetency-catalog\`. **Na data desta fotografia aponta para \`main\`, sem novos arquivos/PR.** Foi iniciada conceitualmente durante a conversa, mas interrompida pelo pedido do fundador para salvar contexto; **não afirmar que o catálogo foi implementado**.
+**PR:** [#41](https://github.com/looksai/Lingua/pull/41) · **branch:** \`feat/naruto-microcompetency-catalog\` · **status:** aberta em **draft, não mergeada nem deployada** · **head:** \`b9b2c8a2241abc798c05e169d9b188574f1c1f89\` · **CI VERDE:** [#45317917864](https://github.com/looksai/Lingua/actions/runs/45317917864).
 
-**Objetivo do catálogo:** substituir o conteúdo fixo de “Hello” por microcompetências curriculares **versionadas**, com objetivo, pré-requisitos, nível de assistência, estratégias, explicação compreensível, tarefas de compreensão/produção/transferência, gabaritos fechados quando apropriados e rubricas para respostas abertas. Usar como contratos de domínio **sob autoridade Lingua**, não como evidência de aprendizagem.
+**Arquivos criados:**
+- \`shared/pedagogy/microcompetency-catalog.ts\`: catálogo puro com \`MicroCompetency\`, \`MicroTask\`, 8 competências versionadas, 24 tarefas, grafo de pré-requisitos, regras de validação e checador conservador de respostas.
+- \`shared/pedagogy/microcompetency-catalog.test.ts\`: **17 testes sintéticos** de currículo, gabaritos, grafo acíclico, ajuda, perguntas, ASR, tarefas abertas e ausência de domínio.
+- \`docs/NARUTO-MICROCOMPETENCY-CATALOG.md\` na branch: instruções de auditoria e limites.
 
-**Primeiro conjunto candidato (não definitivo):**
-- Cumprimentos: \`Hello\`, \`Good morning\`, \`Goodbye\`.
-- Cortesia: \`Please\`, \`Thank you\`.
-- Apresentação pessoal: \`My name is Alex\` (Alex é personagem **fictício**; nunca tratar como nome do aluno).
-- Profissão: \`I am a welder\` **somente como exemplo fictício**, salvo autodeclaração autorizada de profissão.
-- Perguntas: \`What is your name?\`, \`What do you do?\` com tradução.
-- Situações reais: entrevista curta e apresentação de colega como tarefas de **transferência**, não nota automática.
-- Sempre que o aluno revelar outro objetivo, não forçar o catálogo a seguir uma trilha rígida; currículo comum e exploração adaptativa convivem.
+**Conteúdo inicial:** \`greeting.hello\`, \`greeting.good-morning\`, \`greeting.goodbye\`, \`courtesy.please\`, \`courtesy.thank-you\`, \`identity.my-name\`, \`work.welder-example\` e \`conversation.what-do-you-do\`. **Alex e o soldador dos exemplos são personagens fictícios**, não identidade nem carreira do aluno. A profissão autodeclarada só pode ser reutilizada entre sessões após consentimento.
 
-**Arquitetura sugerida:**
-- \`shared/pedagogy/microcompetency-catalog.ts\` puro, sem DB/LLM/SRS.
-- \`MicroCompetency\`: ID/version/title/domain/prerequisites/learningObjective/strategies/taskIds/model/translation.
-- \`MicroTask\`: ID/version/competencyId/contextId/mode (\`closed_meaning\`, \`closed_expression\`, \`open_transfer\`), prompt/acceptedAnswers/assistance/rubric e avaliação explicitamente permitida.
-- Validar grafo: IDs únicos, todas dependências existem, nenhuma dependência cíclica, tarefas referem-se a competências, ausência de respostas vazias, idiomas coerentes e estratégia elegível.
-- Resultado de \`evaluateClosedTask\`: \`meets\`, \`not_yet\` ou \`not_evaluable\`; **não** emitir \`MASTERED\`, CEFR ou conhecimento certificado. Alternativas abertas → revisão humana/futura rubrica auditada, não gabarito ingênuo.
-- Contratos de SRS **não** podem inserir itens; candidato é distinto de persistência e requer autorização.
-- Testes determinísticos sintéticos de casos comuns, ambiguidade linguística, normalização e ausência de fabricação de dados pessoais.
-- Abrir **PR separada** e auditar; **não** acoplar ao tutor vivo ou implantar automaticamente.
+**Cada competência contém:** tarefa fechada de significado, tarefa fechada de expressão e tarefa aberta de transferência. **Aberta exige revisão; nunca pontuação automática.** \`evaluateClosedMicrotask\` só emite \`rule_candidate\`: resposta pontual sem domínio, CEFR ou registro oficial. Perguntas, “não sei”, ajuda, e modalidade \`asr_text\` resultam **não avaliável**, não erro. O catálogo não é currículo completo nem prova de eficácia.
 
-**Não confundir** catálogo pedagógico (o que ensinar) com o orquestrador (como/quando ensinar) ou CSLE (propostas avançadas de trajetória). O produto final precisa dos três em papéis claros.
+**Falha real corrigida pelos testes:** a normalização lexical removia \`?\` antes da regra que deveria detectar perguntas. O primeiro CI da PR #41 falhou em dois casos; o verificador foi corrigido para testar o sinal antes da normalização e a suíte passou no head \`b9b2c8a2\`.
+
+**Invariantes:** nenhum DB, \`learnerEvidences\`, gravação de memória, SRS automático, modelo externo, CSLE, Stripe ou runtime do Naruto é tocado nesta PR. Um futuro adaptador \`TaskCatalog → CAL → Naruto\` precisa de nova implementação e decisão.
+
+**Próximo passo:** auditoria Deep da PR #41 juntamente com #40, depois decisão expressa do fundador. **Não mergear ou colocar no Render automaticamente.**
 
 ---
 
@@ -428,7 +423,9 @@ Trabalho histórico implementado na branch de billing:
 | [#35](https://github.com/looksai/Lingua/pull/35) | Segurança pedagógica para iniciante absoluto pt-BR | **MERGEADA E LIVE NO RENDER** |
 | [#37](https://github.com/looksai/Lingua/pull/37) | Sincronização técnica \`main\` → branch billing antes de congelar | Mergeada na branch billing, não é deploy |
 | [#39](https://github.com/looksai/Lingua/pull/39) | Máquina CAL pura + 28 testes | **MERGEADA NA MAIN**, não deployada |
-| [#40](https://github.com/looksai/Lingua/pull/40) | CAL gradual no tutor com feature flag; QA adicional em andamento | **ABERTA, NÃO MERGEADA, último CI falhando** |
+| [#40](https://github.com/looksai/Lingua/pull/40) | CAL gradual no tutor, corrigido bypass, 11 testes de fronteira | **ABERTA; CI verde #45317554127; sem merge** |
+
+| [#41](https://github.com/looksai/Lingua/pull/41) | Catálogo inicial 8 microcompetências/24 tarefas, 17 testes de currículo | **ABERTA/DRAFT; CI verde #45317917864; sem merge** |
 | [Issue #36](https://github.com/looksai/Lingua/issues/36) | UX, acesso, estudo e conta — subordinados ao roadmap | Aberta, backlog posterior |
 | [Issue #38](https://github.com/looksai/Lingua/issues/38) | Auditoria integral e baseline do Naruto | Aberta, tarefa atual |
 
@@ -450,37 +447,33 @@ Mensagem: “Perfeito, vamos seguir”, após aprovação da estratégia de:
 
 Depois solicitou **salvar máximo contexto no GitHub** porque conversas longas travam e novos chats perdem decisões.
 
-## 18.2 O que já ocorreu nesta rodada
+## 18.2 O que foi concluído nesta rodada
 
-- Lidas PR #40, código de \`server/cal-integration.ts\`, teste, \`tutor-router.ts\`, provedores, segurança e documentação.
-- Detectado risco de hijack: usuário com outro objetivo que menciona “inglês” podia receber exercício “Hello”.
-- Em \`feat/cal-integration\`, restringido início do piloto a sinal de iniciante/apoio de português e adicionada regra de **bypass para perguntas não relacionadas**.
-- Criado \`server/cal-router-contract.test.ts\` com **11 testes de interface tRPC** (mocks para DB, autorização, provider; sem custos externos). Testa flag off, flag on, consentimento, origem/autenticação, retorno do modelo, resposta avaliada no momento correto, falha de IA, claim guard, contas diferentes, pergunta fora de assunto e falta da pergunta de tarefa.
-- CI novo mostrou **todos 11 testes de rota aprovados**, mas um teste antigo da integração ficou incompatível com novo bypass seguro; **PR #40 agora CI vermelho**.
-- Criada \`feat/naruto-microcompetency-catalog\` a partir de \`main\`, sem arquivos novos (tarefa interrompida).
-- Solicitado arquivo-mestre e iniciado este documento.
+**Continuidade entre conversas:**
+- Criado o arquivo-mestre \`docs/CONTEXTO-MESTRE-LINGUA.md\` na \`main\`, com mais de 54 mil caracteres na primeira versão e instruções de retomada, histórico, visão, CSLE, Naruto, infra, testes e limites.
+- O README principal passou a apontar para este arquivo como **LEIA PRIMEIRO**. Nenhuma credencial secreta foi incluída.
 
-## 18.3 AÇÕES IMEDIATAS AO RETOMAR (ordem estrita)
+**Auditoria automatizada da PR #40:**
+- Rota tRPC \`tutor.reply\` auditada com Groq/OpenAI simulados; consentimento, isolamento entre contas, flag \`CAL_ENABLED\`, falha de IA e proteção de fatos mantidos.
+- Criado \`server/cal-router-contract.test.ts\`, com **11 testes** de fronteira autenticada.
+- Corrigido gatilho do exercício “Hello” para não sequestrar pedidos legítimos de quem não declarou necessidade de suporte absoluto; perguntas alheias à tarefa têm bypass e não são marcadas como falha.
+- CI inicial acusou teste antigo incompatível com o novo bypass; expectativa atualizada e checado que não houve observação/erro fictício.
+- **Resultado confirmado:** PR #40 head \`d9d3c340f068505d1548f8550116d2c80fee0e87\`, CI [#45317554127](https://github.com/looksai/Lingua/actions/runs/45317554127) **SUCCESS** (TypeScript, Vitest, build). **NÃO mergeada; NÃO deployada.**
 
-**A. Corrigir PR #40 primeiro:**
-1. Abrir no GitHub \`server/cal-integration.test.ts\` da branch \`feat/cal-integration\`.
-2. Encontrar o teste **"a learner question is not graded as a wrong answer"**.
-3. O código de \`CALTutorSessions.prepare\` passou a retornar **null** quando uma pergunta fora do exercício deve seguir para o Naruto normal, portanto a asserção \`expect(r?.phase).toBe("ENSINAR")\` não vale mais.
-4. Corrigir teste para conferir **\`expect(r).toBeNull()\`**, manter \`observations\` vazias/sem erro, e incluir verificação de que o Naruto responde à pergunta livre pelo caminho normal; reforçar regressão.
-5. Commit apenas na PR #40, rodar **CI atual** (\`pnpm check\`, \`pnpm test\`, \`pnpm build\`), verificar todos os testes e o SHA do head. Inspecionar novas falhas de regressão e corrigir honestamente, sem enfraquecer proteção de segurança/pedagogia.
-6. Atualizar PR #40/runbook/Issue #38 com resultado real. **Não mergear nem deployar.**
+**Catálogo curricular na PR #41:**
+- Branch antes vazia agora tem catálogo de **8 microcompetências e 24 tarefas**, 17 testes próprios, documento de auditoria e [PR #41](https://github.com/looksai/Lingua/pull/41) em **draft**.
+- O CI encontrou que normalização removia a pontuação antes de detectar perguntas: corrigido sem diminuir a prudência da avaliação.
+- **Resultado confirmado:** PR #41 head \`b9b2c8a2241abc798c05e169d9b188574f1c1f89\`, CI [#45317917864](https://github.com/looksai/Lingua/actions/runs/45317917864) **SUCCESS** (TypeScript, 20 arquivos de teste, build). **NÃO mergeada; NÃO deployada.**
+- Ambas usam apenas testes automáticos; **não foi avaliada a eficácia com alunos reais**.
 
-**B. Depois criar catálogo pedagógico independente:**
-1. Branch já existe: \`feat/naruto-microcompetency-catalog\` (apontava para main sem commits).
-2. Criar catálogo puro, testes de grafo e rubricas fechadas/conceituais, documento de governança e PR separada.
-3. Não conectar ao chat real nesta rodada sem revisão/aprovação.
-4. CI verde; link de PR + relatório ao fundador/Deep.
+## 18.3 PRÓXIMAS AÇÕES AO RETOMAR — estado corrente
 
-**C. Só depois da auditoria do Deep e decisão explícita do fundador:**
-1. Considerar aprovação da PR #40.
-2. Planejar teste CAL com \`CAL_ENABLED=true\` em staging **sem ativação automática**, com autorização e rollback.
-3. Executar testes reais guiados quando o fundador tiver tempo, sem declarar que foram feitos antes disso.
-4. Revisar resultados e ampliar catálogo/rotas/medidas; **não antecipar CSLE fase 02** nem Stripe.
+1. **Enviar ao Deep as PRs #40 e #41 com seus SHAs e runs de CI verdes.** Pedir revisão de código, catálogo, anti-hijack, assistência, respostas não avaliáveis e regras de segurança.
+2. **Não realizar merges/deploy/migrations sem autorização do fundador.** A PR #40 está pronta para revisão e #41 está draft. A versão Render Live ainda não possui CAL ativo nem o catálogo.
+3. Após parecer: planejar um **adaptador \`Catálogo → CAL → Naruto\`** que respeite a escolha do aluno, atividades versionadas e fallback, usando feature flag desligada por padrão. A ligação real exige nova decisão e testes.
+4. Quando o fundador tiver tempo, desenhar QA manual de \`CAL_ENABLED=true\` em staging autorizado, com allowlist e rollback. **Não solicitar teste agora como bloqueio**, pois o fundador informou estar ocupado.
+5. Continuar Fase 01: comparar ensino sem/com CAL, tarefas, custos, latência, retenção posterior e transferência sem afirmar vantagem antes da evidência. **CSLE continua independente (Fase 02 futura)**; **Stripe #32 continua pausado**.
+6. Atualizar esta mesma seção depois de cada avanço; conferir status novo do GitHub antes de agir.
 
 ## 18.4 “Done” só quando houver prova
 
@@ -566,4 +559,4 @@ Depois de cada milestone:
 
 ---
 
-**ESTADO-RESUMO NA DATA ORIGINAL DESTE ARQUIVO:** \`main\` em \`edca90f4\` (#39 mergeada); Render Live em \`3e1188ed\` (#35); PR #40 aberta head \`95501394\` com **CI vermelho devido a um teste desatualizado**; branch do catálogo criada **sem commit**; Stripe #32 pausada/draft, \`0008\` não aplicada; memória \`0007\` em staging; CSLE independente e não integrado; próxima tarefa **corrigir teste PR #40, CI verde, depois catálogo pedagógico PR independente**, sem deploy.
+**ESTADO-RESUMO ATUALIZADO EM 24/11/2026 UTC:** `main` contém PR #39 mergeada e documentação de continuidade; Render Live continua na PR #35 (`3e1188ed`). PR #40 **CI VERDE #45317554127**, head `d9d3c340`, aberta/não mergeada/não implantada. PR #41 **CI VERDE #45317917864**, head `b9b2c8a2`, aberta/draft/não mergeada/não implantada. Stripe #32 pausada, migration `0008` não aplicada; memória `0007` em staging; CSLE independente. **Próximo passo: auditoria Deep das PRs #40/#41 e decisão explícita do fundador antes de qualquer integração/deploy.**
