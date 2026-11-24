@@ -310,11 +310,12 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   // Keep native controls visible and explain the fallback rather than claiming autoplay worked.
   useEffect(()=>{
     if(autoPlayId===null)return;
+    const epoch=conversationVersion.current;
     const audio=autoPlayRef.current;
     if(!audio){setAutoPlayId(null);return;}
     stopAudioPlayers(audio);stopSpeech();
     void audio.play().catch((error:unknown)=>{
-      if(!mounted.current)return;
+      if(!isCurrent(epoch))return;
       const blocked=error instanceof DOMException&&error.name==="NotAllowedError";
       setNotice(blocked?
         "Áudio preparado. Toque em reproduzir no player para ouvir; este navegador bloqueou a reprodução automática.":
@@ -351,13 +352,13 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     inFlight.current=true;setBusy(true);setGeneratingId(message.id);setNotice("");
     try{
       const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",text:phrase});
-      if(mounted.current&&conversationVersion.current===requestVersion){
+      if(isCurrent(requestVersion)){
         setNeuralAudios(old=>({...old,[message.id]:result.audioBase64}));
         setNeuralFallback(old=>({...old,[message.id]:false}));
         setAutoPlayId(message.id);
       }
     }catch(error){
-      if(mounted.current&&conversationVersion.current===requestVersion){
+      if(isCurrent(requestVersion)){
         setNeuralFallback(old=>({...old,[message.id]:true}));
         const quota=(error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS";
         setNotice(englishLocalVoice?
@@ -370,13 +371,14 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(inFlight.current)return;
     if(!consent){setSettingsOpen(false);setPrivacyPrompt(true);return;}
     if(!enabled||!capabilities.data?.neuralEnglish){setPreviewVoiceNotice("Voz neural não habilitada nesta conta.");return;}
+    const epoch=conversationVersion.current;
     inFlight.current=true;setBusy(true);setPreviewVoiceNotice("");setPreviewVoiceAudio(null);
     try{
       const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",
         text:"Hello! I am your English tutor. Let us practice together."});
-      if(mounted.current)setPreviewVoiceAudio(result.audioBase64);
+      if(isCurrent(epoch))setPreviewVoiceAudio(result.audioBase64);
     }catch(error){
-      if(mounted.current){
+      if(isCurrent(epoch)){
         const message=(error as {message?:unknown})?.message;
         const diagnosed=typeof message==="string"&&message.startsWith("Groq recusou a voz neural (HTTP 400):")&&message.length<=180;
         setPreviewVoiceNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?
@@ -387,9 +389,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   async function playGeminiDemo(){
     if(inFlight.current||!demoConsent||!capabilities.data?.geminiDemo)return;
+    const epoch=conversationVersion.current;
     inFlight.current=true;setBusy(true);setNotice("");
-    try {const res=await gemini.mutateAsync({consent:true,phraseIndex:1});if(mounted.current)setDemo(res);}
-    catch{if(mounted.current)setNotice("Voz Gemini indisponível. O chat e a voz local continuam separados.");}
+    try {const res=await gemini.mutateAsync({consent:true,phraseIndex:1});if(isCurrent(epoch))setDemo(res);}
+    catch{if(isCurrent(epoch))setNotice("Voz Gemini indisponível. O chat e a voz local continuam separados.");}
     finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   async function startCapture(){
@@ -402,11 +405,12 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       setNotice("Este navegador não permite gravação. Use o teclado.");return;
     }
     held.current=true;setPermissionPending(true);setNotice("");
+    const epoch=conversationVersion.current;
     const attempt=++generation.current;
     let stream:MediaStream|undefined;
     try{
       stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      if(!mounted.current||!held.current||attempt!==generation.current){
+      if(!isCurrent(epoch)||!held.current||attempt!==generation.current){
         stream.getTracks().forEach(t=>t.stop());return;
       }
       const mime=tutorAudioTypes.find(m=>MediaRecorder.isTypeSupported(m));
@@ -416,12 +420,12 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       capture.current=current;
       recorder.ondataavailable=(event)=>{
         if(event.data.size){current.chunks.push(event.data);current.size+=event.data.size;}
-        if(current.size>TUTOR_MAX_AUDIO_BYTES){stopCapture(false);if(mounted.current)setNotice("Áudio excedeu o limite.");}
+        if(current.size>TUTOR_MAX_AUDIO_BYTES){stopCapture(false);if(isCurrent(epoch))setNotice("Áudio excedeu o limite.");}
       };
       recorder.onstop=async()=>{
         capture.current=null;
         current.stream.getTracks().forEach(t=>t.stop());
-        if(!mounted.current||!current.send||!current.size||current.size>TUTOR_MAX_AUDIO_BYTES)return;
+        if(!isCurrent(epoch)||!current.send||!current.size||current.size>TUTOR_MAX_AUDIO_BYTES)return;
         const blob=new Blob(current.chunks,{type:mime});
         inFlight.current=true;setBusy(true);
         try{
@@ -431,23 +435,23 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             reader.onload=()=>resolve(String(reader.result).split(",")[1]??"");
             reader.readAsDataURL(blob);
           });
-          if(!mounted.current)return;
+          if(!isCurrent(epoch))return;
           const result=await transcribe.mutateAsync({consent:true,provider,audio:{mime:mime as TutorAudioType,base64}});
-          if(mounted.current){
+          if(isCurrent(epoch)){
             setDraft(result.text);setTranscriptReady(true);
             setNotice("Confira a transcrição e envie quando estiver correta. Ela não é uma nota de pronúncia.");
           }
-        }catch(error){if(mounted.current)setNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?"O tutor está descansando. Tente novamente em alguns minutos.":"Não foi possível transcrever. Tente novamente ou digite.");}
+        }catch(error){if(isCurrent(epoch))setNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?"O tutor está descansando. Tente novamente em alguns minutos.":"Não foi possível transcrever. Tente novamente ou digite.");}
         finally{inFlight.current=false;if(mounted.current)setBusy(false);}
       };
-      recorder.onerror=()=>{stopCapture(false);if(mounted.current)setNotice("Falha na gravação. Use o teclado.");};
+      recorder.onerror=()=>{stopCapture(false);if(isCurrent(epoch))setNotice("Falha na gravação. Use o teclado.");};
       recorder.start(250);
       current.timer=setTimeout(()=>stopCapture(true),TUTOR_MAX_RECORD_MS);
       setRecording(true);
     }catch{
       stream?.getTracks().forEach(t=>t.stop());capture.current=null;held.current=false;
-      if(mounted.current)setNotice("Não foi possível acessar o microfone. Verifique a permissão ou digite.");
-    }finally{if(mounted.current&&attempt===generation.current)setPermissionPending(false);}
+      if(isCurrent(epoch))setNotice("Não foi possível acessar o microfone. Verifique a permissão ou digite.");
+    }finally{if(isCurrent(epoch)&&attempt===generation.current)setPermissionPending(false);}
   }
   function pointerStart(event:PointerEvent<HTMLButtonElement>){
     if(event.button!==0)return;
@@ -459,7 +463,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function updateConsent(next:boolean){
     if(!next){if(consentKey)try{window.localStorage.removeItem(consentKey);}catch{/* no local storage */}
       conversationVersion.current++;
-      stopAudioPlayers();stopSpeech();stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");setDraft("");
+      stopAudioPlayers();stopSpeech();stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
+      setPendingMemory(null);setPreviewVoiceAudio(null);setPreviewVoiceNotice("");setDemo(null);
       setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null); }
     setConsent(next);
   }
