@@ -248,6 +248,47 @@ describe("opt-in catalogue runtime controller",()=>{
     expect(s.inspectForTest(ID)).toBe(before);
     expect(s.inspectForTest(ID)?.cal.observations).toHaveLength(0);
   });
+  it("fails closed after a simulated process restart, never reconstructing learner observations",()=>{
+    const before=create().sessions;
+    const reply=before.prepare(ID,"Quero praticar Hello",true,undefined,"typed")!.complete("Comecemos.");
+    const ticket=before.clientTaskForReply(ID,reply)!;
+    expect(before.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("recorded");
+    // A new process has no durable CAL storage; text from an old chat is not trusted state.
+    const restarted=create().sessions;
+    expect(restarted.inspectForTest(ID)).toBeNull();
+    expect(restarted.pendingClientTask(ID)).toBeNull();
+    expect(restarted.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("rejected");
+    expect(restarted.prepare(ID,"Olá",true,undefined,"typed")).toBeNull();
+    const reissued=restarted.prepare(ID,"Quero praticar Hello",true,undefined,"typed")!.complete("Novo início.");
+    const newer=restarted.clientTaskForReply(ID,reissued)!;
+    expect(newer.sessionId).not.toBe(ticket.sessionId);
+    expect(restarted.inspectForTest(ID)?.cal.observations).toEqual([]);
+    expect(restarted.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("rejected");
+  });
+  it("expires a rendered ticket after TTL even if the learner kept an old local chat",()=>{
+    const instance=create(),s=instance.sessions;
+    const text=s.prepare(ID,"Quero praticar Hello",true,undefined,"typed")!.complete("Atividade.");
+    const ticket=s.clientTaskForReply(ID,text)!;
+    expect(s.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("recorded");
+    instance.skip(30*60_000+1);
+    expect(s.pendingClientTask(ID)).toBeNull();
+    expect(s.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("rejected");
+    expect(s.prepare(ID,"Olá",true,undefined,"typed")).toBeNull();
+    expect(s.inspectForTest(ID)).toBeNull();
+  });
+  it("resolves two tabs racing to complete different catalogue tasks using CAS",()=>{
+    const s=create().sessions;
+    const first=s.prepare(ID,"Quero praticar Hello",true,undefined,"typed")!;
+    const second=s.prepare(ID,"Quero aprender a me apresentar",true,undefined,"typed")!;
+    const result=second.complete("Mensagem nova.");
+    const ticket=s.clientTaskForReply(ID,result)!;
+    const before=structuredClone(s.inspectForTest(ID));
+    const obsolete=first.complete("Mensagem atrasada.");
+    expect(obsolete).toBe("Mensagem atrasada.");
+    expect(s.inspectForTest(ID)).toEqual(before);
+    expect(s.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("recorded");
+    expect(s.inspectForTest(ID)?.selectedCompetencyId).toBe("identity.my-name");
+  });
   it("session expires after thirty minutes without changing the original DB memory",()=>{
     const c=create();start(c.sessions);
     c.skip(30*60_000+1);

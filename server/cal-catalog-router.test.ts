@@ -226,6 +226,68 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
     expect(calCatalogTutorSessions.inspectForTest(a)?.sessionId)
       .not.toBe(calCatalogTutorSessions.inspectForTest(b)?.sessionId);
   });
+
+  it("completes a two-task authenticated journey without grading ASR or claiming mastery",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
+    const uid=++id,c=caller(uid);
+    const meaning=await c.reply(request("Quero praticar Hello",{inputModality:"typed"}));
+    const first=meaning.catalogTask!;
+    expect(first).toBeTruthy();
+    expect(first.promptText).toContain("Hello");
+    expect(calCatalogTutorSessions.inspectForTest(uid)?.cal.phase).toBe("ENSINAR");
+
+    // A typed answer received before the DOM receipt must not advance the lesson.
+    const withoutReceipt=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
+    await c.reply(request("Olá",{inputModality:"typed"}));
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(withoutReceipt);
+
+    expect((await c.catalogRenderAck({consent:true,
+      sessionId:first.sessionId,deliveryId:first.deliveryId})).status).toBe("recorded");
+    const practiceReply=await c.reply(request("Olá",{inputModality:"typed"}));
+    expect(practiceReply.catalogTask).toBeTruthy();
+    expect(practiceReply.catalogTask!.deliveryId).not.toBe(first.deliveryId);
+    expect(calCatalogTutorSessions.inspectForTest(uid)?.cal.phase).toBe("PRATICAR");
+
+    // Old receipt cannot grant authorization for a newly issued task.
+    expect((await c.catalogRenderAck({consent:true,
+      sessionId:first.sessionId,deliveryId:first.deliveryId})).status).toBe("rejected");
+    const second=practiceReply.catalogTask!;
+    const beforeSpeech=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
+    await c.reply(request("Hello",{inputModality:"asr_text"}));
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(beforeSpeech);
+
+    expect((await c.catalogRenderAck({consent:true,
+      sessionId:second.sessionId,deliveryId:second.deliveryId})).status).toBe("recorded");
+    await c.reply(request("Hello",{inputModality:"typed"}));
+    const end=calCatalogTutorSessions.inspectForTest(uid)!;
+    expect(end.cal.observations).toHaveLength(1);
+    expect(end.cal.observations[0]).toMatchObject({
+      stage:"PRATICAR",outcome:"meets",assistance:"model",
+    });
+    expect(end.cal.phase).not.toBe("COMPROVAR");
+    expect(end).not.toHaveProperty("srs");
+  });
+  it("keeps two simultaneous learner journeys separate across rendering and answers",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
+    const a=++id,b=++id,clientA=caller(a),clientB=caller(b);
+    const [aIntro,bIntro]=await Promise.all([
+      clientA.reply(request("Quero praticar Hello",{inputModality:"typed"})),
+      clientB.reply(request("Quero aprender a me apresentar",{inputModality:"typed"})),
+    ]);
+    const at=aIntro.catalogTask!,bt=bIntro.catalogTask!;
+    expect(at.sessionId).not.toBe(bt.sessionId);
+    const bOriginal=structuredClone(calCatalogTutorSessions.inspectForTest(b));
+    expect((await clientB.catalogRenderAck({consent:true,
+      sessionId:at.sessionId,deliveryId:at.deliveryId})).status).toBe("rejected");
+    expect(calCatalogTutorSessions.inspectForTest(b)).toEqual(bOriginal);
+    await clientA.catalogRenderAck({consent:true,sessionId:at.sessionId,deliveryId:at.deliveryId});
+    await clientA.reply(request("Olá",{inputModality:"typed"}));
+    expect(calCatalogTutorSessions.inspectForTest(a)?.cal.phase).toBe("PRATICAR");
+    expect(calCatalogTutorSessions.inspectForTest(b)).toEqual(bOriginal);
+    expect((await clientB.catalogRenderAck({consent:true,
+      sessionId:bt.sessionId,deliveryId:bt.deliveryId})).status).toBe("recorded");
+    expect(calCatalogTutorSessions.inspectForTest(b)?.cal.phase).toBe("ENSINAR");
+  });
   it("uses an exact server-validated catalogue ID from future UI instead of model decision",async()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
     const uid=++id,c=caller(uid);
