@@ -53,7 +53,10 @@ async function optionalSpeech(text:string, requested:boolean):Promise<AudioResul
   } catch {return {audioBase64:null,voiceStatus:"unavailable"};}
 }
 export const tutorRouter = router({
-  privacyPreferences:protectedProcedure.query(async ({ctx})=>{
+  privacyPreferences:protectedProcedure.input(z.object({accountEmail:z.email().max(320)}).optional()).query(async ({ctx,input})=>{
+    // The browser scopes its cache per account; reject a mismatched hint.
+    if(input && ctx.user.email?.trim().toLowerCase()!==input.accountEmail.trim().toLowerCase())
+      throw new TRPCError({code:"FORBIDDEN",message:"Conta de privacidade inválida."});
     try{return await readPrivacyPreferences(ctx.user.id);}
     catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Preferências de privacidade temporariamente indisponíveis."});}
   }),
