@@ -63,7 +63,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const generation = useRef(0);
   const scrollAnchor = useRef<HTMLDivElement>(null);
   const capabilities = trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
-  const privacyPreferences=trpc.tutor.privacyPreferences.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
+  const privacyPreferences=trpc.tutor.privacyPreferences.useQuery({accountEmail:accountEmail.trim().toLowerCase()},{enabled:Boolean(accountEmail.trim()),retry:false,refetchOnWindowFocus:false});
   const updatePersonalMemory=trpc.tutor.updatePersonalMemory.useMutation();
   const reply = trpc.tutor.reply.useMutation();
   const catalogRenderAck=trpc.tutor.catalogRenderAck.useMutation();
