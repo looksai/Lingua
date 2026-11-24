@@ -369,7 +369,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:deliveredTask});
         rememberTopic(deliveredTask);
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
-        if(res.memoryCandidate&&capabilities.data?.memory)
+        if(res.memoryCandidate&&capabilities.data?.memory&&!privacyPreferences.data?.serviceAccepted)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
       }
     }catch{
@@ -853,7 +853,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             className="text-left text-xs font-semibold text-teal underline disabled:opacity-40">
             Recomeçar assunto salvo: {getMicrocompetency(topicChoice.bookmark.competencyId)?.titlePt??"assunto"}
           </button>}
-        {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
+        {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&!privacyPreferences.data?.serviceAccepted&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&memoryChoice.enabled&&<p className="text-[10px] text-ink-muted">Histórico local ativado · até 30 dias · apagar nas configurações</p>}
         {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
         {transcriptReady&&<p className="text-xs font-semibold text-teal">Confira o texto reconhecido antes de enviar.</p>}
