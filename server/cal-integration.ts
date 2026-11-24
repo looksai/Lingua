@@ -131,7 +131,15 @@ export class CALTutorSessions {
     const now = this.now();
     this.cleanup(now);
     const original = this.sessions.get(userId);
-    if (!original && !PILOT_TRIGGER.test(userMessage)) return null;
+    // The introductory Hello pilot is for explicitly signalled absolute
+    // beginners only. A generic request about English is not consent to
+    // replace the learner's objective with a fixed greeting exercise.
+    if (!original && (!supportsPortuguese || !PILOT_TRIGGER.test(userMessage))) return null;
+    // An unrelated question must not be hijacked by an old closed exercise.
+    // Keep the provisional task pending; never grade this question as a failure.
+    if (original && userMessage.includes("?") &&
+        !/^\s*(?:o que significa hello|como (?:se )?diz hello|hello significa o qu[eê])/iu.test(userMessage))
+      return null;
     let snapshot = original?.snapshot ?? newCALSession(randomUUID());
     let pending = original?.pending ?? null;
     let result: string | null = null;
