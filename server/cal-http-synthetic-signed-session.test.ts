@@ -35,11 +35,9 @@ import {enforceSameOrigin} from "./auth-origin";
 import {issueSession,verifySession,checkRequestOrigin} from "./auth-local";
 import type {TrpcContext} from "./_core/context";
 
-const fixtures=[
-  {id:991_001,openId:"local:qa-synthetic-a",email:"a@synthetic.invalid"},
-  {id:991_002,openId:"local:qa-synthetic-b",email:"b@synthetic.invalid"},
-] as const;
-type SyntheticUser=typeof fixtures[number];
+type SyntheticUser={id:number;openId:string;email:string};
+let nextSyntheticId=991_000;
+let fixtures:SyntheticUser[]=[];
 let server:Server;
 let base="";
 const tokens=new Map<number,string>();
@@ -68,7 +66,7 @@ async function http(
   const cookie=options.as===undefined?tokens.get(fixtures[0].id)
     :options.as==="anonymous"?undefined
     :options.as==="tampered"?(tokens.get(fixtures[0].id)+"invalid")
-    :options.as==="unknown"?undefined:tokens.get(options.as);
+    :options.as==="unknown"?tokens.get(-1):tokens.get(options.as);
   const headers:Record<string,string>={
     "Content-Type":"application/json",
     "Origin":options.origin===undefined?base:options.origin??"",
@@ -114,15 +112,23 @@ beforeAll(async()=>{
   const address=server.address();
   if(!address||typeof address==="string")throw Error("Missing ephemeral localhost port");
   base="http://127.0.0.1:"+address.port;
-  for(const user of fixtures)
-    tokens.set(user.id,await issueSession(user as never));
 },20_000);
 afterAll(async()=>{
   if(server?.listening)await new Promise<void>((resolve,reject)=>
     server.close(err=>err?reject(err):resolve()));
   vi.unstubAllEnvs();
 });
-beforeEach(()=>{
+beforeEach(async()=>{
+  // Distinct signed principals per test: no CAL state can leak between cases.
+  const a=++nextSyntheticId,b=++nextSyntheticId;
+  fixtures=[
+    {id:a,openId:"local:qa-synthetic-"+a,email:"a@synthetic.invalid"},
+    {id:b,openId:"local:qa-synthetic-"+b,email:"b@synthetic.invalid"},
+  ];
+  tokens.clear();
+  for(const user of fixtures)tokens.set(user.id,await issueSession(user as never));
+  // Valid token for an identity outside the synthetic account directory.
+  tokens.set(-1,await issueSession({id:999_999,openId:"local:unlisted"} as never));
   spies.model.mockReset();
   spies.model.mockResolvedValue("Vamos praticar com calma.");
   spies.profileQueries.mockClear();
