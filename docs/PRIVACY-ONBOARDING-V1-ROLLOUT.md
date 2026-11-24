@@ -9,15 +9,15 @@ Uma experiência simples: uso normal do tutor não exige novo aceite a cada conv
 - `registerLocalUser` cria usuário, credencial e preferências versionadas na mesma transação.
 - Tabela `learnerPrivacyPreferences` e SQL `drizzle/0008_privacy_preferences_DRAFT.sql` são **proposta não aplicada**.
 - Testes validam que o cadastro rejeita a ausência de aceite.
-- **A UI atual do TutorChat ainda faz prompts de autorização e de cada memória.** Não remover até o backend consultar e verificar escolhas persistidas, com transição para usuários legados e tratamento de falhas.
+- O TutorChat agora consulta preferências autenticadas, dispensa novo aceite do provedor em contas com aceite persistido e permite alterar a memória nas configurações. A memorização automática verifica a preferência com lock na mesma transação da gravação, depois da resposta da IA. Contas legadas permanecem com o fluxo antigo até transição explícita.
 
 ## Bloqueios antes de merge/deploy
 1. Publicar texto completo e revisado dos termos e aviso de privacidade, com versão identificável; o checkbox atual é informativo e não substitui esses documentos.
 2. Revisar SQL, backups, drift e transações em Aiven *staging*, confirmar deploy em sequência segura (migração antes de código). Não executar migration automaticamente.
-3. Implementar leitura de preferências por `ctx.user.id`, endpoint autenticado para alterar memória e impedir gravação após desativação, inclusive requisições em voo.
-4. Adequar `TutorChat` para nunca confiar em localStorage como registro de aceite e não mostrar prompts repetidos depois da validação no servidor.
+3. Validar em MySQL de staging a leitura por `ctx.user.id`, a alteração autenticada de preferência, a transação com `FOR UPDATE` e o bloqueio de gravação após desativação, inclusive requisições em voo.
+4. Testar o `TutorChat` com a nova preferência persistida. LocalStorage não é registro de aceite para novas contas; a modalidade legada permanece como fallback, sem autorização presumida.
 5. Contas existentes não possuem linha: definir tela de transição, **não** presumir consentimento.
-6. Testar isolamento A/B, logout/login, vários dispositivos, mudança de preferência durante gravação, falhas SQL e exclusão; manter uso do tutor disponível quando memória opcional falha.
+6. Testar isolamento A/B, logout/login, vários dispositivos, mudança de preferência durante gravação, falhas SQL e exclusão; manter uso do tutor disponível quando memória opcional falha. Cobrir os fluxos de memória em Chromium para contas novas e antigas.
 7. Validar a base legal de cada finalidade com revisão jurídica. Não condicionar uso de serviço a um consentimento opcional sem necessidade.
 
 Nenhum destes passos autoriza deploy para produção ou uso de dados de alunos reais.
