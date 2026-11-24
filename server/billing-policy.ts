@@ -1,4 +1,4 @@
-/** Candidate billing rules only; NOT wired to tutor access or a live Stripe API.
+/** Staging-only billing rules; tutor admission is implemented in tutor-entitlement.ts.
  * Entitlements must be derived on the server from verified subscription state.
  */
 export const TRIAL_HOURS = 72;
