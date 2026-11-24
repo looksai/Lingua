@@ -1,6 +1,6 @@
 /**
  * Parse the reviewed one-time 0008 billing DDL: six exact CREATE TABLEs,
- * without arbitrary SQL, DML, ALTER, DROP, or IF NOT EXISTS.
+ * without arbitrary SQL, DML, ALTER, DROP, or IF NOT EXISTS.\n * SQL column constraints legitimately contain ON UPDATE / ON DELETE.
  * The migration runs with multiStatements:false. Partial MySQL DDL must
  * be manually reviewed; this parser never repairs or rolls back tables.
  */
@@ -13,7 +13,7 @@ export function billing0008Statements(raw:string):string[]{
   const active=raw.split(/\r?\n/).filter(l=>!/^\s*--/.test(l)).join("\n").trim();
   const statements=active.split(";").map(s=>s.trim()).filter(Boolean);
   if(statements.length!==BILLING_0008_TABLES.length ||
-     /\b(?:DROP|ALTER|DELETE|INSERT|UPDATE|REPLACE|TRUNCATE|GRANT|IF\s+NOT\s+EXISTS)\b/i.test(active))
+     /\b(?:DROP|ALTER|INSERT|REPLACE|TRUNCATE|GRANT|IF\s+NOT\s+EXISTS)\b/i.test(active))
     throw new Error("Unexpected 0008 migration file; refusing execution");
   for(let i=0;i<BILLING_0008_TABLES.length;i++){
     const name=BILLING_0008_TABLES[i];
