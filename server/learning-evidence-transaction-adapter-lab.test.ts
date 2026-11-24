@@ -211,4 +211,44 @@ describe("In-memory transaction double — not proof of real SQL atomicity",()=>
     expect(rejected.reason).toBe("stale_revision");
     expect(adapter.snapshotForTest(USER)).toEqual(state);
   });
+
+  it("rejects an in-flight AI result when revocation commits during generation",async()=>{
+    const adapter=new SimulatedEvidenceTransactionAdapter();
+    await adapter.execute(USER,grant());
+    const generationStarted=deferred(),finishGeneration=deferred();
+    const delayedGeneration=(async()=>{
+      // Capture the consent revision BEFORE awaiting a simulated model response.
+      const initial=adapter.snapshotForTest(USER);
+      generationStarted.resolve();
+      await finishGeneration.promise;
+      // A generated result must pass the server-side transaction gate again.
+      return adapter.execute(USER,propose(USER,initial.revision));
+    })();
+    await generationStarted.promise;
+    const revoked=await adapter.execute(USER,revoke(USER,1));
+    expect(revoked.outcome).toBe("applied");
+    expect(revoked.state.consent?.revokedAtMs).toBe(3_000);
+    finishGeneration.resolve();
+    const late=await delayedGeneration;
+    expect(late).toMatchObject({outcome:"rejected",reason:"stale_revision"});
+    expect(adapter.snapshotForTest(USER).observations).toEqual([]);
+  });
+
+  it("does not attach a response from an old consent epoch to a later re-grant",async()=>{
+    const adapter=new SimulatedEvidenceTransactionAdapter();
+    await adapter.execute(USER,grant());
+    const oldEpochRevision=adapter.snapshotForTest(USER).revision;
+    expect((await adapter.execute(USER,revoke(USER,1))).outcome).toBe("applied");
+    const newConsent=consent(USER,4_000,"consent-2");
+    const renewed=await adapter.execute(USER,{
+      kind:"grant",userId:USER,expectedRevision:2,nowMs:4_000,
+      consent:newConsent,
+    });
+    expect(renewed.outcome).toBe("applied");
+    // Old in-flight model output is not valid merely because consent is now true.
+    const oldResult=await adapter.execute(USER,propose(USER,oldEpochRevision));
+    expect(oldResult).toMatchObject({outcome:"rejected",reason:"stale_revision"});
+    expect(adapter.snapshotForTest(USER).consent?.consentId).toBe("consent-2");
+    expect(adapter.snapshotForTest(USER).observations).toEqual([]);
+  });
 });
