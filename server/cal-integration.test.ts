@@ -82,12 +82,14 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
     r?.commit(practice);
     expect(s.inspectForTest(10)?.snapshot.phase).toBe("PRATICAR");
   });
-  it("a mere 'entendi' cannot prove comprehension",()=>{
+  it("a mere 'entendi' bypasses grading without proving comprehension",()=>{
     const s=sessions();open(s);
+    const before=s.inspectForTest(10)?.snapshot;
     const r=s.prepare(10,"Entendi",true);
-    expect(r?.phase).toBe("ENSINAR");
-    r?.commit(teaching);
+    expect(r).toBeNull();
+    expect(s.inspectForTest(10)?.snapshot).toBe(before);
     expect(s.inspectForTest(10)?.snapshot.phase).toBe("ENSINAR");
+    expect(s.inspectForTest(10)?.pending).toBe("meaning");
   });
   it("short wrong translation is not a false positive",()=>{
     const s=sessions();open(s);
