@@ -193,6 +193,7 @@ export function respondToCatalogTask(
     return help.result==="accepted" ?
       accepted(commit(session,help.snapshot,null),"reteach_requested_not_error"):reject(session,help.reason);
   }
+  if(response.kind!=="explicit_answer")return bypass(session,"unrecognized_learner_intent");
   const ticket=session.task;
   if(!ticket||!ticket.delivered)return reject(session,"no_attested_task");
   if(ticket.phase!==session.cal.phase)return reject(session,"stale_phase");
