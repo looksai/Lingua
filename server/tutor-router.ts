@@ -146,7 +146,7 @@ export const tutorRouter = router({
       // A catalogue-mode request with an unknown goal must fall back to
       // ordinary conversation, NEVER involuntarily restart the Hello pilot.
       const calPreview=calEnabled() && !catalogCALRuntimeEnabled()
-        ? calTutorSessions.prepare(ctx.user.id,input.message,beginner)
+        ? calTutorSessions.prepare(ctx.user.id,input.message,beginner, safeTutorModality(input.inputModality))
         : null;
       const pedagogicalDirective=catalogPreview?.directive??calPreview?.directive;
       let text:string;
