@@ -33,7 +33,7 @@ export default function Login() {
         <p className="text-xs text-ink-muted">Use pelo menos 12 caracteres.</p>
         <label className="flex items-start gap-3 text-sm leading-6">
           <input type="checkbox" required checked={serviceAccepted} onChange={event => setServiceAccepted(event.target.checked)} className="mt-1.5" />
-          <span>Li e aceito os termos de uso e o aviso de privacidade aplicáveis à prestação do serviço. Entendo que minhas mensagens e gravações enviadas ao tutor poderão ser processadas pelos provedores de IA informados, e que meu progresso de estudo será registrado para continuidade das aulas.</span>
+          <span>Entendo e aceito que, para usar o tutor, mensagens e gravações que eu enviar poderão ser processadas por provedores de IA, e que dados de estudo necessários serão registrados para dar continuidade às aulas.</span>
         </label>
         <p className="text-xs text-ink-muted">Memórias pessoais opcionais e usos secundários dos dados terão regras próprias. Você poderá consultar e apagar as memórias disponíveis nas configurações.</p>
       </>}
