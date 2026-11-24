@@ -85,3 +85,7 @@ try {
 } finally {
   await db.end();
 }
+
+// The application uses a long-lived MySQL pool. A disposable one-shot CI
+// process must exit explicitly after assertions pass, never wait on that pool.
+process.exit(0);
