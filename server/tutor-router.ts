@@ -18,6 +18,7 @@ import { guardTutorLearnerClaims } from "./tutor-fact-guard";
 import { enforceBeginnerPortuguese } from "../shared/tutor-language";
 import { needsAbsoluteBeginnerSupport } from "../shared/tutor-language";
 import { calEnabled, calTutorSessions } from "./cal-integration";
+import {catalogCALRuntimeEnabled,calCatalogTutorSessions} from "./cal-catalog-runtime";
 import {
   memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, loadLearnerMemories,
   listLearnerMemories, saveLearnerMemory, deleteLearnerMemory, clearLearnerMemories,
@@ -111,7 +112,8 @@ export const tutorRouter = router({
       try{return await geminiTestSpeech(input.phraseIndex);}catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar o áudio de teste."});}
     });
   }),
-  reply:protectedProcedure.input(z.object({consent,provider,voice:z.boolean(),message:z.string().trim().min(1).max(TUTOR_MAX_TEXT),history})).mutation(async ({ctx,input})=>{
+  reply:protectedProcedure.input(z.object({consent,provider,voice:z.boolean(),message:z.string().trim().min(1).max(TUTOR_MAX_TEXT),history,
+    catalogCompetencyId:z.string().max(90).optional()})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
     const p=await profileFor(ctx.user.id);
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
@@ -130,21 +132,29 @@ export const tutorRouter = router({
       // CAL is OFF by default. In the pilot, it is restricted by the same
       // existing authenticated tester allowlist as the external tutor.
       // No DB writes, memory mutations, SRS or CSLE calls.
-      const calPreview=calEnabled()
-        ? calTutorSessions.prepare(ctx.user.id,input.message,
-            needsAbsoluteBeginnerSupport(input.history,input.message,approvedFacts))
+      const beginner=needsAbsoluteBeginnerSupport(input.history,input.message,approvedFacts);
+      // The new catalogue adapter is independently gated. While OFF,
+      // CAL_ENABLED=true keeps the existing safe Hello pilot byte-for-byte.
+      const catalogPreview=catalogCALRuntimeEnabled()
+        ? calCatalogTutorSessions.prepare(ctx.user.id,input.message,beginner,input.catalogCompetencyId)
         : null;
+      // Never allow two different CAL state machines to grade the same turn.
+      const calPreview=calEnabled() && !catalogPreview &&
+        !(catalogCALRuntimeEnabled() && calCatalogTutorSessions.hasSession(ctx.user.id))
+        ? calTutorSessions.prepare(ctx.user.id,input.message,beginner)
+        : null;
+      const pedagogicalDirective=catalogPreview?.directive??calPreview?.directive;
       let text:string;
       let memoryCandidate: {fato:string;categoria:"profissao"|"objetivo"|"interesse"|"preferencia_estudo"}|null=null;
       try {
         const adapter=createSelectedTutor(input.provider!);
         if(memoryReady){
-          const proposed=await adapter.replyWithProposal(p,input.history,input.message,approvedFacts,calPreview?.directive);
+          const proposed=await adapter.replyWithProposal(p,input.history,input.message,approvedFacts,pedagogicalDirective);
           text=proposed.text;
           memoryCandidate=proposed.memoryCandidate;
           if(memoryCandidate&&approvedFacts.some(f=>f.trim().toLocaleLowerCase("pt-BR")===memoryCandidate!.fato.toLocaleLowerCase("pt-BR")))
             memoryCandidate=null;
-        }else text=await adapter.reply(p,input.history,input.message,approvedFacts,calPreview?.directive);
+        }else text=await adapter.reply(p,input.history,input.message,approvedFacts,pedagogicalDirective);
       } catch(error) { return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null}; }
       const checked=guardTutorLearnerClaims(text,input.history,input.message,approvedFacts);
       if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
@@ -154,8 +164,9 @@ export const tutorRouter = router({
       // An AI-produced sentence is never graded as learner evidence.
       // If the beginner fallback replaced the proposed task, the runtime
       // verifies the actual delivered question before expecting an answer.
-      calPreview?.commit(adapted.text);
-      return {text:adapted.text,source:"ai" as const,memoryCandidate,...await optionalSpeech(adapted.text,input.provider==="openai"&&input.voice)};
+      const finalText=catalogPreview ? catalogPreview.complete(adapted.text) : adapted.text;
+      if(!catalogPreview)calPreview?.commit(finalText);
+      return {text:finalText,source:"ai" as const,memoryCandidate,...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
     });
   }),
   // All memory operations are owned by the authenticated user. Optional
