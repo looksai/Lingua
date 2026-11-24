@@ -79,6 +79,17 @@ try{
     assert.equal(calls[0].input.inputModality,"typed");
   });
 
+  await test("registered account does not receive redundant provider permission dialog",async page=>{
+    await page.goto(BASE+"?accepted=1",{waitUntil:"networkidle"});
+    await page.getByRole("complementary",{name:"Chat com Naruto"}).waitFor();
+    await send(page,"Minha primeira aula");
+    await waitCall(page,1);
+    await page.getByText("Resposta sintética Naruto:",{exact:false}).waitFor();
+    assert.equal(await page.getByRole("dialog",{name:"Autorização da conversa"}).count(),0);
+    const calls=await page.evaluate(()=>window.__tutorChatQa.calls().filter(c=>c.name==="reply"));
+    assert.equal(calls[0].input.consent,true);
+  });
+
   await test("late async reply from account A cannot leak into account B",async page=>{
     await acceptForFirstSend(page);
     await page.evaluate(()=>window.__tutorChatQa.holdNextReply());
@@ -138,6 +149,6 @@ try{
     assert.equal(await page.locator("audio").count(),0);
   });
 
-  console.log("Full TutorChat browser QA: "+passed+"/5 passed, real component, fake hooks, no HTTP/DB.");
+  console.log("Full TutorChat browser QA: "+passed+"/6 passed, real component, fake hooks, no HTTP/DB.");
 }catch(e){process.exitCode=1;}
 finally{await browser.close();}
