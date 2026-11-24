@@ -147,7 +147,7 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
     const {ctx,page}=await context(token);
     try{
       await send(page,"Quero praticar Hello");
-      await page.getByText("Na frase Hello, qual é o significado?").waitFor();
+      await page.getByRole("region",{name:"Atividade do catálogo do Lingua"}).waitFor();
       expect(calCatalogTutorSessions.inspectForTest(id)?.cal.phase).toBe("ENSINAR");
       expect(calCatalogTutorSessions.inspectForTest(id)?.cal.observations).toEqual([]);
       await show(page);
@@ -156,7 +156,9 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
       await send(page,"Olá");
       expect(calCatalogTutorSessions.inspectForTest(id)?.cal.phase).toBe("PRATICAR");
       expect(calCatalogTutorSessions.inspectForTest(id)?.cal.observations).toEqual([]);
-      await page.getByText("Como você escreveria Olá em inglês?",{exact:false}).waitFor();
+      const practice=calCatalogTutorSessions.pendingClientTask(id)!;
+      expect(await page.getByRole("region",{name:"Atividade do catálogo do Lingua"}).innerText())
+        .toContain(practice.promptText);
       await show(page);
       await send(page,"Hello");
       const observations=calCatalogTutorSessions.inspectForTest(id)?.cal.observations;
@@ -171,7 +173,7 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
     const first=await context(a.token),second=await context(b.token);
     try{
       await send(first.page,"Quero praticar Hello");
-      await first.page.getByText("Na frase Hello, qual é o significado?").waitFor();
+      await first.page.getByRole("region",{name:"Atividade do catálogo do Lingua"}).waitFor();
       const ticket=calCatalogTutorSessions.pendingClientTask(a.id)!;
       const before=structuredClone(calCatalogTutorSessions.inspectForTest(a.id));
       const forbidden=await second.page.evaluate(async issued=>{
@@ -195,7 +197,7 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
     const a=await identity(),first=await context(a.token);
     try{
       await send(first.page,"Quero praticar Hello");
-      await first.page.getByText("Na frase Hello, qual é o significado?").waitFor();
+      await first.page.getByRole("region",{name:"Atividade do catálogo do Lingua"}).waitFor();
       const pending=calCatalogTutorSessions.pendingClientTask(a.id)!;
       await first.page.reload({waitUntil:"networkidle"});
       await first.page.waitForFunction(()=>document.querySelector('[data-testid="recovered"]')?.textContent==="yes");
@@ -237,7 +239,7 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
     const a=await identity(),first=await context(a.token);
     try{
       await send(first.page,"Quero praticar Hello");
-      await first.page.getByText("Na frase Hello, qual é o significado?").waitFor();
+      await first.page.getByRole("region",{name:"Atividade do catálogo do Lingua"}).waitFor();
       const old=calCatalogTutorSessions.pendingClientTask(a.id)!;
       const resetReply=first.page.waitForResponse((r:any)=>r.url().includes("/api/trpc/tutor.reply")&&r.request().method()==="POST");
       await first.page.getByTestId("reset").click();
