@@ -7,12 +7,19 @@ import {
 const ID=88881;
 const create=()=>{let ms=1000;return {clock:()=>ms,skip:(n:number)=>{ms+=n;},
   sessions:new CALCatalogTutorSessions(()=>ms)};};
+function confirm(s:CALCatalogTutorSessions,id:number,text:string){
+  const ticket=s.clientTaskForReply(id,text);
+  expect(ticket).not.toBeNull();
+  expect(s.confirmBrowserRender(id,ticket!.sessionId,ticket!.deliveryId)).toBe("recorded");
+  return ticket!;
+}
 function start(s:CALCatalogTutorSessions,id=ID,goal="Quero aprender a me apresentar"){
   const preview=s.prepare(id,goal,true,undefined,"typed");
   expect(preview).not.toBeNull();
   expect(s.inspectForTest(id)).toBeNull(); // model not yet returned
   const text=preview!.complete("Vamos praticar com calma.");
   expect(text).toContain("Tradução:");
+  confirm(s,id,text);
   const current=s.inspectForTest(id);
   expect(current?.task?.delivered).toBe(true);
   expect(current?.cal.phase).toBe("ENSINAR");
@@ -70,6 +77,31 @@ describe("opt-in catalogue runtime controller",()=>{
     expect(p).not.toBeNull();
     expect(s.inspectForTest(ID)).toBeNull();
   });
+  it("does not grade a typed answer until a scoped browser-render signal",()=>{
+    const s=create().sessions;
+    const first=s.prepare(ID,"Quero praticar Hello",true,undefined,"typed")!;
+    const text=first.complete("Vamos praticar.");
+    const before=structuredClone(s.inspectForTest(ID));
+    expect(s.clientTaskForReply(ID,text)).not.toBeNull();
+    expect(s.prepare(ID,"Olá",true,undefined,"typed")).toBeNull();
+    expect(s.inspectForTest(ID)).toEqual(before);
+    const ticket=s.clientTaskForReply(ID,text)!;
+    expect(s.confirmBrowserRender(ID+1,ticket.sessionId,ticket.deliveryId)).toBe("rejected");
+    expect(s.confirmBrowserRender(ID,"forged-session",ticket.deliveryId)).toBe("rejected");
+    expect(s.confirmBrowserRender(ID,ticket.sessionId,"forged-ticket")).toBe("rejected");
+    expect(s.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("recorded");
+    expect(s.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("duplicate");
+    expect(s.prepare(ID,"Olá",true,undefined,"typed")).not.toBeNull();
+  });
+  it("rejects the receipt for an old task after selecting a different objective",()=>{
+    const s=create().sessions;
+    const old=s.prepare(ID,"Quero praticar Hello",true,undefined,"typed")!.complete("Comecemos");
+    const ticket=s.clientTaskForReply(ID,old)!;
+    const next=s.prepare(ID,"Quero aprender a me apresentar",true,undefined,"typed")!.complete("Novo assunto");
+    expect(s.clientTaskForReply(ID,next)).not.toBeNull();
+    expect(s.confirmBrowserRender(ID,ticket.sessionId,ticket.deliveryId)).toBe("rejected");
+    expect(s.prepare(ID,"Meu nome é Alex",true,undefined,"typed")).toBeNull();
+  });
   it("a correct closed answer moves ENSINAR -> PRATICAR but not mastery",()=>{
     const s=create().sessions;
     start(s,ID,"Quero praticar Hello");
@@ -85,7 +117,7 @@ describe("opt-in catalogue runtime controller",()=>{
   });
   it("a guided practice success is acknowledged without certifying learning",()=>{
     const s=create().sessions;start(s,ID,"Quero praticar Hello");
-    s.prepare(ID,"Olá",true,undefined,"typed")!.complete("Certo!");
+    confirm(s,ID,s.prepare(ID,"Olá",true,undefined,"typed")!.complete("Certo!"));
     const answer=s.prepare(ID,"Hello",true,undefined,"typed")!;
     expect(answer.directive).toContain("closed_candidate_meets");
     const msg=answer.complete("Você se esforçou.");
@@ -114,7 +146,7 @@ describe("opt-in catalogue runtime controller",()=>{
   it("a known distractor produces local feedback without SRS or persistence",()=>{
     const s=create().sessions;
     start(s,ID,"Quero praticar Hello");
-    s.prepare(ID,"Olá",true,undefined,"typed")!.complete("Certo!");
+    confirm(s,ID,s.prepare(ID,"Olá",true,undefined,"typed")!.complete("Certo!"));
     const p=s.prepare(ID,"Goodbye",true,undefined,"typed");
     expect(p).not.toBeNull();
     expect(p?.directive).toContain("closed_candidate_not_yet");
@@ -170,7 +202,7 @@ describe("opt-in catalogue runtime controller",()=>{
   });
   it("a different goal resets task and never carries wrong-answer counts",()=>{
     const s=create().sessions;start(s,ID,"Quero praticar Hello");
-    s.prepare(ID,"Olá",true,undefined,"typed")!.complete("Certo");
+    confirm(s,ID,s.prepare(ID,"Olá",true,undefined,"typed")!.complete("Certo"));
     s.prepare(ID,"Goodbye",true,undefined,"typed")!.complete("Ainda não");
     expect(s.inspectForTest(ID)?.cal.consecutiveErrors).toBe(1);
     const next=s.prepare(ID,"Quero aprender a me apresentar",true,undefined,"typed")!;
