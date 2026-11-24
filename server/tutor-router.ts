@@ -23,7 +23,7 @@ import { calEnabled, calTutorSessions } from "./cal-integration";
 import {catalogCALRuntimeEnabled,calCatalogTutorSessions} from "./cal-catalog-runtime";
 import {getMicrocompetency} from "../shared/pedagogy/microcompetency-catalog";
 import {
-  memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, loadLearnerMemories,
+  memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, autoSaveLearnerMemory, loadLearnerMemories,
   listLearnerMemories, saveLearnerMemory, deleteLearnerMemory, clearLearnerMemories,
 } from "./learner-memory";
 
@@ -169,10 +169,15 @@ export const tutorRouter = router({
     // Never propose or retrieve memory when disabled. No hidden writes.
     let approvedFacts:string[]=[];
     let memoryReady=false;
+    let accountMemoryEnabled=false;
     if(memoryFeatureEnabled()){
       try {
-        approvedFacts=(await loadLearnerMemories(ctx.user.id)).map(item=>item.fato);
-        memoryReady=true;
+        const settings=await readPrivacyPreferences(ctx.user.id);
+        accountMemoryEnabled=settings.personalMemoryEnabled;
+        if(settings.personalMemoryEnabled || settings.legacyAccount){
+          approvedFacts=(await loadLearnerMemories(ctx.user.id)).map(item=>item.fato);
+          memoryReady=true;
+        }
       } catch {console.warn("[tutor] memory unavailable: feature will fail closed for this turn");}
     }
     return withTutorBudget(ctx.user.id,async()=>{
@@ -224,6 +229,13 @@ export const tutorRouter = router({
       const catalogTask=catalogPreview
         ? calCatalogTutorSessions.clientTaskForReply(ctx.user.id,finalText)
         : null;
+      // The initial account choice permits safe facts without extra chat prompts.
+      // Recheck inside a locked DB transaction AFTER generating the model reply.
+      if(memoryCandidate && accountMemoryEnabled){
+        try{await autoSaveLearnerMemory(ctx.user.id,memoryCandidate,input.message);}
+        catch{console.warn("[tutor] memory auto-save failed closed");}
+        memoryCandidate=null;
+      }
       return {text:finalText,source:"ai" as const,memoryCandidate,catalogTask,
         ...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
     });
