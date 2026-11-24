@@ -5,7 +5,7 @@
 > **Atualização inicial:** 24/11/2026 UTC (23/11/2026 à noite, horário de Natal/RN).  
 > **Repositório principal:** [looksai/Lingua](https://github.com/looksai/Lingua).  
 > **Fase atual:** **FASE 01 — Naruto**. Histórico inicial de CI vermelho e branch catálogo vazia está documentado nas seções 5 e 10; **status operacional atualizado na linha abaixo e na seção 18.**
-> **STATUS CORRENTE — 24/11/2026 UTC:** **Fase 01, Naruto**. Com aprovação expressa do fundador recebida via mensagem de auditoria Deep, PRs **[#41 catálogo](https://github.com/looksai/Lingua/pull/41), [#42 adaptador puro](https://github.com/looksai/Lingua/pull/42) e [#40 integração tutor](https://github.com/looksai/Lingua/pull/40) foram MERGEADAS NA MAIN**, nessa ordem. **Staging Render `lingua-p1-staging-le7u` LIVE**, commit `58718a4f3a6f5f4aad199607c2d6c8e91f4190d1`, deploy `dep-dc2gjim7bikc738kf1r0`, com **`CAL_ENABLED=true`** exclusivamente nesse serviço. **O PILOTO REAL É SÓ `Hello = Olá`; catálogo + adaptador estão no código, mas ainda NÃO conectados ao `tutor.reply`.** CI integrado #45322249258 verde, PR #43 draft (QA). **Sem teste humano autenticado, sem `learnerEvidences`, sem novas migrations, sem CSLE, sem Stripe.** A seção 18 e [registro de staging](./CAL-STAGING-ATIVACAO-2026-11-24.md) são a fonte atual do status.
+> **STATUS ATUALIZADO — 24/11/2026 UTC:** **Fase 01 — Naruto.** PRs **#40/#41/#42 MERGEADAS** na main, e staging Render `lingua-p1-staging-le7u` **LIVE** em `58718a4f`, `CAL_ENABLED=true`, funcionando somente como **piloto Hello**. **NOVO MARCO:** [PR #44](https://github.com/looksai/Lingua/pull/44) **ABERTA, PRONTA PARA AUDITORIA, NÃO MERGEADA NEM DEPLOYADA**, branch `feat/cal-catalog-tutor-runtime`, head `7b95ec8b85be26b5845a81fe36ea7e50bcd3d58d`, [CI #45324350255](https://github.com/looksai/Lingua/actions/runs/45324350255) **SUCCESS**: TypeScript, Vitest (25 arquivos, **34 testes novos de catálogo**), build. Implementa a **primeira ligação de catálogo + adaptador + tutor.reply** atrás de uma nova flag `CAL_CATALOG_ENABLED=false` por padrão, exigindo também `CAL_ENABLED=true`. **Staging permanece no piloto Hello**, sem flag nova; testes humanos, `learnerEvidences`, banco, SRS, CSLE e Stripe continuam fora desta PR. Próximo portão: auditoria Deep/fundador da PR #44, depois autorização específica para merge/teste de staging. Consulte seção 18.
 > **Natureza:** passagem de bastão completa, especificações, decisões, histórico, pendências e regras de operação. **Não é autorização para alterar código, migrar DB ou fazer deploy.**
 >
 > **Regra de confiabilidade:** esta é uma fotografia histórica verificável em sua data. Em nova conversa, usar a documentação como contexto, **mas checar o GitHub/CI/Render atuais antes de afirmar o estado de qualquer PR, deploy, migration, custo ou teste**. Datas, PRs e commits podem mudar. O histórico relatado pelo fundador/assistentes deve ser distinguido da evidência direta no código/CI.
@@ -428,6 +428,7 @@ Trabalho histórico implementado na branch de billing:
 | [#41](https://github.com/looksai/Lingua/pull/41) | Catálogo de 8 competências/24 tarefas, rubricas conservadoras | **MERGEADA**, squash `25b02316`; não ligado ao tutor real |
 | [#42](https://github.com/looksai/Lingua/pull/42) | Adaptador puro Catálogo→CAL com 26 testes | **MERGEADA**, merge `90cf82fa`; não ligado ao tutor real |
 | [#43](https://github.com/looksai/Lingua/pull/43) | Verificação pós-merge no código combinado, 5 smoke tests | **DRAFT, não mergeada; CI verde #45322249258** |
+| [#44](https://github.com/looksai/Lingua/pull/44) | Primeira conexão real Catálogo→CAL→tutor.reply com `CAL_CATALOG_ENABLED` off por padrão | **ABERTA/PRONTA PARA AUDITORIA, NÃO MERGEADA; CI verde #45324350255** |
 | [Issue #36](https://github.com/looksai/Lingua/issues/36) | UX, acesso, estudo e conta — subordinados ao roadmap | Aberta, backlog posterior |
 | [Issue #38](https://github.com/looksai/Lingua/issues/38) | Auditoria integral e baseline do Naruto | Aberta, tarefa atual |
 
@@ -470,14 +471,40 @@ O fundador encaminhou aprovação de auditoria Deep das PRs #40/#41/#42, **autor
 
 **Runbook novo:** [docs/CAL-STAGING-ATIVACAO-2026-11-24.md](./CAL-STAGING-ATIVACAO-2026-11-24.md). [docs/CAL-STAGING-INTEGRATION.md](./CAL-STAGING-INTEGRATION.md) atualizado para não afirmar que o staging não foi deployado.
 
-## 18.3 AÇÕES AO RETOMAR — NÃO CONFUNDIR LIVE COM ORQUESTRADOR COMPLETO
+## 18.3 PRÓXIMAS AÇÕES — ESTADO CORRENTE EM 24/11/2026 UTC
 
-1. **Estado real:** o site staging usa `CAL_ENABLED=true` e o **piloto limitado “Hello = Olá”**. As PRs #40, #41 e #42 já estão mergeadas; **não tentar mergeá-las novamente**. PR #43 é QA, **draft sem merge**.
-2. **Próxima implementação técnica principal:** uma nova branch/PR para ligar **catálogo + adaptador + `tutor.reply` de verdade** por planos de tarefa com ID/versionamento/autorização do host. Preservar opção do aluno, português de iniciante e flag reversível. O código atual do adaptador NÃO é funcionalidade do tutor. **Definir portão de autorização para esse novo trabalho antes de colocar em staging.**
-3. **Testes manuais pendentes:** quando fundador estiver disponível, usar testador permitido no staging e testar início, “Olá”, “Hello”, três erros de “Goodbye”, “não sei”, pedido de objetivo diferente, fatos/memória consentida, ausência de invenções e duas contas. Se a conta não estiver no allowlist do tutor, não atribuir limitação de acesso ao CAL. Não afirmar que aula alcançou `RETOMAR/TRANSFERIR/COMPROVAR` hoje.
-4. **Segurança operacional:** se o CAL causar regressão, atualizar **somente** `CAL_ENABLED=false` no mesmo serviço staging, confirmar o deploy novo Live. Não aplicar migrations nem rollbacks de dados sem aprovação. Não ativar em outro serviço Render.
-5. **Evidência oficial só depois:** desenhar `learnerEvidences` somente após evidências reais e autorização de política de consentimento/retention/migration. Três acertos ou matches de palavra não autorizam domínio ou nota CEFR.
-6. **Fases preservadas:** Naruto Fase 01; CSLE independente Fase 02 futuramente; integração Fase 03; Stripe congelado. Sempre atualizar este arquivo-mestre com GitHub/Render/CI atuais, diferenciando código mergeado, deploy live e experiência humana homologada.
+**Novo trabalho executado após o fundador dizer "Prosseguir":** criada a **[PR #44](https://github.com/looksai/Lingua/pull/44)**, branch `feat/cal-catalog-tutor-runtime`, para pela primeira vez conectar o adaptador de microcompetências da #42 e o catálogo da #41 à rota **autenticada** `tutor.reply` da #40. Esta PR não foi mergeada nem colocada no Render. **Head testado:** `7b95ec8b85be26b5845a81fe36ea7e50bcd3d58d`; [CI #45324350255](https://github.com/looksai/Lingua/actions/runs/45324350255) **SUCCESS** TypeScript, Vitest (**25 arquivos**, **20 testes novos do controlador e 14 de tRPC**), build.
+
+**Código da #44:**
+- `server/cal-catalog-runtime.ts`: `CALCatalogTutorSessions`, escolhas estritas de objetivos por texto/ID aprovado, menu de seleção para pedidos genéricos, estado volátil por usuário autenticado com TTL de 30 min/100 sessões, conexão às funções puras `chooseCatalogObjective`, `issueCatalogTask`, `respondToCatalogTask` e `attestCatalogTaskDelivery`.
+- `server/tutor-router.ts`: input opcional `catalogCompetencyId` validado, `inputModality` opcional `typed/asr_text`, ponte de diretiva para provedor Groq/OpenAI, commit só depois de resposta segura; mantém consentimento, allowlist, memória e limite de uso existentes.
+- `server/cal-catalog-runtime.test.ts`: **20 testes** de flag, menu, objetivos, respostas, pausa, isolamento de conta, concorrência (resposta atrasada NÃO exibe atividade fora do estado), ausência de notas, TTL, tarefa completa.
+- `server/cal-catalog-router.test.ts`: **14 testes** tRPC com banco e provedor simulados, flag off/on, sujeito diferente, sem login, sem consentimento, erro da IA, fact guard, ASR opcional e fallback.
+- `server/cal-router-contract.test.ts`: mantém flag nova OFF em regressão legada.
+- `docs/CAL-CATALOG-RUNTIME-FASE01.md` na branch: runbook/limites/rollback.
+
+**Regra dupla da flag:**
+- CAL_ENABLED=false → nenhum CAL.
+- CAL_ENABLED=true, CAL_CATALOG_ENABLED AUSENTE/false → o staging **continua no piloto Hello atual**, sem mudança.
+- **AMBAS=true** (somente após autorização de novo deploy) → modo catálogo habilitado; escolha explícita de conteúdo, sem forçar Hello; perguntas originais do servidor após uma chamada de IA, sem rubrica livre da LLM.
+- Nova flag **NÃO foi configurada no Render**. O serviço staging **ainda usa o commit `58718a4f`**, não a PR #44.
+
+**Problemas encontrados e resolvidos pelos testes durante a PR #44:**
+1. Resposta de outro **domínio pedagógico** (ex.: “Olá” durante exercício sobre nome próprio) não deve virar erro: avaliações de distrator são restritas ao mesmo domínio.
+2. Concorrência: respostas atrasadas não podem apresentar tarefas de um ticket cujo estado não foi aceito; o texto seguro é retornado **sem exercício obsoleto**.
+3. Input `inputModality:"asr_text"` encaminhado como sinal opcional para não classificar transcrição como acerto/erro; **não é verificação confiável de origem por si só**. Sem diagnosticar pronúncia.
+4. Se o guard conservador de português corrigir uma resposta da IA para o fallback fixo “Hello”, o modo catálogo usa introdução neutra, evitando impor conteúdo contrário ao objetivo escolhido.
+5. Testes do provedor falhando não alteram estado, e sem consentimento/autenticação não há avaliação.
+
+**LIMITES CENTRAIS:** entregar pergunta na resposta montada pelo SERVIDOR não prova leitura/entrega pelo navegador; é um piloto com Map no processo, sem estado entre restarts/nós; pouca diversidade curricular; **não** percorre nem comprova automaticamente `RETOMAR/TRANSFERIR/COMPROVAR`. Aprender, CEFR e SRS não são inferidos por três acertos. `learnerEvidences` ainda não existe como migration aprovada. A PR não mede eficácia real nem custo real; a flag nova OFF mantém staging imutável.
+
+**Ordem imediata:**
+1. **Auditoria Deep da PR #44 no head/CI informados**; fundador decide correções, merge e habilitação da nova flag no staging. Não usar permissão anterior para #40/#41/#42 como autorização automática para nova PR.
+2. Se aprovada: verificar novamente CI SHA e compatibilidade, merge independente, configurar `CAL_CATALOG_ENABLED=true` **somente no staging** com rollback/allowlist/teste autorizado; nunca em produção.
+3. QA manual quando fundador disponível, sem bloquear engenharia. Testar escolha de profissões, apresentação, ajuda, perguntas off-topic, segurança de memória, fato inventado, concorrência e feedback sem domínio; documentar desvios, não declarar 6 estados comprovados.
+4. Somente depois planejar rubricas de transferência/retenção e projeto futuro de persistência `learnerEvidences` sob governança/consentimento do Lingua.
+5. **Preservar** CSLE independente (Fase 02 posterior), Stripe PR #32 congelada, migration 0008 não aplicada, SRS e memória Aiven inalterados. Atualizar este arquivo após cada decisão/PR/deploy.
+
 
 ## 18.4 “Done” só quando houver prova
 
@@ -563,4 +590,4 @@ Depois de cada milestone:
 
 ---
 
-**ESTADO-RESUMO ATUALIZADO EM 24/11/2026 UTC:** PRs **#40/#41/#42 MERGEADAS na main** em commits `58718a4f`, `25b02316`, `90cf82fa`. **Render staging LIVE** em `58718a4f`, deploy `dep-dc2gjim7bikc738kf1r0`, com `CAL_ENABLED=true` **somente no staging**. O tutor ativa **piloto CAL Hello**, mas ainda NÃO usa catálogo nem adaptador no runtime. **PR #43** QA pós-merge draft, [CI #45322249258](https://github.com/looksai/Lingua/actions/runs/45322249258) verde (24 arquivos/testes, 5 smoke novos). Sem teste humano autenticado, sem `learnerEvidences`, sem migration, Stripe #32 pausada, CSLE independente. **PRÓXIMO PASSO: QA real com fundador quando possível; nova integração runtime de Catálogo→CAL→Naruto sob aprovação separada.** Ver [registro de staging](./CAL-STAGING-ATIVACAO-2026-11-24.md).
+**ESTADO-RESUMO ATUALIZADO EM 24/11/2026 UTC:** Fase 01 Naruto; PRs #40/#41/#42 mergeadas; Render staging LIVE no commit `58718a4f`, `CAL_ENABLED=true` e **somente piloto Hello**. **PR #44** [Catálogo→CAL→tutor.reply](https://github.com/looksai/Lingua/pull/44) ABERTA pronta para auditoria, NÃO mergeada/deployada, head `7b95ec8b85be26b5845a81fe36ea7e50bcd3d58d`; **CI verde [#45324350255](https://github.com/looksai/Lingua/actions/runs/45324350255)** com 34 testes novos e 25 arquivos aprovados, TS/build. Flag `CAL_CATALOG_ENABLED` OFF por padrão e AUSENTE do staging; porta dupla com CAL_ENABLED. PR #43 QA draft sem merge. Sem teste humano real, novas migrations, `learnerEvidences`, gravação SRS, CSLE ou Stripe. **Próximo: auditoria Deep e autorização específica para merge/ativar a flag nova só no staging.**
