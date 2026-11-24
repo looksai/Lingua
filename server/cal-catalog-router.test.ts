@@ -58,7 +58,15 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
   it("selects identity, checks meaning on next turn and serves a practice template",async()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
     const uid=++id,c=caller(uid);
-    await c.reply(request("Quero aprender a me apresentar."));
+    const first=await c.reply(request("Quero aprender a me apresentar."));
+    expect(first.catalogTask).not.toBeNull();
+    const beforeAck=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
+    expect(calCatalogTutorSessions.inspectForTest(uid)?.cal.phase).toBe("ENSINAR");
+    const beforeResponse=await c.reply(request("Meu nome é Alex",{inputModality:"typed"}));
+    expect(beforeResponse.catalogTask).toBeNull();
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(beforeAck);
+    const task=first.catalogTask!;
+    expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId})).status).toBe("recorded");
     const current=calCatalogTutorSessions.inspectForTest(uid)!;
     expect(current.cal.phase).toBe("ENSINAR");
     expect(current.task?.delivered).toBe(true);
@@ -66,6 +74,36 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
     expect(r.text).toContain("Escreva Meu nome é Alex em inglês");
     expect(calCatalogTutorSessions.inspectForTest(uid)?.cal.phase).toBe("PRATICAR");
     expect(calCatalogTutorSessions.inspectForTest(uid)?.cal.observations).toHaveLength(0);
+  });
+  it("rejects client-render receipts from a different account, stale ticket or missing flag",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
+    const a=++id,b=++id,c=caller(a),other=caller(b);
+    const reply=await c.reply(request("Quero praticar Hello"));
+    const task=reply.catalogTask!;
+    expect(task.deliveryId).toBeTruthy();
+    expect((await other.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId})).status).toBe("rejected");
+    expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:"fake"})).status).toBe("rejected");
+    expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId})).status).toBe("recorded");
+    expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId})).status).toBe("duplicate");
+    vi.stubEnv("CAL_CATALOG_ENABLED","false");
+    expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId})).status).toBe("rejected");
+    await expect(caller(++id,false).catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId}))
+      .rejects.toMatchObject({code:"UNAUTHORIZED"});
+  });
+  it("rejects a response from a client that never reported browser rendering",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
+    const uid=++id,c=caller(uid);
+    const result=await c.reply(request("Quero praticar Hello"));
+    expect(result.catalogTask).not.toBeNull();
+    const initial=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
+    const response=await c.reply(request("Olá",{inputModality:"typed"}));
+    expect(response.source).toBe("ai");
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(initial);
+    const ticket=result.catalogTask!;
+    expect((await c.catalogRenderAck({consent:true,sessionId:ticket.sessionId,deliveryId:ticket.deliveryId})).status).toBe("recorded");
+    const observed=await c.reply(request("Olá",{inputModality:"typed"}));
+    expect(observed.text).toContain("Como você escreveria Olá em inglês");
+    expect(calCatalogTutorSessions.inspectForTest(uid)?.cal.phase).toBe("PRATICAR");
   });
   it("does not grade off-topic questions and does not start the legacy Hello pilot",async()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
