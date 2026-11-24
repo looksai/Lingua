@@ -5,7 +5,7 @@
 > **Atualização inicial:** 24/11/2026 UTC (23/11/2026 à noite, horário de Natal/RN).  
 > **Repositório principal:** [looksai/Lingua](https://github.com/looksai/Lingua).  
 > **Fase atual:** **FASE 01 — Naruto**. Histórico inicial de CI vermelho e branch catálogo vazia está documentado nas seções 5 e 10; **status operacional atualizado na linha abaixo e na seção 18.**
-> **ESTADO ATUALIZADO — 24/11/2026 UTC:** FASE 01 Naruto; PR #39 mergeada (CAL puro), [PR #40](https://github.com/looksai/Lingua/pull/40) CI [verde #45319194259](https://github.com/looksai/Lingua/actions/runs/45319194259), [PR #41](https://github.com/looksai/Lingua/pull/41) CI [verde #45319148157](https://github.com/looksai/Lingua/actions/runs/45319148157). **NOVO:** [PR #42 — laboratório puro adaptador Catálogo→CAL](https://github.com/looksai/Lingua/pull/42), head `5a93fef9e7e9a652e36d94a473a9ac10786fcb23`, **CI verde [#45320208097](https://github.com/looksai/Lingua/actions/runs/45320208097)**, 26 testes próprios aprovados, 21 arquivos de teste totais. **PRs #40, #41 e #42 ainda NÃO MERGEADAS, NÃO DEPLOYADAS.** PR #42 depende da #41 e seu diff também contém temporariamente catálogo para permitir CI. Stripe #32 pausada, CSLE separado. Próximo portão: Deep auditar e fundador aprovar merges/acoplamento.
+> **STATUS CORRENTE — 24/11/2026 UTC:** **Fase 01, Naruto**. Com aprovação expressa do fundador recebida via mensagem de auditoria Deep, PRs **[#41 catálogo](https://github.com/looksai/Lingua/pull/41), [#42 adaptador puro](https://github.com/looksai/Lingua/pull/42) e [#40 integração tutor](https://github.com/looksai/Lingua/pull/40) foram MERGEADAS NA MAIN**, nessa ordem. **Staging Render `lingua-p1-staging-le7u` LIVE**, commit `58718a4f3a6f5f4aad199607c2d6c8e91f4190d1`, deploy `dep-dc2gjim7bikc738kf1r0`, com **`CAL_ENABLED=true`** exclusivamente nesse serviço. **O PILOTO REAL É SÓ `Hello = Olá`; catálogo + adaptador estão no código, mas ainda NÃO conectados ao `tutor.reply`.** CI integrado #45322249258 verde, PR #43 draft (QA). **Sem teste humano autenticado, sem `learnerEvidences`, sem novas migrations, sem CSLE, sem Stripe.** A seção 18 e [registro de staging](./CAL-STAGING-ATIVACAO-2026-11-24.md) são a fonte atual do status.
 > **Natureza:** passagem de bastão completa, especificações, decisões, histórico, pendências e regras de operação. **Não é autorização para alterar código, migrar DB ou fazer deploy.**
 >
 > **Regra de confiabilidade:** esta é uma fotografia histórica verificável em sua data. Em nova conversa, usar a documentação como contexto, **mas checar o GitHub/CI/Render atuais antes de afirmar o estado de qualquer PR, deploy, migration, custo ou teste**. Datas, PRs e commits podem mudar. O histórico relatado pelo fundador/assistentes deve ser distinguido da evidência direta no código/CI.
@@ -14,7 +14,7 @@
 
 ## 0. TEXTO DE RETOMADA — PARA COPIAR EM UMA CONVERSA NOVA
 
-> Estamos continuando o projeto **Lingua/Naruto/CSLE** do fundador, administrado no GitHub `looksai/Lingua`. Leia **integralmente** `docs/CONTEXTO-MESTRE-LINGUA.md` na branch `main` e depois `docs/ROADMAP-ESTRATEGICO-LINGUA.md`, `docs/CONSTITUICAO-PEDAGOGICA-v0.1.md`, `docs/ORQUESTRADOR-PEDAGOGICO-NARUTO.md`, Issue #38, PRs #40 e #41 e os CIs **mais recentes**. Respeite a ordem **Naruto → CSLE independente → acoplamento auditado → correções → produto/mercado**. Stripe #32 está pausada. Não mexa no Render, no banco, no CSLE ou no Stripe sem minha autorização. **Continue a tarefa aberta descrita na seção “ESTADO OPERACIONAL ATUAL E PRÓXIMAS AÇÕES”**, informando exatamente o que foi confirmado e o que permanece pendente. Não invente que CI, integração, testes humanos ou pagamentos já foram homologados.
+> Estamos continuando o projeto **Lingua/Naruto/CSLE** do fundador, administrado no GitHub `looksai/Lingua`. Leia **integralmente** `docs/CONTEXTO-MESTRE-LINGUA.md` na branch `main` e depois `docs/ROADMAP-ESTRATEGICO-LINGUA.md`, `docs/CONSTITUICAO-PEDAGOGICA-v0.1.md`, `docs/ORQUESTRADOR-PEDAGOGICO-NARUTO.md`, Issue #38, PRs #40/#41/#42 **mergeadas**, PR #43 QA, registro de staging e os CIs **mais recentes**. Respeite a ordem **Naruto → CSLE independente → acoplamento auditado → correções → produto/mercado**. Stripe #32 está pausada. Não mexa no Render, no banco, no CSLE ou no Stripe sem minha autorização. **Continue a tarefa aberta descrita na seção “ESTADO OPERACIONAL ATUAL E PRÓXIMAS AÇÕES”**, informando exatamente o que foi confirmado e o que permanece pendente. Não invente que CI, integração, testes humanos ou pagamentos já foram homologados.
 
 O assistente pode resumir brevemente o que leu e **executar a solicitação do fundador**, sem reabrir decisões já tomadas, sem exigir que o fundador copie dezenas de mensagens anteriores.
 
@@ -423,10 +423,11 @@ Trabalho histórico implementado na branch de billing:
 | [#35](https://github.com/looksai/Lingua/pull/35) | Segurança pedagógica para iniciante absoluto pt-BR | **MERGEADA E LIVE NO RENDER** |
 | [#37](https://github.com/looksai/Lingua/pull/37) | Sincronização técnica `main` → branch billing antes de congelar | Mergeada na branch billing, não é deploy |
 | [#39](https://github.com/looksai/Lingua/pull/39) | Máquina CAL pura + 28 testes | **MERGEADA NA MAIN**, não deployada |
-| [#40](https://github.com/looksai/Lingua/pull/40) | CAL gradual, guard de respostas livres e pergunta realmente entregue | **ABERTA; CI verde #45319194259; sem merge** |
+| [#40](https://github.com/looksai/Lingua/pull/40) | CAL gradual no tutor, regra de respostas livres e pergunta efetivamente apresentada | **MERGEADA**, squash `58718a4f`, **LIVE no staging** com `CAL_ENABLED=true` (piloto Hello) |
 
-| [#41](https://github.com/looksai/Lingua/pull/41) | Catálogo 8/24, avaliação apenas de distrator conhecido ou `not_evaluable` | **ABERTA/DRAFT; CI verde #45319148157; sem merge** |
-| [#42](https://github.com/looksai/Lingua/pull/42) | Laboratório puro Catálogo→CAL, 26 testes, depende da PR #41 (stacked) | **ABERTA/DRAFT; CI verde #45320208097; sem merge/deploy** |
+| [#41](https://github.com/looksai/Lingua/pull/41) | Catálogo de 8 competências/24 tarefas, rubricas conservadoras | **MERGEADA**, squash `25b02316`; não ligado ao tutor real |
+| [#42](https://github.com/looksai/Lingua/pull/42) | Adaptador puro Catálogo→CAL com 26 testes | **MERGEADA**, merge `90cf82fa`; não ligado ao tutor real |
+| [#43](https://github.com/looksai/Lingua/pull/43) | Verificação pós-merge no código combinado, 5 smoke tests | **DRAFT, não mergeada; CI verde #45322249258** |
 | [Issue #36](https://github.com/looksai/Lingua/issues/36) | UX, acesso, estudo e conta — subordinados ao roadmap | Aberta, backlog posterior |
 | [Issue #38](https://github.com/looksai/Lingua/issues/38) | Auditoria integral e baseline do Naruto | Aberta, tarefa atual |
 
@@ -448,50 +449,35 @@ Mensagem: “Perfeito, vamos seguir”, após aprovação da estratégia de:
 
 Depois solicitou **salvar máximo contexto no GitHub** porque conversas longas travam e novos chats perdem decisões.
 
-## 18.2 Entregas verificadas até a revisão de 24/11/2026 UTC
+## 18.2 Execução AUTORIZADA pelo fundador e verificada em 24/11/2026 UTC
 
-**O que permanece concluído:** contexto-mestre no GitHub e link no README; PR #39 máquina CAL pura mergeada na main; memória 0007 validada em sessão privativa; PR #40 integração efêmera no tutor e PR #41 catálogo versionado, **nenhuma das duas mergeada ou implantada**.
+O fundador encaminhou aprovação de auditoria Deep das PRs #40/#41/#42, **autorizando explicitamente merge e ativação da flag no staging**. Essa autorização não equivale a prova de eficácia nem autoriza publicar em serviço Render de produção, acoplar o CSLE ou executar schema de evidências.
 
-**Auditoria mais recente da PR #40 — head `62ea852e176decf9d9e2bc4dc2bd4ac300c4f224`:**
-- Detectado risco real de classificar **qualquer frase curta** durante tarefa fechada como erro; p.ex. “Quero estudar para entrevista”. Corrigido: só o gabarito ou distratores lexicais explícitos da microtarefa entram no avaliador; texto livre é bypass.
-- Corrigida condição de **entrega da pergunta**: para criar pendência de avaliação o texto do Naruto deve terminar na pergunta canônica, evitando menção casual que não configura exercício apresentado.
-- Ajustado teste de “entendi” para mostrar que autodeclaração **não prova compreensão** nem promove CAL; não cria observação indevida.
-- Três cenários novos reforçaram a regressão; CI intermediário falhou por expectativa antiga e foi corrigido sem enfraquecer guards.
-- **CI FINAL VERDE no head:** [run #45319194259](https://github.com/looksai/Lingua/actions/runs/45319194259), TypeScript + Vitest + build aprovados. **Sem merge/deploy.**
+**Merges executados em ordem técnica:**
+1. [PR #41 — Catálogo](https://github.com/looksai/Lingua/pull/41): **MERGEADA**, squash `25b02316ed5f5759e05e14f95dbd14233a47a533`. Catálogo puro de 8 microcompetências e 24 tarefas.
+2. [PR #42 — Adaptador Catálogo→CAL](https://github.com/looksai/Lingua/pull/42): **MERGEADA**, merge `90cf82faaf3e9a0fec72660e3a98ace5244a4ffd`. Os três blobs da PR #41 na branch #42 foram comparados aos da main e eram idênticos, prevenindo divergência de conteúdo.
+3. [PR #40 — Integração tutor](https://github.com/looksai/Lingua/pull/40): **MERGEADA**, squash `58718a4f3a6f5f4aad199607c2d6c8e91f4190d1`. Coloca a flag CAL e piloto na rota `tutor.reply` (não liga o catálogo adaptativo).
 
-**Auditoria mais recente da PR #41 — head `f456e5924dfa2380004d91dd1c0946ff53a76fe6`:**
-- Detectado que uma resposta não prevista no gabarito, incluindo frase livre/novo objetivo, era marcada como `not_yet` (“errou”) sem evidência suficiente.
-- Corrigido: `meets` para resposta prevista, `not_yet` **somente para distrator lexical conhecido do mesmo tipo de tarefa**, e `not_evaluable` para texto livre.
-- Testes novos confirmam que uma frase pessoal ou pedido de entrevista não vira nota negativa. Perguntas seguem protegidas antes da normalização.
-- **CI FINAL VERDE no head:** [run #45319148157](https://github.com/looksai/Lingua/actions/runs/45319148157), TypeScript + Vitest + build aprovados. **PR draft, sem merge/deploy.**
+**Verificação P0 do código combinado:** criada [PR #43](https://github.com/looksai/Lingua/pull/43), **DRAFT, NÃO MERGEADA**, partindo da main após #40/#41/#42, arquivo `server/cal-post-merge-smoke.test.ts`. O [CI #45322249258](https://github.com/looksai/Lingua/actions/runs/45322249258) foi **SUCCESS**, TypeScript + Vitest (**24 arquivos de teste, inclusive 5 novos smoke**) + build. A própria suíte confirma intencionalmente que **o tutor real não chama ainda o adaptador de catálogo**. Não dizer que esse CI substitui QA com usuário.
 
-**Documentos novos na main (somente documentação):**
-- [`docs/AUDITORIA-TECNICA-PR40-PR41.md`](./AUDITORIA-TECNICA-PR40-PR41.md): parecer pré-merge com invariantes, riscos, achados e provas dos CIs.
-- [`docs/ADAPTADOR-CATALOGO-CAL-V0.1.md`](./ADAPTADOR-CATALOGO-CAL-V0.1.md): contrato proposto para futura junção Catálogo→CAL→Naruto, com IDs de tarefa e objetivo, avaliação conservadora, 20 cenários de aceite e autorização granular.
-- Comentários de auditoria foram adicionados nas próprias PRs #40 e #41, vinculando os documentos. Nenhuma fonte de custo/segredo exposta.
+**Ativação autorizada do Render STAGING:**
+- Serviço `lingua-p1-staging-le7u`, ID `srv-dc0mh2cs728c73ant6e0`, URL https://lingua-p1-staging-le7u.onrender.com, branch `main`, `autoDeployTrigger=off`. **Nenhum serviço de produção diferente foi tocado.**
+- Atualizada **somente** variável `CAL_ENABLED=true` via Render, em modo merge, preservando as demais configurações. O próprio Render **disparou deploy automático por alteração do ambiente**; não se invocou outro deploy manual.
+- Deploy `dep-dc2gjim7bikc738kf1r0`, commit `58718a4f3a6f5f4aad199607c2d6c8e91f4190d1`, estado **LIVE**, terminou `2026-11-24T03:52:52Z`. Logs: build successful, servidor ouvindo porta 10000, “Your service is live”; evento Render `deploy_ended` sucedido. **A publicação foi confirmada no painel/API de Render, mas tentativa externa independente de /api/health não retornou dado verificável.**
+- **Controle:** o `CAL_ENABLED=true` ativa somente o **piloto de Hello** para alunos elegíveis, com consentimento e autorização existentes. Os módulos de catálogo/adaptador estão empacotados na main, **mas não conectados ao `tutor.reply`**. Não alegar seleção dinâmica real de “profissão”, `RETOMAR/TRANSFERIR/COMPROVAR` em tarefas reais, domínio ou retenção.
+- **QA manual:** fundador ainda **não** realizou nova conta nem prints; estar `live` não prova ciclo completo; teste autenticado e validação de memória/erros são pendências.
+- **Segurança:** não houve migration, `learnerEvidences`, gravação de patrimônio oficial, alteração de SRS, CSLE real ou Stripe. A PR #32 está em draft/pausada; schema `0008` não aplicado.
 
-## 18.3 PRÓXIMAS AÇÕES AO RETOMAR — ESTADO ATUAL
+**Runbook novo:** [docs/CAL-STAGING-ATIVACAO-2026-11-24.md](./CAL-STAGING-ATIVACAO-2026-11-24.md). [docs/CAL-STAGING-INTEGRATION.md](./CAL-STAGING-INTEGRATION.md) atualizado para não afirmar que o staging não foi deployado.
 
-**Tarefa recém-concluída:** a pedido “Vamos seguir” (24/11/2026 UTC), foi criado em `feat/cal-catalog-adapter-lab` o protótipo **puro** do adaptador Catálogo→CAL, sem conectar a serviços reais. Ele usa o catálogo ainda não mergeado da PR #41 e a máquina pura CAL já na main.
+## 18.3 AÇÕES AO RETOMAR — NÃO CONFUNDIR LIVE COM ORQUESTRADOR COMPLETO
 
-- **[PR #42](https://github.com/looksai/Lingua/pull/42):** branch `feat/cal-catalog-adapter-lab`, head `5a93fef9e7e9a652e36d94a473a9ac10786fcb23`, estado **DRAFT**, base temporária `main` para ativar workflow de CI. **DEPENDÊNCIA OBRIGATÓRIA: PR #41**. Não mergear #42 antes de #41 ser aprovada/mergeada e diff reavaliado.
-- **CI [#45320208097](https://github.com/looksai/Lingua/actions/runs/45320208097) SUCCESS**: TypeScript, testes e build aprovados. `shared/pedagogy/cal-catalog-adapter.test.ts` executou **26 testes novos**; **21 arquivos de teste** aprovados no conjunto.
-- **Código:** `shared/pedagogy/cal-catalog-adapter.ts`, funções puras `newCatalogCALSession`, `listCatalogOptions`, `chooseCatalogObjective`, `issueCatalogTask`, `attestCatalogTaskDelivery`, `respondToCatalogTask`, `resumeCatalogSession`, `summarizeCatalogSession`.
-- **Documento da própria branch:** [docs/CAL-CATALOG-ADAPTER-LAB.md](https://github.com/looksai/Lingua/blob/feat/cal-catalog-adapter-lab/docs/CAL-CATALOG-ADAPTER-LAB.md). Cobre limites de demonstração, stack das PRs, origem da tarefa e próximas decisões.
-- **Comportamento:** permite escolha explícita de objetivo do aluno, inclusive profissional sem impor “Hello”; indica pré-requisitos não verificados sem afirmar domínio; distingue plano vs apresentação efetiva em host sintético; só avalia tarefa textual fechada com intenção explícita de responder e gabarito reconhecível; pergunta, nova intenção, transcrição ASR e texto livre desconhecido NÃO viram erro automático. Usa CAL com `stepCAL` e `chooseCALPlan`. Acertos assistidos NÃO comprovam retenção nem habilidade global.
-- **Limites:** `attestCatalogTaskDelivery` depende de callback **do host de confiança em laboratório**, não prova que um navegador real exibiu a tarefa. Estado é efêmero, nenhum segundo processo sincronizado, sem criptografia de ticket ou persistência. **Nenhuma capacidade de avaliação oficial, SRS, `learnerEvidences`, voz/pronúncia, CSLE, Stripe ou API real foi criada.** Não promove automaticamente RETOMAR/TRANSFERIR/COMPROVAR nem certifica domínio.
-- **No Render:** sem mudança; Naruto publicado não executa #40/#41/#42.
-
-**PRs aguardando parecer:** [#40 CAL runtime](https://github.com/looksai/Lingua/pull/40), [#41 Catálogo](https://github.com/looksai/Lingua/pull/41), **[#42 Adaptador empilhado](https://github.com/looksai/Lingua/pull/42)**. Todas sem merge. Head/CI de #40: `62ea852e`, [#45319194259](https://github.com/looksai/Lingua/actions/runs/45319194259) verde; #41: `f456e592`, [#45319148157](https://github.com/looksai/Lingua/actions/runs/45319148157) verde.
-
-**Ordem recomendada daqui para frente:**
-
-1. **Deep fazer auditoria de código/arquitetura independente das PRs #40, #41 e #42**, com atenção à dependência empilhada, correspondência exata de apresentação de tarefa, intenção do aluno, rubricas e proveniência.
-2. **Fundador aprovar ou solicitar revisões**. Não interpretar “CI verde” como autorização para merge, ativar `CAL_ENABLED` ou implantar em Render.
-3. Se #41 for aprovada/mergeada pelo fundador, **rebasear/organizar #42** para mostrar só o adaptador; conferir compatibilidade com a PR #40 e CI dos SHAs atualizados. Não se deve juntar implementações sem validar conflitos e testes.
-4. Projetar contrato de entrega de tarefa em runtime confiável e QA/rollback em staging, com feature flag OFF por padrão; **integração real só após autorização expressa**.
-5. Quando fundador puder, fazer testes humanos com alunos reais e comparação com/sem CAL, sem inferir superioridade a partir dos testes sintéticos.
-6. **Atualizar este documento-mestre após cada nova PR ou decisão**. Stripe #32 continua pausada, CSLE independente (Fase 02 futura). Sem migrations, DB ou deploy espontâneos.
+1. **Estado real:** o site staging usa `CAL_ENABLED=true` e o **piloto limitado “Hello = Olá”**. As PRs #40, #41 e #42 já estão mergeadas; **não tentar mergeá-las novamente**. PR #43 é QA, **draft sem merge**.
+2. **Próxima implementação técnica principal:** uma nova branch/PR para ligar **catálogo + adaptador + `tutor.reply` de verdade** por planos de tarefa com ID/versionamento/autorização do host. Preservar opção do aluno, português de iniciante e flag reversível. O código atual do adaptador NÃO é funcionalidade do tutor. **Definir portão de autorização para esse novo trabalho antes de colocar em staging.**
+3. **Testes manuais pendentes:** quando fundador estiver disponível, usar testador permitido no staging e testar início, “Olá”, “Hello”, três erros de “Goodbye”, “não sei”, pedido de objetivo diferente, fatos/memória consentida, ausência de invenções e duas contas. Se a conta não estiver no allowlist do tutor, não atribuir limitação de acesso ao CAL. Não afirmar que aula alcançou `RETOMAR/TRANSFERIR/COMPROVAR` hoje.
+4. **Segurança operacional:** se o CAL causar regressão, atualizar **somente** `CAL_ENABLED=false` no mesmo serviço staging, confirmar o deploy novo Live. Não aplicar migrations nem rollbacks de dados sem aprovação. Não ativar em outro serviço Render.
+5. **Evidência oficial só depois:** desenhar `learnerEvidences` somente após evidências reais e autorização de política de consentimento/retention/migration. Três acertos ou matches de palavra não autorizam domínio ou nota CEFR.
+6. **Fases preservadas:** Naruto Fase 01; CSLE independente Fase 02 futuramente; integração Fase 03; Stripe congelado. Sempre atualizar este arquivo-mestre com GitHub/Render/CI atuais, diferenciando código mergeado, deploy live e experiência humana homologada.
 
 ## 18.4 “Done” só quando houver prova
 
@@ -577,4 +563,4 @@ Depois de cada milestone:
 
 ---
 
-**ESTADO-RESUMO ATUALIZADO EM 24/11/2026 UTC:** Fase 01 Naruto. PR #39 (CAL puro) mergeada na main, Render Live continua sem CAL novo. PR #40 (piloto runtime) head `62ea852e`, CI verde #45319194259, sem merge/deploy. PR #41 (catálogo 8 microcompetências/24 tarefas) head `f456e592`, CI verde #45319148157, DRAFT sem merge/deploy. **PR #42 NOVA** (adaptador puro empilhado sobre #41) head `5a93fef9`, CI **verde #45320208097**, 26 testes próprios, DRAFT, base main temporária para CI, **sem merge/deploy**. Documentação e decisões atualizadas neste arquivo. Stripe #32 pausada, migração `0008` não aplicada, memória 0007 preservada, CSLE independente. **PRÓXIMO PASSO: parecer Deep e aprovação do fundador sobre PRs #40/#41/#42 antes de merges/acoplamento/runtime.**
+**ESTADO-RESUMO ATUALIZADO EM 24/11/2026 UTC:** PRs **#40/#41/#42 MERGEADAS na main** em commits `58718a4f`, `25b02316`, `90cf82fa`. **Render staging LIVE** em `58718a4f`, deploy `dep-dc2gjim7bikc738kf1r0`, com `CAL_ENABLED=true` **somente no staging**. O tutor ativa **piloto CAL Hello**, mas ainda NÃO usa catálogo nem adaptador no runtime. **PR #43** QA pós-merge draft, [CI #45322249258](https://github.com/looksai/Lingua/actions/runs/45322249258) verde (24 arquivos/testes, 5 smoke novos). Sem teste humano autenticado, sem `learnerEvidences`, sem migration, Stripe #32 pausada, CSLE independente. **PRÓXIMO PASSO: QA real com fundador quando possível; nova integração runtime de Catálogo→CAL→Naruto sob aprovação separada.** Ver [registro de staging](./CAL-STAGING-ATIVACAO-2026-11-24.md).
