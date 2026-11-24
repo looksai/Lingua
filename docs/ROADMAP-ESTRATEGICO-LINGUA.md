@@ -45,7 +45,7 @@ Desenvolver um professor conversacional de inglês excepcionalmente compreensív
 - Deep audita as propostas e o fundador autoriza a passagem de fase. **Os testes de exclusão e isolamento de memória continuam pendências importantes**, ainda que o teste entre sessões privadas tenha sido positivo.
 
 ### Próxima ação prática
-**Começar pela auditoria funcional + matriz de capacidades do Naruto + bateria P0 de cenários reais de ensino**. Não começar por pagamentos ou mudança cosmética de interface.
+**Começar pela [Issue #38 — auditoria funcional + matriz de capacidades do Naruto + bateria P0](https://github.com/looksai/Lingua/issues/38)**. Não começar por pagamentos ou mudança cosmética de interface.
 
 ---
 
@@ -115,7 +115,7 @@ A ordem interna das fases posteriores pode ser definida depois do diagnóstico d
 
 ---
 
-## Governaça de engenharia e papéis
+## Governança de engenharia e papéis
 
 - **Fundador:** define prioridade, visão, custos e autorização explícita de alterações significativas/integração/deploy/migrations.
 - **GPT / engenharia:** pesquisa, propõe contratos, escreve planos/código em branches autorizadas, cria testes, explicita limites; não declara QA ou integrações ainda não executadas como concluídas.
