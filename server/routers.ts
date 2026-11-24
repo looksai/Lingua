@@ -29,6 +29,7 @@ export const appRouter = router({
     signUp: publicProcedure.input(z.object({
       email: z.email().max(320),
       password: z.string().min(12).max(128),
+      serviceAccepted: z.literal(true),
     })).mutation(async ({ ctx, input }) => {
       checkRequestOrigin(ctx.req);
       rateLimit("signup:" + (ctx.req.ip ?? "unknown") + ":" + normalizeEmail(input.email));
