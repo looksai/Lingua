@@ -7,6 +7,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [serviceAccepted, setServiceAccepted] = useState(false);
+  const [personalMemoryEnabled, setPersonalMemoryEnabled] = useState(false);
   const utils = trpc.useUtils();
   const signIn = trpc.auth.signIn.useMutation();
   const signUp = trpc.auth.signUp.useMutation();
@@ -17,7 +18,7 @@ export default function Login() {
     if (mode === "signUp" && !serviceAccepted) return;
     try {
       if (mode === "signIn") await signIn.mutateAsync({ email, password });
-      else await signUp.mutateAsync({ email, password, serviceAccepted: true });
+      else await signUp.mutateAsync({ email, password, serviceAccepted: true, personalMemoryEnabled });
       await utils.auth.me.invalidate();
       window.location.assign("/");
     } catch { /* error displayed below */ }
@@ -35,7 +36,11 @@ export default function Login() {
           <input type="checkbox" required checked={serviceAccepted} onChange={event => setServiceAccepted(event.target.checked)} className="mt-1.5" />
           <span>Entendo e aceito que, para usar o tutor, mensagens e gravações que eu enviar poderão ser processadas por provedores de IA, e que dados de estudo necessários serão registrados para dar continuidade às aulas.</span>
         </label>
-        <p className="text-xs text-ink-muted">Memórias pessoais opcionais e usos secundários dos dados terão regras próprias. Você poderá consultar e apagar as memórias disponíveis nas configurações.</p>
+        <label className="flex items-start gap-3 text-sm leading-6">
+          <input type="checkbox" checked={personalMemoryEnabled} onChange={event => setPersonalMemoryEnabled(event.target.checked)} className="mt-1.5" />
+          <span>Permitir que Naruto lembre fatos não sensíveis sobre meus objetivos, profissão e preferências de estudo, sem pedir confirmação para cada detalhe. Opcional: posso mudar essa escolha e apagar memórias nas configurações.</span>
+        </label>
+        <p className="text-xs text-ink-muted">Esta escolha não autoriza reutilizar seus dados para treinar modelos de IA.</p>
       </>}
       {error && <p role="alert" className="text-red-700 text-sm">{error.message}</p>}
       <button disabled={pending || (mode === "signUp" && !serviceAccepted)} className="w-full bg-ink text-white p-3 disabled:opacity-50">{pending ? "Aguarde..." : mode === "signIn" ? "Entrar" : "Cadastrar"}</button>
