@@ -76,6 +76,28 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const audioRoot=useRef<HTMLElement|null>(null);
   const conversationVersion=useRef(0);
   const isCurrent=(epoch:number)=>tutorAsyncResultIsCurrent(epoch,conversationVersion.current,mounted.current);
+  const operationToken=useRef(0);
+  function beginBusy():number {
+    const op=++operationToken.current;
+    inFlight.current=true;
+    setBusy(true);
+    return op;
+  }
+  function finishBusy(op:number):void {
+    // A retired operation must never unlock a newer one.
+    if(!tutorAsyncResultIsCurrent(op,operationToken.current,mounted.current))return;
+    inFlight.current=false;
+    setBusy(false);
+    setGeneratingId(null);
+  }
+  function invalidateConversation():void {
+    conversationVersion.current++;
+    // Unlock the new account while late results from the old operation are discarded.
+    operationToken.current++;
+    inFlight.current=false;
+    if(mounted.current){setBusy(false);setGeneratingId(null);}
+  }
+
   const [previewVoiceAudio,setPreviewVoiceAudio]=useState<string|null>(null);
   const [previewVoiceNotice,setPreviewVoiceNotice]=useState("");
   const [memoryChoice,setMemoryChoice]=useState<{scope:string;enabled:boolean}>({scope:"",enabled:false});
@@ -108,7 +130,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       const stored=JSON.parse(window.localStorage.getItem(consentKey)??"null") as {accepted?:boolean;version?:number}|null;
       accepted=stored?.accepted===true&&stored?.version===consentVersion;
     }catch{/* Storage blocked: ask once in memory only. */}}
-    conversationVersion.current++;
+    invalidateConversation();
     stopCapture(false);stopAudioPlayers();stopSpeech();
     setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null);
     setPendingMemory(null);setPreviewVoiceAudio(null);setPreviewVoiceNotice("");
@@ -128,7 +150,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   useEffect(()=>{
     // Provider off/unknown must not leave the previous learner's text visible.
     if(!memoryKeys){
-      conversationVersion.current++;
+      invalidateConversation();
       stopCapture(false);stopAudioPlayers();stopSpeech();
       setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
       sequence.current=0;setMemoryChoice({scope:"",enabled:false});
@@ -136,7 +158,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null);
       return;
     }
-    conversationVersion.current++;
+    invalidateConversation();
     stopCapture(false);stopAudioPlayers();stopSpeech();setAutoPlayId(null);setNeuralFallback({});
     setPendingMemory(null);setPreviewVoiceAudio(null);setDemo(null);
     setDraft("");setTranscriptReady(false);
@@ -160,7 +182,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   function eraseConversation(){
     if(memoryKeys)clearChatMemory(window.localStorage,memoryKeys);
-    conversationVersion.current++;
+    invalidateConversation();
     stopCapture(false);stopAudioPlayers();stopSpeech();setAutoPlayId(null);
     setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
     sequence.current=0;setPendingMemory(null);setNeuralAudios({});setNeuralFallback({});setPreviewVoiceAudio(null);setDemo(null);setDraft("");setTranscriptReady(false);setNotice("Histórico apagado neste dispositivo.");
@@ -215,7 +237,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(!consent){setTermsAccepted(false);setPrivacyPrompt(true);return;}
     if(!placementActive||placement.data?.nextTask||busy)return;
     const epoch=conversationVersion.current;
-    inFlight.current=true;setBusy(true);setNotice("");
+    const op=beginBusy();setNotice("");
     try{
       const res=await placementGenerate.mutateAsync({consent:true});
       if(!isCurrent(epoch))return;
@@ -225,7 +247,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       if(res.source==="rule_based")setNotice("A IA não conseguiu gerar sugestões. Foi salvo um plano básico transparente, que pode ser revisto.");
       setPlacementActive(false);onPlacementCompleted();
     }catch{if(isCurrent(epoch))setNotice("Não foi possível gerar ou salvar o plano agora. Suas três respostas continuam registradas.");}
-    finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+    finally{finishBusy(op);}
   }
   async function submitMessage(authorized:boolean){
     const text=draft.trim();
@@ -235,7 +257,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     const viaASR=transcriptReady;
     const epoch=conversationVersion.current;
     setPendingMemory(null);
-    inFlight.current=true;setBusy(true);setNotice("");setTranscriptReady(false);
+    const op=beginBusy();setNotice("");setTranscriptReady(false);
     setDraft("");
     const history=messages.slice(-TUTOR_MAX_HISTORY).map(({role,text})=>({role,text}));
     append({role:"user",text});
@@ -260,7 +282,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     }catch{
       if(isCurrent(epoch)){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);setTranscriptReady(viaASR);}
     }finally{
-      inFlight.current=false;if(mounted.current)setBusy(false);
+      finishBusy(op);
     }
   }
   async function acceptMemory(){
@@ -301,14 +323,14 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   async function speakWelcome(){
     if(inFlight.current||!consent||!capabilities.data?.tts)return;
     const requestVersion=conversationVersion.current;
-    inFlight.current=true;setBusy(true);setNotice("");
+    const op=beginBusy();setNotice("");
     try{
       const res=await welcome.mutateAsync({consent:true,provider});
       if(!isCurrent(requestVersion))return;
       setMessages(previous=>previous.map(m=>m.id===0?{...m,text:res.text??m.text,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus}:m));
       if(!res.audioBase64)setNotice("Voz indisponível; a mensagem de boas-vindas continua em texto.");
     }catch{if(isCurrent(requestVersion))setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
-    finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+    finally{finishBusy(op);}
   }
   function stopAudioPlayers(except?:HTMLAudioElement){
     audioRoot.current?.querySelectorAll("audio").forEach(audio=>{
@@ -358,7 +380,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(!phrase){setNotice("Ainda não há uma frase em inglês identificável nesta resposta.");return;}
     if(inFlight.current)return;
     const requestVersion=conversationVersion.current;
-    inFlight.current=true;setBusy(true);setGeneratingId(message.id);setNotice("");
+    const op=beginBusy();setGeneratingId(message.id);setNotice("");
     try{
       const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",text:phrase});
       if(isCurrent(requestVersion)){
@@ -374,14 +396,14 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           (quota?"Cota de voz neural atingida.":"Voz neural indisponível.")+" Use Ouvir frase (voz local).":
           (quota?"Cota de voz neural atingida.":"Voz neural indisponível.")+" Sem voz inglesa local neste dispositivo; você pode tentar novamente mais tarde.");
       }
-    }finally{inFlight.current=false;if(mounted.current){setBusy(false);setGeneratingId(null);}}
+    }finally{finishBusy(op);}
   }
   async function previewNeuralVoice(){
     if(inFlight.current)return;
     if(!consent){setSettingsOpen(false);setPrivacyPrompt(true);return;}
     if(!enabled||!capabilities.data?.neuralEnglish){setPreviewVoiceNotice("Voz neural não habilitada nesta conta.");return;}
     const epoch=conversationVersion.current;
-    inFlight.current=true;setBusy(true);setPreviewVoiceNotice("");setPreviewVoiceAudio(null);
+    const op=beginBusy();setPreviewVoiceNotice("");setPreviewVoiceAudio(null);
     try{
       const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",
         text:"Hello! I am your English tutor. Let us practice together."});
@@ -394,15 +416,15 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           "Limite gratuito de voz atingido. Aguarde a renovação da cota.":
           diagnosed?message:"Erro na voz neural Groq. Nenhum fallback de áudio externo foi acionado.");
       }
-    }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+    }finally{finishBusy(op);}
   }
   async function playGeminiDemo(){
     if(inFlight.current||!demoConsent||!capabilities.data?.geminiDemo)return;
     const epoch=conversationVersion.current;
-    inFlight.current=true;setBusy(true);setNotice("");
+    const op=beginBusy();setNotice("");
     try {const res=await gemini.mutateAsync({consent:true,phraseIndex:1});if(isCurrent(epoch))setDemo(res);}
     catch{if(isCurrent(epoch))setNotice("Voz Gemini indisponível. O chat e a voz local continuam separados.");}
-    finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+    finally{finishBusy(op);}
   }
   async function startCapture(){
     if(!consent&&enabled){setTermsAccepted(false);setPrivacyPrompt(true);return;}
@@ -436,7 +458,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         current.stream.getTracks().forEach(t=>t.stop());
         if(!isCurrent(epoch)||!current.send||!current.size||current.size>TUTOR_MAX_AUDIO_BYTES)return;
         const blob=new Blob(current.chunks,{type:mime});
-        inFlight.current=true;setBusy(true);
+        const op=beginBusy();
         try{
           const base64=await new Promise<string>((resolve,reject)=>{
             const reader=new FileReader();
@@ -451,7 +473,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             setNotice("Confira a transcrição e envie quando estiver correta. Ela não é uma nota de pronúncia.");
           }
         }catch(error){if(isCurrent(epoch))setNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?"O tutor está descansando. Tente novamente em alguns minutos.":"Não foi possível transcrever. Tente novamente ou digite.");}
-        finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+        finally{finishBusy(op);}
       };
       recorder.onerror=()=>{stopCapture(false);if(isCurrent(epoch))setNotice("Falha na gravação. Use o teclado.");};
       recorder.start(250);
@@ -471,7 +493,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function minimize(){stopCapture(false);stopAudioPlayers();stopSpeech();setSettingsOpen(false);setPrivacyPrompt(false);setOpen(false);}
   function updateConsent(next:boolean){
     if(!next){if(consentKey)try{window.localStorage.removeItem(consentKey);}catch{/* no local storage */}
-      conversationVersion.current++;
+      invalidateConversation();
       stopAudioPlayers();stopSpeech();stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
       setPendingMemory(null);setPreviewVoiceAudio(null);setPreviewVoiceNotice("");setDemo(null);
       setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null); }
