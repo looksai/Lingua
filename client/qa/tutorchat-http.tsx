@@ -4,7 +4,7 @@ import {QueryClient,QueryClientProvider} from "@tanstack/react-query";
 import {httpBatchLink} from "@trpc/client";
 import superjson from "superjson";
 import {trpc} from "../src/lib/trpc";
-import TutorChat,type {TutorVoiceSettings} from "../src/components/TutorChat";
+import TutorChat, {type TutorVoiceSettings} from "../src/components/TutorChat";
 
 /**
  * Uses the SAME client tRPC + React Query providers as client/src/main.tsx.
