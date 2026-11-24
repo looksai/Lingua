@@ -106,7 +106,7 @@ try{
     await page.evaluate(()=>window.__tutorChatQa.resolveHeldReply(
       "Resposta antiga após revogação — NÃO EXIBIR"));
     await page.waitForFunction(()=>window.__tutorChatQa.pendingCount()===0);
-    await page.getByRole("button",{name:"Voltar à conversa"}).click();
+    await page.getByRole("region",{name:"Preferências da conversa"}).getByRole("button",{name:"Voltar à conversa"}).click();
     assert.equal(await page.getByText("Resposta antiga após revogação",{exact:false}).count(),0);
     await send(page,"Novo texto após revogação");
     await page.getByRole("dialog",{name:"Autorização da conversa"}).waitFor();
@@ -125,7 +125,7 @@ try{
     assert(keys.some(k=>k.includes("study-topic-choice:")));
     assert(keys.some(k=>k.includes("tutor-memory-choice")||k.includes("tutor-conversation")));
     await page.getByRole("button",{name:"Apagar conversa e marcador neste aparelho"}).click();
-    await page.getByRole("button",{name:"Voltar à conversa"}).click();
+    await page.getByRole("region",{name:"Preferências da conversa"}).getByRole("button",{name:"Voltar à conversa"}).click();
     assert.equal(await page.getByText("Resposta sintética Naruto:",{exact:false}).count(),0);
     await page.getByRole("status").getByText("Histórico apagado neste dispositivo.",{exact:false}).waitFor();
   });
