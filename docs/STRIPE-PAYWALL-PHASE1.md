@@ -1,43 +1,77 @@
-# Stripe paywall — branch for Deep audit (staging only)
+# Stripe + Paywall — Lingua Staging — runbook de homologação
 
-**Status: draft PR #32, not merged, not deployed, not charging.** `STRIPE_BILLING_ENABLED` defaults to false. The founder has not configured Stripe secrets or approved billing live mode. Database migration `0008` is **not applied**.
+**Estado:** PR #32 **DRAFT**, implementação em branch `feat/stripe-paywall`; **nenhuma cobrança real**, **nenhuma migration 0008 aplicada**, **nenhum deploy com billing ativo**. `STRIPE_BILLING_ENABLED` permanece `false` por padrão. A aprovação de implementação não é autorização para ativação nem para cobrar alunos.
 
-## Implemented in this branch
+## 1. Implementado na branch
 
-- MySQL/Drizzle schema + manual-only `0008_billing_staging.sql`: Customer binding, subscriptions, webhook event receipts, trial counter, per-interaction usage, and idempotent checkout attempts.
-- `server/billing-policy.ts`: derived Premium rights from current authorized Stripe Price ID, `active` status, period end and paid-through. Trial policy: **72 hours or 20 successful tutor responses**, starting on first successful reply.
-- `server/stripe-http.ts`: **sandbox-only Stripe REST transport**, pinned API version `2026-09-30.endive`, explicit request idempotency keys and cryptographic `Stripe-Signature` verifier over original raw bytes (constant-time compare and five-minute timestamp tolerance).
-- `server/billing-store.ts`: authenticated Stripe Customer association; server-only price allowlist, 35-minute checkout-intent lock with stable original request parameters; checkout creation, portal link, status query; signed webhook reconciliation under account-bound DB row lock, event-id deduplication and atomic MySQL writes.
-- `server/billing-router.ts`: authenticated `billing.status`, `billing.createCheckout`, `billing.createPortalSession` with origin checks and preliminary rate limiting.
-- `server/billing-webhook.ts` registered before `express.json()`, at `POST /api/billing/stripe-webhook`. For enabled sandbox: signature invalid → 400; temporary reconciliation failure → 503 so Stripe retries; success or duplicate → 200.
-- `client/src/pages/Premium.tsx`: staging-only checkout and portal buttons, authoritative status display and `/billing/success` waiting state (never promotes on browser redirect).
-- Tests: HMAC/raw body, Stripe subscription projection, account mismatch, stale/failed payment, duplicate event receipts and fallback policies.
+### Backend e dados persistentes
+- Esquema Drizzle e DDL `drizzle/0008_billing_staging.sql` com **seis tabelas**: `billingCustomers`, `billingSubscriptions`, `stripeWebhookEvents`, `billingCheckoutAttempts`, `tutorTrialState` e `tutorUsage`. Memória `learnerMemories`, SRS, CSLE e evidência curricular permanecem intactos.
+- `server/tutor-entitlement.ts`: **20 mensagens com resposta de IA** ou **72 horas a partir da primeira resposta de IA bem-sucedida**, o que acabar primeiro. Contagem **por conta no MySQL**, não por navegador. Falhas de IA e respostas locais **não consomem** resposta gratuita; o sistema reserva uma vaga antes da chamada e a libera se a geração falhar.
+- Serialização por `tutorTrialState.userId FOR UPDATE`; cada mensagem carrega `interactionId` único por usuário, com índice SQL único. Concorrrência entre abas conta reservas pendentes para impedir a vigésima primeira tentativa simultânea; reenvio do mesmo ID não recebe chamada grátis. Reservas abandonadas ficam elegíveis a limpeza após 10 minutos. Nenhum conteúdo de conversa é copiado para `tutorUsage`.
+- Falta de schema, segredo de sandbox ou erro de banco **não** dá acesso gratuito ilimitado; aplicação deve responder com falha fechada. Após o limite, `tutor.reply` responde tRPC `FORBIDDEN` com mensagem **`LIMIT_REACHED`**.
+- Antes de ASR, TTS, prévia de voz e demonstrações opcionais, o servidor consulta o direito do usuário quando billing está ativo; o limitador técnico por processo continua como backstop. **ASR/TTS não são contabilizados como mensagens do tutor** e seu teto de custo persistente requer estudo adicional para produção.
+- Entitlement Premium é calculado **somente no servidor**: associação persistente de Customer→usuário, Price ID autorizada, assinatura `active`, janela corrente e última fatura **paga**. Não há `isPremium` confiável vindo do browser.
+- Nenhum redirecionamento de sucesso concede Premium.
 
-## Important divergence from original design for explicit Deep review
+### Stripe sandbox
+- Checkout de assinatura autenticado com Stripe Customer associado à conta, Price mensal e USD **990 centavos** validados, idempotency key estável por tentativa, proteção contra sessões paralelas e duplicidades.
+- Webhook em `POST /api/billing/stripe-webhook` usa **bytes HTTP originais**, assinatura HMAC SHA-256 `Stripe-Signature`, comparação de tempo constante, tolerância temporal e limite de corpo; rejeita evento `livemode:true`.
+- Reconciliação Stripe verifica Customer da conta, assinatura e fatura na API, aplica deduplicação por `event.id` na mesma transação da projeção. Falhas temporárias retornam 5xx para Stripe tentar novamente. **Deduplicar webhook não impede dupla cobrança por si só**; a prevenção de sessões duplicadas pertence ao Checkout idempotente e ao próprio Stripe.
+- Portal de cliente para gestão e cancelamento: somente via Customer persistido da conta. O frontend usa `billing.createCheckout` e `billing.createPortalSession`; não há rotas novas `stripe.*` inventadas.
 
-The original `docs/PAYWALL-STRIPE.md` recommended the official **Stripe Node SDK** pinned in the lockfile. The current PR instead uses an isolated, **version-pinned HTTPS REST adapter** and Node's HMAC API to avoid adding an unreviewed dependency/lockfile from an offline development environment. This is an **implementation deviation**, not approval to ignore SDK guidance. Deep must approve the protocol-level adapter or require a follow-up switch to the official `stripe` SDK with a verified lockfile. Stripe API-version compatibility must be tested in sandbox.
+### Frontend
+- Chat envia `interactionId` por mensagem; status do trial consultado do backend, sem contador confiável no localStorage.
+- Ao receber `LIMIT_REACHED`, mostra modal com mensagem do teste encerrado e botão **«Assinar Premium por US$ 9,90/mês»** para Checkout **de teste**. O aviso pode ser fechado; servidor continua bloqueando o tutor.
+- `/premium` para contratar/gerir e `/billing/success` para aguardar confirmação de webhook — nunca autoriza acesso por querystring.
+- Mudanças pedagógicas da **PR #35** foram preservadas ao sincronizar `main` com a branch #32.
 
-## Outstanding gates before finalizing paywall
+## 2. Migration 0008 — apenas após auditoria, merge e novo backup
 
-1. **First validate memory:** Founder runs approved guarded 0007 inspect; only after verified Aiven backup applies 0007, deploys memory to the correct Render staging service and tests opt-in persistence, reload and deletion. Neither workflow nor Render deploy has been triggered by this billing branch.
-2. **Billing migration:** audit a separate safe Aiven staging workflow for `0008`, verify backup/0007/schema drift and execute manually. Never `db:push`.
-3. **Durable tutor quota gate is NOT yet integrated:** `billing.status` can model a trial, but there is **no transactionally enforced 20-reply / 72-hour lock on live tutor calls**, and ASR/TTS need usage ceilings. It would be incorrect to claim a working paywall before this gate. Implement and test idempotency under multi-tab retries.
-4. **Webhook and Stripe sandbox QA:** pin/validate API version, checkout + paid invoice + customer ownership, duplicate and out-of-order events, invoice failures, cancellation, customer Portal, missing subscription data, subscription item period and unusual plan/price state; test network timeouts and genuine SQL concurrency against disposable MySQL. Confirm event `parent.subscription_details.subscription` fields match configured endpoint version.
-5. **Cancellation/refunds:** explicit rules for refunds/chargebacks, failed invoices, proration and state reconciliation are still required. Subscription status alone cannot substitute for paid-through evidence.
-6. **Privacy/security:** no raw webhook payload logging, user-controlled memory stays separate, billing records have independent retention, protect rate limiting outside process, prevent account takeover and email misuse, verify user ownership and cancellation. Sandbox only, allowlisted user emails; do not use `sk_live_` keys.
-7. **Business:** test gross margin for US$9.90/month with Groq ASR/Orpheus costs, Stripe fees, taxes, usage P95, refunds and support. Do not promise unlimited speech.
+O workflow `.github/workflows/staging-aiven-0008-billing.yml` tem `inspect` (somente leitura) e `apply` (seis `CREATE TABLE`). O script:
+- exige execução manual de `main`, alvo Aiven exato (host/porta/defaultdb), MySQL 8.4, CA/TLS e `users.id` assinado compatível;
+- exige `learnerMemories` **já presente** (`0007` está aplicada), não aceita schema `0008` parcial, reaplicação nem alteração concorrente; 
+- bloqueia DDL não pertencente aos seis `CREATE TABLE` esperados, verifica colunas, PK, unicidade `(userId,interactionId)` e zero linhas;
+- **MySQL CREATE TABLE não é uma transação de rollback:** se falhar no meio, parar, manter tabelas parciais para análise manual e **não** executar novamente automaticamente.
 
-## Staging settings (ONLY after approval and migration)
-- `STRIPE_BILLING_ENABLED=false` (remain OFF until sandbox QA)
-- `STRIPE_SECRET_KEY=sk_test_...`
-- `STRIPE_WEBHOOK_SECRET=whsec_...`
-- `STRIPE_PRICE_USD_MONTHLY=price_...` (price created in Stripe)
-- `STRIPE_PRICE_BRL_MONTHLY=price_...` (optional)
-- `STRIPE_BILLING_ALLOWED_EMAILS=...` (staging testers only)
-- `PUBLIC_APP_URL=https://lingua-p1-staging-le7u.onrender.com`
+**O backup anterior à 0007 já não representa o estado atual do banco.** O workflow `staging-aiven-0008-encrypted-backup.yml` realiza um **novo backup pré-0008**, criptografado AES-256 GPG em runner Linux, conferindo a presença da memória. Precisa de `LINGUA_STAGING_BACKUP_PASSPHRASE` forte, arquivo baixado e guardado em 2 locais, senha protegida separadamente e verificação de recuperabilidade. A exportação não substitui o valor de uma restauração de ensaio em MySQL descartável. É proibido executar `apply` sem essa confirmação específica.
 
-Never commit or paste secret values. There is **no entitlement granted by Stripe success_url**.
+Ordem segura **não executar automaticamente**:
+1. CI verde, auditoria Deep e decisão do fundador.
+2. Fundador cria conta Stripe **TEST** e Price recorrente **USD 9,90 por mês**, testa configurações do Dashboard e credenciais; prepara Render com `STRIPE_BILLING_ENABLED=false`.
+3. Após autorização de merge, levar PR #32 a `main` **com billing desligado**; só então workflows 0008 poderão ser executados manualmente de `main`.
+4. Fundador roda `staging-aiven-0008-encrypted-backup.yml`; baixa arquivo `.gpg` e mantém cópias e senha separadas. Confirmação usada é `BACKUP_CRIPTOGRAFADO_LINGUA_0008`; a senha nunca é input do workflow.
+5. Fundador roda `staging-aiven-0008-billing.yml` com `action=inspect`; se status `absent` e backup verificado, executa `action=apply` com `confirmation=APLICAR_0008_COBRANCA_STAGING_LINGUA` e `backup_confirmation=BACKUP_PRE_0008_GUARDADO_E_VERIFICADO`.
+6. Conferir `0008 APPLIED AND VERIFIED` e rodar `inspect` novamente. Só então liberar `STRIPE_BILLING_ENABLED=true` **no staging** e deploy manual.
+7. Testar Stripe Checkout + cartão de teste + webhook real; simular 20 respostas e 72h, assinaturas pagas/recusadas, duplicadas, canceladas e duas contas distintas.
+8. **Novo parecer antes de qualquer produção real**. Teste de cartão em sandbox não é evidência de operação comercial certificada.
 
-## Approval state
+## 3. Configurar as variáveis de ambiente **somente** no Render staging
 
-The founder/Deep approved continuing implementation in `feat/stripe-paywall` but did not authorize merging PR #32, running 0008, deploying or accepting money. Any new code requires final audit and CI. CSLE remains separate and frozen.
+Obrigatórias para billing test:
+- `STRIPE_BILLING_ENABLED=false` até 0008 completa e homologação orientada; depois habilitar **somente explicitamente** com a DB pronta.
+- `STRIPE_SECRET_KEY=sk_test_...` (nunca `sk_live_`).
+- `STRIPE_WEBHOOK_SECRET=whsec_...` obtida do **endpoint de teste específico** do Stripe.
+- `STRIPE_PRICE_USD_MONTHLY=price_...` correspondendo a Price ativa USD **990 centavos/mês**, licença/quantity 1.
+- `STRIPE_BILLING_ALLOWED_EMAILS=lista de e-mails de testadores autorizados`.
+- `PUBLIC_APP_URL=https://lingua-p1-staging-le7u.onrender.com` exatamente.
+
+**Importante:** o usuário recebe link de Checkout apenas se constar na allowlist de billing. O tutor **também** permanece restrito a `LINGUA_TUTOR_ALLOWED_EMAILS` no staging. Não habilitar o público por engano. Price em BRL é opcional e não é oferecida pela interface inicial. A aplicação falha fechada se `STRIPE_BILLING_ENABLED=true` sem segredos/Price e URL de staging consistentes.
+
+Webhook público para configurar no Stripe **test mode**:
+`https://lingua-p1-staging-le7u.onrender.com/api/billing/stripe-webhook`
+Tipos monitorados: `checkout.session.completed`, `invoice.paid`, `invoice.payment_failed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`. Configurar o endpoint para **eventos snapshot v1** compatíveis com a versão fixada `2026-09-30.endive`; não usar thin events sem adaptador.
+
+## 4. QA obrigatório antes de pedir go-live
+
+- **Quota e concorrência:** uma conta com 19 respostas deve aceitar a 20ª; bloqueia 21ª inclusive com duas abas ou múltiplas instâncias, sem reset por logout/browser; expire 72h exatas; falhas de IA não gastam cota; repetição do mesmo interactionId não obtém benefício. **Testes unitários de política já existem**, mas comportamento real de transações SQL exige teste com MySQL 8.4 descartável e depois staging.
+- **Pagamento:** Checkout real em Stripe test mode; test card `4242 4242 4242 4242`, simular autenticação adicional/cartão recusado; redirecionamento de sucesso sozinho não concede Premium; webhook pago e fatura paga devem conceder, evento duplicado não deve conceder novamente.
+- **Isolamento:** dois usuários/Customers diferentes, webhook com Customer estranho, dados de assinatura de outra conta, tentativas simultâneas, portal apenas do próprio Customer.
+- **Assinatura:** cancelamento imediato/fim do período; `past_due`, `incomplete`, invoice falha, mudanças de Price, webhooks fora de ordem; cronograma de reconciliação e refunds/disputas ainda precisam ser auditados.
+- **Regressão:** memória aprovada e SRS mantidos antes/durante/depois do pagamento; a quota limita resposta com IA, não elimina dados do aluno, não habilita CSLE.
+- **Operação:** custos de Groq/ASR/TTS, latência, rate limits, logs sem payload sensível, restauração do backup e suporte ao cliente.
+
+## 5. Estado de aprovação
+
+Código de integração está sendo **preparado para auditoria final**. O CI verde é necessário, não suficiente. O novo código **não foi executado contra Stripe real em sandbox nem MySQL em staging**; credenciais **não foram conectadas**; esquema `0008` **não foi aplicado**; produto não está monetizando. Não aprovar produção/merge até checklist e fundador/Deep confirmarem sequência.
+
+A aprovação anterior do auditor para usar o adaptador REST HTTPS em vez do SDK oficial foi registrada. A versão API fixada `2026-09-30.endive` precisa ser confirmada na conta e no endpoint de teste com eventos reais.
