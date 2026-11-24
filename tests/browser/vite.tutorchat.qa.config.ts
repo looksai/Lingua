@@ -6,23 +6,16 @@ const root=process.cwd();
 const stub=path.resolve(root,"client/qa/tutorchat-trpc-fixture.ts");
 
 /**
- * STRICTLY LABORATORY-ONLY: replaces @/lib/trpc at import resolution while
- * importing the real TutorChat and child components without modifying them.
- * No server, browser auth, HTTP client or production databases are started.
+ * Lab-only: explicit alias ordering ensures the tRPC stub wins BEFORE the
+ * general @/ alias. The production TutorChat source remains unchanged.
  */
 export default defineConfig({
   root:path.resolve(root,"client"),
-  plugins:[
-    {name:"qa-only-trpc-replacement",enforce:"pre" as const,
-      resolveId(source:string){
-        if(source==="@/lib/trpc")return stub;
-        return null;
-      }},
-    react(),
-  ],
-  resolve:{alias:{
-    "@":path.resolve(root,"client/src"),
-    "@shared":path.resolve(root,"shared"),
-  }},
+  plugins:[react()],
+  resolve:{alias:[
+    {find:"@/lib/trpc",replacement:stub},
+    {find:"@shared",replacement:path.resolve(root,"shared")},
+    {find:"@",replacement:path.resolve(root,"client/src")},
+  ]},
   server:{host:"127.0.0.1",port:4181,strictPort:true},
 });
