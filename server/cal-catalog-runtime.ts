@@ -107,7 +107,7 @@ export class CALCatalogTutorSessions {
   }
   prepare(
     userId:number,message:string,needsPortugueseSupport:boolean,
-    selectedId?:string,modality:"typed"|"asr_text"="typed",
+    selectedId:string|undefined,modality:"typed"|"asr_text",
   ):CatalogRuntimePreview|null {
     if(!Number.isSafeInteger(userId)||userId<=0)return null;
     const time=this.now();
