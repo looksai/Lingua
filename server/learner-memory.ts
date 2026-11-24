@@ -89,9 +89,17 @@ export async function saveLearnerMemory(userId: number, input: z.infer<typeof le
   const db = await memoryDb();
   const fato = input.fato.trim();
   const factKey = memoryKey(fato);
-  await db.insert(learnerMemories).values({
-    userId, fato, factKey, categoria: input.categoria, origem: "aluno_confirmou_no_chat",
-  }).onDuplicateKeyUpdate({ set: { factKey } }); // idempotent retries, no consent inferred
+  await db.transaction(async tx => {
+    // A new account that disabled automatic memory cannot bypass its choice
+    // using the older direct memorySave endpoint. Serializes with toggles.
+    const [choice] = await tx.select().from(learnerPrivacyPreferences)
+      .where(eq(learnerPrivacyPreferences.userId, userId)).for("update").limit(1);
+    if(choice && (choice.policyVersion !== 1 || choice.personalMemoryEnabled !== 1))
+      throw new Error("personal memory disabled for account");
+    await tx.insert(learnerMemories).values({
+      userId, fato, factKey, categoria: input.categoria, origem: "aluno_confirmou_no_chat",
+    }).onDuplicateKeyUpdate({ set: { factKey } });
+  }); // idempotent retries, no consent inferred
   return { saved: true as const };
 }
 export async function deleteLearnerMemory(userId: number, id: number) {
