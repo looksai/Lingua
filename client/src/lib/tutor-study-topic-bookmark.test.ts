@@ -75,7 +75,7 @@ describe("explicit opt-in local topic continuity — not evidence of learning",(
     const request=studyTopicRestartRequest("greeting.hello");
     expect(request).toEqual({
       message:"Quero recomeçar este assunto do início, sem recuperar resultados anteriores.",
-      catalogCompetencyId:"greeting.hello",
+      catalogCompetencyId:"greeting.hello",catalogRestart:true,
     });
     expect(request).not.toHaveProperty("inputModality");
     expect(request).not.toHaveProperty("learnerEvidence");
