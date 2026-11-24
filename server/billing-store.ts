@@ -18,7 +18,8 @@ function unavailable():never{
 }
 export function assertBillingSandbox(env:NodeJS.ProcessEnv=process.env){
   if(!billingFeatureEnabled(env) || !env.STRIPE_SECRET_KEY?.startsWith("sk_test_") ||
-     !env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"))unavailable();
+     !env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_") ||
+     !stripeId(env.STRIPE_PRICE_USD_MONTHLY,"price"))unavailable();
   const base=env.PUBLIC_APP_URL;
   if(!base || !/^https:\/\/[a-z0-9.-]+(?::443)?$/i.test(base) ||
      base!=="https://lingua-p1-staging-le7u.onrender.com") unavailable();
@@ -49,6 +50,7 @@ function checkoutUrl(value:unknown):string|null{
 
 export async function billingStatusForUser(userId:number, now=new Date()){
   if(!billingFeatureEnabled())return {enabled:false as const, access:"disabled" as const, remainingReplies:null, expiresAt:null};
+  assertBillingSandbox();
   const db=await dbOrError();
   const [subs,trial]=await Promise.all([
     db.select().from(billingSubscriptions).where(eq(billingSubscriptions.userId,userId)),
