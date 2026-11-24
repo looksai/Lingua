@@ -175,8 +175,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     const request=++catalogRecoverySequence.current;
     let cancelled=false;
     void catalogPendingTask.mutateAsync().then(task=>{
-      if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch))
+      if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch)){
         setRecoveredCatalogTask(task);
+        rememberTopic(task);
+      }
     }).catch(()=>{
       if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch))
         setRecoveredCatalogTask(null);
@@ -353,7 +355,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           inputModality:modalityForTutorReply(viaASR)});
         if(!isCurrent(epoch))return;
         setRecoveredCatalogTask(null);
-        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:"catalogTask" in res?res.catalogTask:null});
+        const deliveredTask="catalogTask" in res?res.catalogTask:null;
+        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:deliveredTask});
+        rememberTopic(deliveredTask);
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
         if(res.memoryCandidate&&capabilities.data?.memory)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
@@ -364,7 +368,38 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       finishBusy(op);
     }
   }
-  async function acceptMemory(){
+  async function restartSavedTopic(){
+    const competencyId=topicChoice.scope===topicScope?topicChoice.bookmark?.competencyId:undefined;
+    const selection=competencyId?studyTopicRestartRequest(competencyId):null;
+    if(!selection||!enabled||inFlight.current||recording||permissionPending||placementActive)return;
+    if(!consent){
+      setSettingsOpen(false);setTermsAccepted(false);setPrivacyPrompt(true);
+      return;
+    }
+    const epoch=conversationVersion.current;
+    const history=messages.slice(-TUTOR_MAX_HISTORY).map(({role,text})=>({role,text}));
+    catalogRecoverySequence.current++;
+    setRecoveredCatalogTask(null);setPendingMemory(null);setOpen(true);setSettingsOpen(false);
+    const op=beginBusy();
+    setNotice("Recomeçando este assunto, sem recuperar acertos, notas ou progresso anterior.");
+    append({role:"user",text:selection.message});
+    try{
+      const res=await reply.mutateAsync({
+        message:selection.message,history,consent:true,provider,voice:false,
+        catalogCompetencyId:selection.catalogCompetencyId,
+        // No inputModality: this is a UI selection, NOT independently typed work.
+        // The existing server boundary treats missing modality conservatively.
+      });
+      if(!isCurrent(epoch))return;
+      const deliveredTask="catalogTask" in res?res.catalogTask:null;
+      append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,
+        voiceStatus:res.voiceStatus,catalogTask:deliveredTask});
+      rememberTopic(deliveredTask);
+    }catch{
+      if(isCurrent(epoch))setNotice("Não foi possível reabrir o assunto. Você pode tentar novamente.");
+    }finally{finishBusy(op);}
+  }
+    async function acceptMemory(){
     if(!pendingMemory||saveMemory.isPending)return;
     const epoch=conversationVersion.current;
     try{
