@@ -137,7 +137,7 @@ export class CALTutorSessions {
    * Planning is pure relative to stored runtime state. No mutation is committed
    * if the model fails or a guard rejects the answer. Reuse only for one request.
    */
-  prepare(userId: number, userMessage: string, supportsPortuguese: boolean, modality: "typed" | "asr_text" = "typed"): CALPilotPreview | null {
+  prepare(userId: number, userMessage: string, supportsPortuguese: boolean, modality: "typed" | "asr_text"): CALPilotPreview | null {
     if (!Number.isSafeInteger(userId) || userId <= 0) return null;
     const now = this.now();
     this.cleanup(now);
