@@ -67,7 +67,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const placementGenerate=trpc.placement.generate.useMutation();
   const [placementActive,setPlacementActive]=useState(false);
   const enabled = capabilities.data?.chat === true;
-  const showPaywall=quotaBlocked || (billingStatus.data?.enabled===true && billingStatus.data.access==="blocked");
+  const showPaywall=quotaBlocked;
   const provider=capabilities.data?.provider;
   const gemini = trpc.tutor.geminiDemo.useMutation();
   const neural = trpc.tutor.neuralEnglish.useMutation();
@@ -566,6 +566,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         {!enabled&&<p className="text-xs text-ink-muted">Conversa com IA temporariamente indisponível. Você pode continuar com sugestões locais.</p>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&memoryChoice.enabled&&<p className="text-[10px] text-ink-muted">Histórico local ativado · até 30 dias · apagar nas configurações</p>}
+        {billingStatus.data?.enabled===true&&billingStatus.data.access==="blocked"&&!quotaBlocked&&
+          <p className="text-xs text-ink-muted">Seu teste gratuito terminou. <a href="/premium" className="font-semibold text-teal underline">Conheça o Premium</a>.</p>}
         {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
         {transcriptReady&&<p className="text-xs font-semibold text-teal">Confira o texto reconhecido antes de enviar.</p>}
         <form onSubmit={send} className="flex items-end gap-2">
