@@ -30,6 +30,7 @@ vi.mock("./tutor-provider-selector",()=>({
 }));
 
 import {tutorRouter} from "./tutor-router";
+import {router} from "./_core/trpc";
 import {calCatalogTutorSessions} from "./cal-catalog-runtime";
 import {enforceSameOrigin} from "./auth-origin";
 import {issueSession,verifySession,checkRequestOrigin} from "./auth-local";
@@ -101,7 +102,8 @@ beforeAll(async()=>{
   app.use(express.json({limit:"100kb"}));
   app.use("/api/trpc",enforceSameOrigin);
   app.use("/api/trpc",createExpressMiddleware({
-    router:tutorRouter,
+    // Same public route prefix as the actual app: /api/trpc/tutor.reply.
+    router:router({tutor:tutorRouter}),
     createContext:({req,res})=>syntheticContext(req,res),
   }));
   server=createServer(app);
