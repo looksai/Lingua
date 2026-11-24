@@ -113,6 +113,12 @@ export const tutorRouter = router({
       try{return await geminiTestSpeech(input.phraseIndex);}catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar o áudio de teste."});}
     });
   }),
+  catalogPendingTask:protectedProcedure.mutation(({ctx})=>{
+    checkRequestOrigin(ctx.req);
+    if(!catalogCALRuntimeEnabled()||
+      !(freeTutorAllowed(ctx.user.email)||paidTutorAllowed(ctx.user.email)))return null;
+    return calCatalogTutorSessions.pendingClientTask(ctx.user.id);
+  }),
   catalogRenderAck:protectedProcedure.input(z.object({
     consent:z.literal(true),
     sessionId:z.string().min(8).max(100),
