@@ -4,6 +4,7 @@
 > **Data:** 23/11/2026 · **Escopo:** tutor Naruto do Lingua (inglês como primeiro idioma).  
 > **Origem:** síntese das propostas e estudos compartilhados pelo Deep, com ressalvas e correções aprovadas; as alegações quantitativas sem referência completa permanecem **não verificadas**.  
 > **Regra de implantação:** a aprovação desta Constituição **não autoriza** alterações no código, banco, prompt de produção, migrações, SRS ou CSLE.
+> **Adendo estratégico de 23/11/2026:** o [roadmap atualizado](./ROADMAP-ESTRATEGICO-LINGUA.md) substitui o antigo requisito comercial de 100 assinantes para retomar o CSLE. A Constituição mantém suas regras pedagógicas; **Fase 02** desenvolve CSLE isoladamente e **Fase 03** exige autorização própria para integrar. Nenhuma implementação ou deploy foi autorizado por este adendo.
 
 ## Preâmbulo e missão
 
@@ -139,7 +140,7 @@ Reunir observações confiáveis de tarefas realizadas, nível de ajuda, condiç
 - **Lingua (aplicativo):** autoridade de currículo, consentimento, memória aprovada, evidências oficiais, governança e apresentação da evolução.
 - **Naruto (LLM):** explicação, interação, prática, propostas de atividades e hipóteses de intervenção; **não pode autoatribuir certificação ou inserir eventos SRS/evidências oficiais fora de contratos autorizados**.
 - **SRS:** agenda revisões quando autorizado; um agendamento não prova domínio.
-- **CSLE:** motor independente, permanece **congelado e desacoplado**; qualquer futura integração depende do marco de 100 assinantes pagantes e nova aprovação formal. Esta Constituição não autoriza alteração de CSLE.
+- **CSLE:** motor independente e **desacoplado durante as Fases 01 e 02**. O desenvolvimento técnico pode ser retomado na Fase 02, conforme o [roadmap do fundador](./ROADMAP-ESTRATEGICO-LINGUA.md), sem exigir 100 assinantes. O acoplamento na Fase 03 continua sujeito a contratos, testes e aprovação formal do fundador. Esta Constituição, sozinha, não autoriza alterar ou integrar o CSLE.
 
 ---
 
@@ -266,6 +267,6 @@ Os tamanhos de amostra abaixo são **propostas iniciais**, sem cálculo de poder
 3. Priorizar experimentos e instrumentação **somente com aprovação**, começando por critérios modestos de sucesso funcional e dados minimizados.
 4. Manter PR #32 Stripe em rascunho até condições comerciais e testes específicos; **este documento não aciona cobrança**.
 5. Propor revisões futuras `v0.2` com bibliografia auditada, decisões de implementação isoladas, testes reprodutíveis e responsabilidade de cada componente.
-6. **CSLE fica independente e congelado** até o marco de 100 pagantes e nova autorização do fundador.
+6. **CSLE permanece independente da aplicação**; sua evolução em laboratório é a Fase 02 e sua integração formal é a Fase 03, conforme o [roadmap vigente](./ROADMAP-ESTRATEGICO-LINGUA.md). O requisito antigo de 100 pagantes foi revogado por decisão do fundador; autorização técnica para o acoplamento ainda será exigida.
 
 **Definição de sucesso para a v0.1:** uma referência de princípios e limites que ajude a desenhar um Naruto mais paciente, adaptativo e verificável — sem transformar intenção pedagógica em dado de aprendizagem ou promessa comercial.
