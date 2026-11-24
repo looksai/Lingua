@@ -1,3 +1,4 @@
+import {readPrivacyPreferences, changePersonalMemoryPreference} from "./privacy-preferences";
 import {safeTutorModality} from "@shared/pedagogy/tutor-input-modality";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -52,6 +53,21 @@ async function optionalSpeech(text:string, requested:boolean):Promise<AudioResul
   } catch {return {audioBase64:null,voiceStatus:"unavailable"};}
 }
 export const tutorRouter = router({
+  privacyPreferences:protectedProcedure.query(async ({ctx})=>{
+    try{return await readPrivacyPreferences(ctx.user.id);}
+    catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Preferências de privacidade temporariamente indisponíveis."});}
+  }),
+  updatePersonalMemory:protectedProcedure.input(z.object({enabled:z.boolean()})).mutation(async ({ctx,input})=>{
+    checkRequestOrigin(ctx.req);
+    try {
+      const result=await changePersonalMemoryPreference(ctx.user.id,input.enabled);
+      if(!result.updated)throw new TRPCError({code:"PRECONDITION_FAILED",message:"Confirme os termos de funcionamento atualizados antes de alterar a memória."});
+      return result;
+    } catch(error) {
+      if(error instanceof TRPCError)throw error;
+      throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível atualizar a preferência de memória."});
+    }
+  }),
   capabilities:protectedProcedure.query(({ctx})=>{
     const openai=paidTutorAllowed(ctx.user.email), groq=freeTutorAllowed(ctx.user.email);
     return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),neuralEnglish:groq,geminiDemo:geminiDemoAllowed(ctx.user.email),memory:memoryFeatureEnabled()};
