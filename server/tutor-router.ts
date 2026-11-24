@@ -113,6 +113,19 @@ export const tutorRouter = router({
       try{return await geminiTestSpeech(input.phraseIndex);}catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar o áudio de teste."});}
     });
   }),
+  catalogRenderAck:protectedProcedure.input(z.object({
+    consent:z.literal(true),
+    sessionId:z.string().min(8).max(100),
+    deliveryId:z.string().min(8).max(240),
+  })).mutation(({ctx,input})=>{
+    checkRequestOrigin(ctx.req);
+    // No LLM, billing or learner evidence. Scoped by the authenticated user.
+    if(!catalogCALRuntimeEnabled()||
+      !(freeTutorAllowed(ctx.user.email)||paidTutorAllowed(ctx.user.email)))
+      return {status:"rejected" as const};
+    const status=calCatalogTutorSessions.confirmBrowserRender(ctx.user.id,input.sessionId,input.deliveryId);
+    return {status};
+  }),
   reply:protectedProcedure.input(z.object({consent,provider,voice:z.boolean(),message:z.string().trim().min(1).max(TUTOR_MAX_TEXT),history,
     catalogCompetencyId:z.string().max(90).optional(),
     // Client hint only; server cannot cryptographically attest ASR origin yet.
@@ -177,7 +190,11 @@ export const tutorRouter = router({
         : adapted.text;
       const finalText=catalogPreview ? catalogPreview.complete(safeBase) : adapted.text;
       if(!catalogPreview)calPreview?.commit(finalText);
-      return {text:finalText,source:"ai" as const,memoryCandidate,...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
+      const catalogTask=catalogPreview
+        ? calCatalogTutorSessions.clientTaskForReply(ctx.user.id,finalText)
+        : null;
+      return {text:finalText,source:"ai" as const,memoryCandidate,catalogTask,
+        ...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
     });
   }),
   // All memory operations are owned by the authenticated user. Optional
