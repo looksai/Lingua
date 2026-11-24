@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "
 import { MessageCircle, Mic, Minus, Send, Square, Volume2, Settings2, ChevronLeft } from "lucide-react";
 import {availableLocalVoices,selectEnglishLocalVoice,selectLocalVoice,speechText} from "@/lib/tutor-speech";
 import {englishExcerpt} from "@/lib/english-example";
-import {audioActionFor} from "@shared/pedagogy/tutor-audio-action";
+import {resolveTutorAudio} from "@shared/pedagogy/tutor-audio-action";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
@@ -263,10 +263,11 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   async function speakWelcome(){
     if(inFlight.current||!consent||!capabilities.data?.tts)return;
+    const requestVersion=conversationVersion.current;
     inFlight.current=true;setBusy(true);setNotice("");
     try{
       const res=await welcome.mutateAsync({consent:true,provider});
-      if(!mounted.current)return;
+      if(!mounted.current||requestVersion!==conversationVersion.current)return;
       setMessages(previous=>previous.map(m=>m.id===0?{...m,text:res.text??m.text,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus}:m));
       if(!res.audioBase64)setNotice("Voz indisponível; a mensagem de boas-vindas continua em texto.");
     }catch{if(mounted.current)setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
@@ -282,10 +283,14 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   useEffect(()=>{
     if(autoPlayId===null)return;
     const audio=autoPlayRef.current;
-    if(!audio)return;
+    if(!audio){setAutoPlayId(null);return;}
     stopAudioPlayers(audio);stopSpeech();
-    void audio.play().catch(()=>{
-      if(mounted.current)setNotice("Áudio preparado. Toque em reproduzir no player para ouvir; o navegador não autorizou a reprodução automática.");
+    void audio.play().catch((error:unknown)=>{
+      if(!mounted.current)return;
+      const blocked=error instanceof DOMException&&error.name==="NotAllowedError";
+      setNotice(blocked?
+        "Áudio preparado. Toque em reproduzir no player para ouvir; este navegador bloqueou a reprodução automática.":
+        "Não foi possível iniciar o áudio. Use o player para tentar reproduzi-lo.");
     });
     setAutoPlayId(null);
   },[autoPlayId,neuralAudios]);
@@ -294,7 +299,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(typeof window.speechSynthesis!=="undefined")window.speechSynthesis.cancel();
     setSpeakingId(null);
   }
-  function browserSpeak(text:string,id:number,voiceURI=localVoice?.voiceURI){
+  function browserSpeak(text:string,id:number,voiceURI?:string){
     if(speakingId===id){stopSpeech();return;}
     const selected=localVoices.find(v=>v.voiceURI===voiceURI&&v.localService===true);
     if(typeof window.speechSynthesis==="undefined"||typeof SpeechSynthesisUtterance==="undefined"||!selected){
@@ -361,7 +366,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   async function startCapture(){
     if(!consent&&enabled){setTermsAccepted(false);setPrivacyPrompt(true);return;}
-    if(inFlight.current||capture.current||held.current||!consent||!capabilities.data?.asr)return;
+    if(inFlight.current){setNotice("Conclua a operação em andamento antes de gravar.");return;}
+    if(capture.current||held.current||!consent||!capabilities.data?.asr)return;
     if(draft.trim()){setNotice("Envie ou apague o texto antes de gravar.");return;}
     stopAudioPlayers();stopSpeech();
     if(!navigator.mediaDevices?.getUserMedia||typeof MediaRecorder==="undefined"){
@@ -498,7 +504,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         <label className="block text-sm font-semibold">Altura da voz · {speechPitch.toFixed(2)}
           <input type="range" min="0.8" max="1.2" step="0.05" value={speechPitch} onChange={e=>onVoiceSettingsChange({...voiceSettings,pitch:Number(e.target.value)})} className="mt-2 w-full" />
         </label>
-        <button type="button" disabled={!localVoice} onClick={()=>browserSpeak("Hello! Vamos praticar inglês.",-1)} className="inline-flex items-center gap-2 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">
+        <button type="button" disabled={!localVoice} onClick={()=>browserSpeak("Hello! Vamos praticar inglês.",-1,localVoice?.voiceURI)} className="inline-flex items-center gap-2 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">
           <Volume2 size={16}/>{speakingId===-1?"Parar teste":"Testar voz"}
         </button>
       </div>
@@ -543,20 +549,25 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     </section> : <>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5" role="log" aria-live="polite">
         {messages.map(m=>{const phrase=englishExcerpt(m.text);
-          const playbackVoice=phrase?englishLocalVoice:localVoice;
-          const action=audioActionFor({
-          assistant:m.role==="assistant",hasAudio:Boolean(m.audioBase64||neuralAudios[m.id]),
-          isWelcome:m.id===0,consent,ttsAvailable:capabilities.data?.tts===true,
-          capabilitiesSettled:!capabilities.isLoading,
-          neuralEligible:enabled&&provider==="groq"&&consent&&capabilities.data?.neuralEnglish===true&&Boolean(phrase),
-          neuralFailed:Boolean(neuralFallback[m.id]),hasLocalVoice:Boolean(playbackVoice),speakingLocally:speakingId===m.id
-        });return <div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
+          const resolved=resolveTutorAudio({
+            assistant:m.role==="assistant",hasAudio:Boolean(m.audioBase64||neuralAudios[m.id]),
+            isWelcome:m.id===0,consent,ttsAvailable:capabilities.data?.tts===true,
+            capabilitiesSettled:!capabilities.isLoading,
+            tutorEnabled:enabled,provider,neuralAvailable:capabilities.data?.neuralEnglish===true,
+            hasEnglishPhrase:Boolean(phrase),hasEnglishLocalVoice:Boolean(englishLocalVoice),
+            hasGeneralLocalVoice:Boolean(localVoice),neuralFailed:Boolean(neuralFallback[m.id]),
+            speakingLocally:speakingId===m.id
+          });
+          const {action}=resolved;
+          const playbackVoice=resolved.localVoiceKind==="english"?englishLocalVoice:
+            resolved.localVoiceKind==="general"?localVoice:null;
+          return <div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
           <div className={m.role==="user"?"max-w-[86%] rounded-2xl bg-ink px-4 py-3 text-sm text-white":"max-w-[92%] rounded-2xl bg-paper px-4 py-3 text-sm"}>
             <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
             {m.source==="local"&&<p className="mt-2 text-[11px] text-ink-muted">Resposta local · IA indisponível ou não autorizada</p>}
-            {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" onPlay={e=>{stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
+            {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" onPlay={e=>{if(recording||permissionPending){e.currentTarget.pause();setNotice("Não é possível reproduzir áudio durante a gravação.");return;}stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
             {m.role==="assistant"&&!m.audioBase64&&neuralAudios[m.id]&&
-              <audio ref={autoPlayId===m.id?autoPlayRef:undefined} controls preload="none" className="mt-2 w-full" onPlay={e=>{stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/wav;base64,"+neuralAudios[m.id]}/>}
+              <audio ref={autoPlayId===m.id?autoPlayRef:undefined} controls preload="none" className="mt-2 w-full" onPlay={e=>{if(recording||permissionPending){e.currentTarget.pause();setNotice("Não é possível reproduzir áudio durante a gravação.");return;}stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/wav;base64,"+neuralAudios[m.id]}/>}
             {(action==="neural"||action==="retry")&&
               <button type="button" disabled={busy||recording||permissionPending} onClick={()=>void playNeural(m)}
                 aria-label={(action==="retry"?"Tentar novamente áudio de ":"Ouvir frase em inglês de ")+profile.tutorName}
