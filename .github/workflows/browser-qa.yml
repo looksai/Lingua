@@ -10,6 +10,9 @@ on:
       - 'server/tutor-router.ts'
       - 'server/cal-catalog-runtime.ts'
       - 'server/auth-local.ts'
+      - 'client/src/components/TutorChat.tsx'
+      - 'client/src/lib/tutor-memory.ts'
+      - 'client/src/lib/tutor-study-topic-bookmark.ts'
       - 'client/src/components/TutorCatalogTaskView.tsx'
       - 'client/src/components/TutorAudioControls.tsx'
       - 'shared/pedagogy/cal-client-delivery.ts'
@@ -63,5 +66,18 @@ jobs:
           trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
           node tests/browser/run-browser-qa.mjs || {
             cat /tmp/lingua-browser-vite.log
+            exit 1
+          }
+
+      - name: Run full TutorChat React in Chromium with mocked network hooks
+        env:
+          LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
+        run: |
+          set -euo pipefail
+          pnpm exec vite --config tests/browser/vite.tutorchat.qa.config.ts --host 127.0.0.1 --port 4181 --strictPort > /tmp/lingua-full-tutorchat-vite.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
+          node tests/browser/run-tutorchat-full-qa.mjs || {
+            cat /tmp/lingua-full-tutorchat-vite.log
             exit 1
           }
