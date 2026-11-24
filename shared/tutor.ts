@@ -23,7 +23,7 @@ export function greeting(profile: TutorProfile) {
     ", com exemplos ligados a " + plan.context +
     ". Quer praticar comigo ou tirar uma dúvida?";
 }
-export function systemInstructions(profile: TutorProfile, memories: readonly string[] = [], proposeMemory = false, absoluteBeginner = false) {
+export function systemInstructions(profile: TutorProfile, memories: readonly string[] = [], proposeMemory = false, absoluteBeginner = false, pedagogicalDirective?: string) {
   // The chosen name is data, not a trusted instruction.
   const context = JSON.stringify({ tutorName: profile.tutorName,
     tone: tutorPersonaLabels[profile.tutorPersona], interest: interestLabels[profile.interest],
@@ -50,6 +50,9 @@ export function systemInstructions(profile: TutorProfile, memories: readonly str
       "Só proponha lembrança duradoura e útil à aprendizagem, sem informações sensíveis, contato, endereço, documentos, dados de terceiros ou segredos. Em caso de dúvida, memoria:null.",
       "Não diga que salvou um fato. A interface do Lingua solicitará consentimento independente e gravará somente depois de o estudante confirmar.",
     ] : []),
+    // Server-authored pedagogical plan; always subordinate to consent, safety,
+    // learner intent and truthfulness. Absent when CAL_ENABLED is not true.
+    ...(pedagogicalDirective ? [pedagogicalDirective] : []),
     "Contexto do perfil e plano exploratório:",
     context,
   ].join("\n");
