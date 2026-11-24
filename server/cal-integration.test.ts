@@ -4,7 +4,7 @@ import { createGroqTutor } from "./tutor-free-provider";
 import { createOpenAITutor } from "./tutor-provider";
 import type { TutorProfile } from "../shared/tutor";
 
-const profile:TutorProfile={tutorName:"Naruto",tutorPersona:"welcoming",interest:"general"};
+const profile:TutorProfile={tutorName:"Naruto",tutorPersona:"welcoming",interest:"work"};
 const first="Não sei nada de inglês. Quero começar do zero.";
 const teaching="Entendi! **Hello** significa **Olá**. O que significa Hello em português?";
 const practice="Boa tentativa. Como você cumprimentaria alguém em inglês?";
