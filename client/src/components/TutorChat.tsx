@@ -5,6 +5,8 @@ import {englishExcerpt} from "@/lib/english-example";
 import {modalityForTutorReply,transcriptOriginAfterEdit} from "@shared/pedagogy/tutor-input-modality";
 import {resolveTutorAudio} from "@shared/pedagogy/tutor-audio-action";
 import {TutorAudioControls} from "@/components/TutorAudioControls";
+import {TutorCatalogTaskView} from "@/components/TutorCatalogTaskView";
+import type {CatalogClientTask} from "@shared/pedagogy/cal-client-delivery";
 import {tutorAsyncResultIsCurrent} from "@shared/pedagogy/tutor-async-epoch";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
@@ -13,6 +15,7 @@ import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS
 
 type Message = TutorHistory & {
   id: number; source?: "local"|"ai"; audioBase64?: string|null; voiceStatus?: "ready"|"unavailable"|"off";
+  catalogTask?:CatalogClientTask|null;
 };
 type MemoryCandidate = { fato:string; categoria:"profissao"|"objetivo"|"interesse"|"preferencia_estudo"; sourceMessage:string };
 type Capture = { recorder: MediaRecorder; stream: MediaStream; timer?: ReturnType<typeof setTimeout>; chunks: Blob[]; size:number; send:boolean };
@@ -55,6 +58,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const scrollAnchor = useRef<HTMLDivElement>(null);
   const capabilities = trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
   const reply = trpc.tutor.reply.useMutation();
+  const catalogRenderAck=trpc.tutor.catalogRenderAck.useMutation();
   const savedMemories=trpc.tutor.memoryList.useQuery(undefined,{enabled:capabilities.data?.memory===true,retry:false,refetchOnWindowFocus:false});
   const saveMemory=trpc.tutor.memorySave.useMutation();
   const deleteMemory=trpc.tutor.memoryDelete.useMutation();
@@ -235,6 +239,16 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       beginPlacement();
     }
   },[placementRequested,placement.data,placementActive]);
+  async function reportCatalogRendered(task:CatalogClientTask):Promise<boolean>{
+    if(!consent)return false;
+    const epoch=conversationVersion.current;
+    try {
+      const response=await catalogRenderAck.mutateAsync({
+        consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId,
+      });
+      return isCurrent(epoch)&&(response.status==="recorded"||response.status==="duplicate");
+    }catch{return false;}
+  }
   async function buildPlan(){
     if(!consent){setTermsAccepted(false);setPrivacyPrompt(true);return;}
     if(!placementActive||placement.data?.nextTask||busy)return;
@@ -276,7 +290,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice,
           inputModality:modalityForTutorReply(viaASR)});
         if(!isCurrent(epoch))return;
-        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
+        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:"catalogTask" in res?res.catalogTask:null});
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
         if(res.memoryCandidate&&capabilities.data?.memory)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
@@ -637,7 +651,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             resolved.localVoiceKind==="general"?localVoice:null;
           return <div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
           <div className={m.role==="user"?"max-w-[86%] rounded-2xl bg-ink px-4 py-3 text-sm text-white":"max-w-[92%] rounded-2xl bg-paper px-4 py-3 text-sm"}>
-            <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
+            <TutorCatalogTaskView key={m.catalogTask?.deliveryId??m.id} text={m.text} task={m.catalogTask??null}
+              active={open&&!settingsOpen&&consent} onRendered={reportCatalogRendered}/>
             {m.source==="local"&&<p className="mt-2 text-[11px] text-ink-muted">Resposta local · IA indisponível ou não autorizada</p>}
             {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" onPlay={e=>{if(recording||permissionPending){e.currentTarget.pause();setNotice("Não é possível reproduzir áudio durante a gravação.");return;}stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
             {m.role==="assistant"&&!m.audioBase64&&neuralAudios[m.id]&&
