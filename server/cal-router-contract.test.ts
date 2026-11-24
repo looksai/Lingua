@@ -104,7 +104,7 @@ describe("CAL backend router regression — fake provider, no HTTP/DB writes",()
     vi.stubEnv("CAL_ENABLED","true");
     const id=++userId,c=caller(id);
     await c.reply(input("Não sei nada de inglês, quero começar do zero."));
-    const before=calTutorSessions.inspectForTest(id);
+    const before=structuredClone(calTutorSessions.inspectForTest(id));
     const r=await c.reply({...input("Olá"),inputModality:"asr_text"});
     expect(r.source).toBe("ai");
     expect(mocks.modelReply.mock.calls[1][4]).toBeUndefined();
@@ -114,7 +114,7 @@ describe("CAL backend router regression — fake provider, no HTTP/DB writes",()
     vi.stubEnv("CAL_ENABLED","true");
     const id=++userId,c=caller(id);
     await c.reply(input("Não sei nada de inglês, quero começar do zero."));
-    const before=calTutorSessions.inspectForTest(id);
+    const before=structuredClone(calTutorSessions.inspectForTest(id));
     const {inputModality:_unused,...oldClient}=input("Olá");
     const r=await c.reply(oldClient);
     expect(r.source).toBe("ai");
@@ -125,7 +125,7 @@ describe("CAL backend router regression — fake provider, no HTTP/DB writes",()
     vi.stubEnv("CAL_ENABLED","true");
     const id=++userId,c=caller(id);
     await c.reply(input("Não sei nada de inglês, quero começar do zero."));
-    const before=calTutorSessions.inspectForTest(id);
+    const before=structuredClone(calTutorSessions.inspectForTest(id));
     const r=await c.reply({...input("tchau"),inputModality:"asr_text"});
     expect(r.source).toBe("ai");
     expect(mocks.modelReply.mock.calls[1][4]).toBeUndefined();
