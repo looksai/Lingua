@@ -1,4 +1,5 @@
 import {describe,expect,it,vi} from "vitest";
+import {diagnoseCALProof} from "../shared/pedagogy/cal-proof-diagnostics";
 import {
   CALCatalogTutorSessions,catalogCALRuntimeEnabled,explicitCatalogGoal,
 } from "./cal-catalog-runtime";
@@ -91,6 +92,13 @@ describe("opt-in catalogue runtime controller",()=>{
     expect(msg).toContain("não comprova domínio");
     expect(s.inspectForTest(ID)?.cal.observations).toHaveLength(1);
     expect(s.inspectForTest(ID)?.cal.observations[0].assistance).toBe("model");
+    const diagnostic=diagnoseCALProof(s.inspectForTest(ID)!.cal);
+    expect(diagnostic.practiceCandidate).toBe(false);
+    expect(diagnostic.delayedRecallCandidate).toBe(false);
+    expect(diagnostic.novelContextTransferCandidate).toBe(false);
+    expect(diagnostic.boundedSummaryCandidate).toBe(false);
+    expect(diagnostic.liveTutorValidated).toBe(false);
+    expect(diagnostic.certification).toBe("not_assessed");
     expect(s.inspectForTest(ID)?.task).toBeNull();
     expect(s.prepare(ID,"Quero mudar para entrevista",true,undefined,"typed")).toBeNull();
   });
