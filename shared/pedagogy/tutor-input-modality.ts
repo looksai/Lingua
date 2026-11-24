@@ -10,3 +10,9 @@ export function modalityForTutorReply(transcriptReady:boolean):TutorInputModalit
 export function safeTutorModality(modality:TutorInputModality|undefined):TutorInputModality {
   return modality==="typed"?"typed":"asr_text";
 }
+
+/** Editing a recognized transcript does not turn it into independently typed work.
+ * Only an emptied draft makes a new composition explicitly typed. */
+export function transcriptOriginAfterEdit(previouslyTranscribed:boolean,nextText:string):boolean {
+  return previouslyTranscribed&&nextText.trim().length>0;
+}
