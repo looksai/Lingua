@@ -141,6 +141,7 @@ export function gateLearningObservation(
   const task=getMicrotask(candidate.taskId);
   const competency=getMicrocompetency(candidate.competencyId);
   if(!task||!competency||task.competencyId!==candidate.competencyId||
+    task.contextId!==candidate.contextId||
     task.version!==candidate.taskVersion||
     competency.version!==candidate.competencyVersion)
     return decision("rejected","catalogue_version_mismatch");
