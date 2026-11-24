@@ -116,6 +116,29 @@ describe("opt-in catalogue runtime controller",()=>{
     expect(s.inspectForTest(ID)?.cal.observations).toHaveLength(1);
     expect(s.inspectForTest(ID)).not.toHaveProperty("srs");
   });
+  it("a spoken help request keeps catalogue evidence untouched",()=>{
+    const s=create().sessions;start(s,ID,"Quero praticar Hello");
+    const before=structuredClone(s.inspectForTest(ID));
+    const p=s.prepare(ID,"não sei",true,undefined,"asr_text");
+    expect(p).not.toBeNull();
+    p?.complete("Vamos recomeçar por partes.");
+    expect(s.inspectForTest(ID)?.cal.observations).toEqual(before?.cal.observations);
+    expect(s.inspectForTest(ID)?.cal.consecutiveErrors).toBe(0);
+  });
+  it("spoken pause and resume preserve catalogue evidence",()=>{
+    const s=create().sessions;start(s,ID,"Quero praticar Hello");
+    const before=structuredClone(s.inspectForTest(ID));
+    const p=s.prepare(ID,"quero parar",true,undefined,"asr_text");
+    expect(p).not.toBeNull();
+    p?.complete("Claro, vamos pausar.");
+    expect(s.inspectForTest(ID)?.cal.status).toBe("paused");
+    expect(s.inspectForTest(ID)?.cal.observations).toEqual(before?.cal.observations);
+    const resumed=s.prepare(ID,"continuar",true,undefined,"asr_text");
+    expect(resumed).not.toBeNull();
+    resumed?.complete("Vamos continuar.");
+    expect(s.inspectForTest(ID)?.cal.status).toBe("active");
+    expect(s.inspectForTest(ID)?.cal.observations).toEqual(before?.cal.observations);
+  });
   it("a learner can request help without being graded as wrong",()=>{
     const s=create().sessions;start(s,ID,"Quero praticar Hello");
     s.prepare(ID,"Olá",true)!.complete("Boa!");
