@@ -139,8 +139,9 @@ export const tutorRouter = router({
         ? calCatalogTutorSessions.prepare(ctx.user.id,input.message,beginner,input.catalogCompetencyId)
         : null;
       // Never allow two different CAL state machines to grade the same turn.
-      const calPreview=calEnabled() && !catalogPreview &&
-        !(catalogCALRuntimeEnabled() && calCatalogTutorSessions.hasSession(ctx.user.id))
+      // A catalogue-mode request with an unknown goal must fall back to
+      // ordinary conversation, NEVER involuntarily restart the Hello pilot.
+      const calPreview=calEnabled() && !catalogCALRuntimeEnabled()
         ? calTutorSessions.prepare(ctx.user.id,input.message,beginner)
         : null;
       const pedagogicalDirective=catalogPreview?.directive??calPreview?.directive;
@@ -164,7 +165,13 @@ export const tutorRouter = router({
       // An AI-produced sentence is never graded as learner evidence.
       // If the beginner fallback replaced the proposed task, the runtime
       // verifies the actual delivered question before expecting an answer.
-      const finalText=catalogPreview ? catalogPreview.complete(adapted.text) : adapted.text;
+      // A legacy beginner-language fallback may contain "Hello" even when
+      // the student chose a different catalogue objective. Do not append an
+      // unrelated fixed lesson to the selected curriculum.
+      const safeBase=catalogPreview && adapted.corrected
+        ? "Vamos estudar o assunto escolhido em português, um passo de cada vez."
+        : adapted.text;
+      const finalText=catalogPreview ? catalogPreview.complete(safeBase) : adapted.text;
       if(!catalogPreview)calPreview?.commit(finalText);
       return {text:finalText,source:"ai" as const,memoryCandidate,...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
     });
