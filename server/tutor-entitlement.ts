@@ -130,3 +130,25 @@ export async function assertAuxiliaryTutorAccess(userId:number):Promise<void>{
   if(status.access==="blocked")quotaExceeded();
   if(status.access==="disabled")gateUnavailable();
 }
+
+/** Settlement is part of the request contract; failed AI requests never spend
+ * a free message. The process-local backstop still runs outside this wrapper.
+ */
+export async function withTutorChatQuota<T extends {source:"local"|"ai"}>(
+  userId:number,interactionId:string|undefined,operation:()=>Promise<T>,
+):Promise<T>{
+  const reservation=await reserveTutorChat(userId,interactionId);
+  let settled=false;
+  try{
+    const response=await operation();
+    await completeTutorChat(reservation,response.source==="ai");
+    settled=true;
+    return response;
+  }catch(error){
+    if(!settled){
+      try{await completeTutorChat(reservation,false);}
+      catch{console.warn("[billing] quota settlement cleanup failed");}
+    }
+    throw error;
+  }
+}
