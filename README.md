@@ -1,5 +1,7 @@
 # Lingua — Inglês que acompanha seu caminho
 
+> **RETOMADA ENTRE CONVERSAS / LEIA PRIMEIRO:** [CONTEXTO-MESTRE-LINGUA.md](docs/CONTEXTO-MESTRE-LINGUA.md) — visão, CSLE, Naruto, decisões do fundador, PRs, CI, infraestrutura, pendências e próxima ação verificável. Atualize este documento após milestones importantes; consulte GitHub/Render atuais antes de confiar em seu status histórico.
+
 ## Diretriz oficial de desenvolvimento (23/11/2026)
 
 **Prioridade: Naruto (qualidade pedagógica) → CSLE (motor independente) → acoplamento auditado → correções e estabilização → produto/distribuição/monetização.**
