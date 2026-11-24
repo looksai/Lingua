@@ -7,6 +7,8 @@ on:
       - 'client/qa/**'
       - 'tests/browser/**'
       - 'server/cal-browser-http-synthetic.test.ts'
+      - 'server/cal-browser-full-tutorchat-http.test.ts'
+      - 'client/src/lib/trpc.ts'
       - 'server/tutor-router.ts'
       - 'server/cal-catalog-runtime.ts'
       - 'server/auth-local.ts'
@@ -56,6 +58,11 @@ jobs:
           LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
           LINGUA_BROWSER_HTTP_QA: '1'
         run: pnpm exec vitest run server/cal-browser-http-synthetic.test.ts
+      - name: Run full original TutorChat with real React Query, HTTP and signed synthetic JWT
+        env:
+          LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
+          LINGUA_BROWSER_FULL_HTTP_QA: '1'
+        run: pnpm exec vitest run server/cal-browser-full-tutorchat-http.test.ts
       - name: Run seven local-only browser interaction cases
         env:
           LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
