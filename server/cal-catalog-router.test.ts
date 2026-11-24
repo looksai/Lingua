@@ -293,7 +293,15 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
     const uid=++id,c=caller(uid);
     await expect(c.reply(request("Quero recomeçar",{catalogRestart:true})))
       .rejects.toMatchObject({code:"BAD_REQUEST"});
+    await expect(c.reply(request("Quero recomeçar",{
+      catalogCompetencyId:"unknown.malicious",catalogRestart:true,
+    }))).rejects.toMatchObject({code:"BAD_REQUEST"});
+    vi.stubEnv("CAL_CATALOG_ENABLED","false");
+    await expect(c.reply(request("Quero recomeçar",{
+      catalogCompetencyId:"greeting.hello",catalogRestart:true,
+    }))).rejects.toMatchObject({code:"PRECONDITION_FAILED"});
     expect(calCatalogTutorSessions.inspectForTest(uid)).toBeNull();
+    expect(calTutorSessions.inspectForTest(uid)).toBeNull();
   });
   it("restarts the same saved topic without carrying any CAL attempts from the prior session",async()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
