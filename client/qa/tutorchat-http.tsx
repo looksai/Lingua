@@ -12,7 +12,8 @@ import TutorChat, {type TutorVoiceSettings} from "../src/components/TutorChat";
  * every call using an independently signed, httpOnly synthetic JWT.
  */
 function Fixture(){
-  const [email,setEmail]=useState("qa-a@synthetic.invalid");
+  const [email,setEmail]=useState(()=>new URLSearchParams(window.location.search).get("account")==="b"
+    ?"qa-b@synthetic.invalid":"qa-a@synthetic.invalid");
   const [prefs,setPrefs]=useState<TutorVoiceSettings>({
     voiceURI:"",rate:1,pitch:1,neuralVoice:"troy",
   });
