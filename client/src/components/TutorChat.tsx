@@ -707,7 +707,22 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           Guardar mensagens de texto neste navegador por até 30 dias
         </label>
         <p className="text-xs leading-5 text-ink-muted">Opcional e por conta: recupera o chat após atualizar a página, somente neste navegador. Não salva gravações nem áudio neural, não sincroniza dispositivos e não é memória permanente do tutor. Evite dados sensíveis em dispositivos compartilhados.</p>
-        <button type="button" onClick={eraseConversation} className="text-sm font-semibold text-red-700 underline">Apagar conversa neste aparelho</button>
+        <div className="border-t border-ink/10 pt-3 space-y-2">
+          <h4 className="text-sm font-semibold">Marcador opcional de assunto</h4>
+          <label className="flex items-start gap-2 text-sm leading-5">
+            <input type="checkbox" className="mt-1" disabled={!topicKeys}
+              checked={topicChoice.scope===topicScope&&topicChoice.enabled}
+              onChange={e=>toggleTopicBookmark(e.target.checked)}/>
+            Lembrar somente qual assunto estudei por até 7 dias neste aparelho
+          </label>
+          <p className="text-xs leading-5 text-ink-muted">Consentimento separado do histórico: guarda apenas o identificador de um assunto. Não guarda respostas, resultados, níveis nem competências dominadas. Após reinício, você poderá recomeçar o assunto do zero.</p>
+          {topicChoice.scope===topicScope&&topicChoice.bookmark&&
+            <button type="button" disabled={!enabled||busy||recording||placementActive}
+              onClick={()=>void restartSavedTopic()} className="text-sm font-semibold text-teal underline disabled:opacity-40">
+              Recomeçar: {getMicrocompetency(topicChoice.bookmark.competencyId)?.titlePt??"assunto salvo"}
+            </button>}
+        </div>
+        <button type="button" onClick={eraseConversation} className="text-sm font-semibold text-red-700 underline">Apagar conversa e marcador neste aparelho</button>
       </div>
       {capabilities.data?.memory&&<div className="border-t border-ink/10 pt-5 space-y-3">
         <h3 className="font-semibold">Memórias pessoais aprovadas</h3>
@@ -800,6 +815,13 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           <button type="button" onClick={()=>{setPlacementActive(false);setNotice("Sondagem pausada. Suas respostas já enviadas foram salvas.");}} className="text-ink-muted underline">Sair da sondagem</button>
         </div>}
         {!enabled&&<p className="text-xs text-ink-muted">Conversa com IA temporariamente indisponível. Você pode continuar com sugestões locais.</p>}
+        {topicChoice.scope===topicScope&&topicChoice.bookmark&&!recoveredCatalogTask&&
+          !messages.some(m=>Boolean(m.catalogTask))&&!placementActive&&
+          <button type="button" disabled={!enabled||busy||recording||permissionPending}
+            onClick={()=>void restartSavedTopic()}
+            className="text-left text-xs font-semibold text-teal underline disabled:opacity-40">
+            Recomeçar assunto salvo: {getMicrocompetency(topicChoice.bookmark.competencyId)?.titlePt??"assunto"}
+          </button>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&memoryChoice.enabled&&<p className="text-[10px] text-ink-muted">Histórico local ativado · até 30 dias · apagar nas configurações</p>}
         {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
