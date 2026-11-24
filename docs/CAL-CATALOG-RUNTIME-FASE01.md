@@ -67,6 +67,9 @@ A confirmação é de **montagem da resposta pelo servidor**, não uma prova de 
 - *Compare-and-swap* em memória impede que conclusão atrasada de outro pedido sobrescreva estado mais recente; ainda não há transação distribuída nem idempotência persistente.
 - \`CAL_CATALOG_ENABLED\` não é autorização para gravação de \`learnerEvidences\`, SRS ou notas.
 - O campo \`catalogCompetencyId\` só escolhe um ID permitido; não vem acompanhado de evidência ou informação biográfica.
+- O input opcional `inputModality:"asr_text"` informa que o cliente enviou texto transcrito; nesse caso **não há avaliação fechada**. Se o campo faltar, a rota assume texto digitado por compatibilidade; isso **não é uma autenticação da origem da transcrição**. Alterações futuras de UI devem marcar a origem corretamente, e nenhuma correspondência textual pode certificar pronúncia.
+- Se duas respostas de IA terminarem fora de ordem, a resposta atrasada **não exibirá uma tarefa cujo ticket perdeu a corrida**: o controlador retorna apenas o texto seguro sem apêndice e não altera a sessão. Uma apresentação ainda não está confirmada pelo navegador; essa é uma salvaguarda de consistência apenas no servidor.
+- Uma palavra que seja resposta catalogada **de outro domínio pedagógico** (p.ex. “Olá” durante uma tarefa sobre nome) não é classificada como erro. Distratores só podem valer dentro do mesmo domínio; o resultado ainda é candidato local.
 - A transcrição ASR enviada como se fosse texto digitado pela UI ainda não tem atestado de origem confiável; **nunca diagnosticar pronúncia** nesta fase.
 - O modo depende de templates simples; não funciona ainda como currículo completo para entrevistas ou pedir direções.
 - O feedback da IA pode continuar sujeito a inconsistências; testes de mock não substituem QA humano. O modelo recebe instruções para não duplicar perguntas, mas apenas o template vindo do servidor é autoridade de avaliação.
