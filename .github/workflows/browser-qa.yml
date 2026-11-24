@@ -6,6 +6,10 @@ on:
     paths:
       - 'client/qa/**'
       - 'tests/browser/**'
+      - 'server/cal-browser-http-synthetic.test.ts'
+      - 'server/tutor-router.ts'
+      - 'server/cal-catalog-runtime.ts'
+      - 'server/auth-local.ts'
       - 'client/src/components/TutorCatalogTaskView.tsx'
       - 'client/src/components/TutorAudioControls.tsx'
       - 'shared/pedagogy/cal-client-delivery.ts'
@@ -44,6 +48,11 @@ jobs:
           npm install --prefix /tmp/lingua-browser-tools --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
       - name: Install headless Chromium and system dependencies
         run: /tmp/lingua-browser-tools/node_modules/.bin/playwright install --with-deps chromium
+      - name: Run real browser-to-HTTP-to-CAL cases with synthetic signed accounts
+        env:
+          LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
+          LINGUA_BROWSER_HTTP_QA: '1'
+        run: pnpm exec vitest run server/cal-browser-http-synthetic.test.ts
       - name: Run seven local-only browser interaction cases
         env:
           LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
