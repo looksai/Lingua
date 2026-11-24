@@ -53,7 +53,7 @@ async function syntheticIdentity(letter:"a"|"b"){
   accounts.set(id,user);
   return {user,token:await issueSession(user as never)};
 }
-async function openBrowser(token?:string){
+async function openBrowser(token?:string,account:"a"|"b"="a"){
   const ctx=await browser.newContext({viewport:{width:1280,height:820}});
   if(token)await ctx.addCookies([{name:COOKIE_NAME,value:token,url:address,httpOnly:true,sameSite:"Lax"}]);
   const page=await ctx.newPage();
@@ -69,7 +69,7 @@ async function openBrowser(token?:string){
       return route.continue();
     return route.abort("blockedbyclient");
   });
-  await page.goto(publicUrl(),{waitUntil:"networkidle"});
+  await page.goto(publicUrl()+"?account="+account,{waitUntil:"networkidle"});
   await page.getByRole("complementary",{name:"Chat com Naruto"}).waitFor();
   if(token){
     // The real capabilities query must finish before attempting consent.
@@ -206,7 +206,7 @@ describe.skipIf(!gate)("full TutorChat with REAL React Query/tRPC/HTTP/JWT and s
 
   it("two separate signed browser sessions cannot acknowledge each other's CAL ticket",async()=>{
     const a=await syntheticIdentity("a"),b=await syntheticIdentity("b");
-    const one=await openBrowser(a.token),two=await openBrowser(b.token);
+    const one=await openBrowser(a.token,"a"),two=await openBrowser(b.token,"b");
     try{
       await firstConsent(one.page);
       const ticket=calCatalogTutorSessions.pendingClientTask(a.user.id)!;
