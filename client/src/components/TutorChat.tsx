@@ -6,7 +6,7 @@ import {modalityForTutorReply,transcriptOriginAfterEdit} from "@shared/pedagogy/
 import {resolveTutorAudio} from "@shared/pedagogy/tutor-audio-action";
 import {TutorAudioControls} from "@/components/TutorAudioControls";
 import {TutorCatalogTaskView} from "@/components/TutorCatalogTaskView";
-import type {CatalogClientTask} from "@shared/pedagogy/cal-client-delivery";
+import {splitCatalogTaskText,type CatalogClientTask} from "@shared/pedagogy/cal-client-delivery";
 import {tutorAsyncResultIsCurrent} from "@shared/pedagogy/tutor-async-epoch";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
@@ -59,6 +59,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const capabilities = trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
   const reply = trpc.tutor.reply.useMutation();
   const catalogRenderAck=trpc.tutor.catalogRenderAck.useMutation();
+  const catalogPendingTask=trpc.tutor.catalogPendingTask.useMutation();
+  const [recoveredCatalogTask,setRecoveredCatalogTask]=useState<CatalogClientTask|null>(null);
   const savedMemories=trpc.tutor.memoryList.useQuery(undefined,{enabled:capabilities.data?.memory===true,retry:false,refetchOnWindowFocus:false});
   const saveMemory=trpc.tutor.memorySave.useMutation();
   const deleteMemory=trpc.tutor.memoryDelete.useMutation();
@@ -97,6 +99,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   function invalidateConversation():void {
     conversationVersion.current++;
+    setRecoveredCatalogTask(null);
     // Unlock the new account while late results from the old operation are discarded.
     operationToken.current++;
     inFlight.current=false;
@@ -151,7 +154,18 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     }
   },[provider,consentKey,identityScope]);
 
-  // Local history is optional, account-scoped and never includes audio.
+  // Reload recovery uses a protected mutation, avoiding a shared cached query
+  // whose result could outlive a login change. No LLM or learner-evidence writes.
+  useEffect(()=>{
+    if(!enabled||!consent||provider==="off")return;
+    const epoch=conversationVersion.current;
+    let cancelled=false;
+    void catalogPendingTask.mutateAsync().then(task=>{
+      if(!cancelled&&isCurrent(epoch))setRecoveredCatalogTask(task);
+    }).catch(()=>{if(!cancelled&&isCurrent(epoch))setRecoveredCatalogTask(null);});
+    return ()=>{cancelled=true;};
+  },[enabled,consent,identityScope]);
+    // Local history is optional, account-scoped and never includes audio.
   useEffect(()=>{
     // Provider off/unknown must not leave the previous learner's text visible.
     if(!memoryKeys){
@@ -290,6 +304,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice,
           inputModality:modalityForTutorReply(viaASR)});
         if(!isCurrent(epoch))return;
+        setRecoveredCatalogTask(null);
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:"catalogTask" in res?res.catalogTask:null});
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
         if(res.memoryCandidate&&capabilities.data?.memory)
@@ -529,6 +544,12 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     <MessageCircle size={21}/><Mic size={15}/><span className="max-w-40 truncate text-sm font-semibold">{profile.tutorName}</span>
   </button>;
 
+  const recoveredMessageId=recoveredCatalogTask
+    ? [...messages].reverse().find(m=>m.role==="assistant"&&
+        splitCatalogTaskText(m.text,recoveredCatalogTask))?.id
+    : undefined;
+  const recoveryWithoutMessage=Boolean(recoveredCatalogTask&&recoveredMessageId===undefined&&
+    !messages.some(m=>m.catalogTask?.deliveryId===recoveredCatalogTask.deliveryId));
   return <aside ref={audioRoot} aria-label={"Chat com "+profile.tutorName}
     className="fixed inset-0 z-40 flex h-[100dvh] w-screen flex-col overflow-hidden bg-white text-ink shadow-2xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100dvh-40px))] sm:w-[min(620px,calc(100vw-40px))] sm:rounded-2xl sm:border sm:border-ink/15">
     <header className="flex shrink-0 items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
@@ -651,7 +672,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             resolved.localVoiceKind==="general"?localVoice:null;
           return <div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
           <div className={m.role==="user"?"max-w-[86%] rounded-2xl bg-ink px-4 py-3 text-sm text-white":"max-w-[92%] rounded-2xl bg-paper px-4 py-3 text-sm"}>
-            <TutorCatalogTaskView key={m.catalogTask?.deliveryId??m.id} text={m.text} task={m.catalogTask??null}
+            <TutorCatalogTaskView key={m.catalogTask?.deliveryId??m.id} text={m.text}
+              task={m.catalogTask??(m.role==="assistant"&&m.id===recoveredMessageId?recoveredCatalogTask:null)}
               active={open&&!settingsOpen&&consent} onRendered={reportCatalogRendered}/>
             {m.source==="local"&&<p className="mt-2 text-[11px] text-ink-muted">Resposta local · IA indisponível ou não autorizada</p>}
             {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" onPlay={e=>{if(recording||permissionPending){e.currentTarget.pause();setNotice("Não é possível reproduzir áudio durante a gravação.");return;}stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
@@ -668,7 +690,13 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             />
           </div>
         </div>})}
-        {pendingMemory&&<div role="group" aria-label="Permissão para lembrar fato pessoal" className="rounded-xl border border-teal/30 bg-paper p-4 text-sm">
+        {recoveryWithoutMessage&&recoveredCatalogTask&&<div className="rounded-2xl bg-paper px-4 py-3 text-sm">
+          <p className="mb-2 text-xs text-ink-muted">Atividade pendente recuperada desta sessão (não é progresso persistido).</p>
+          <TutorCatalogTaskView key={recoveredCatalogTask.deliveryId}
+            text={recoveredCatalogTask.promptText} task={recoveredCatalogTask}
+            active={open&&!settingsOpen&&consent} onRendered={reportCatalogRendered}/>
+        </div>}
+                {pendingMemory&&<div role="group" aria-label="Permissão para lembrar fato pessoal" className="rounded-xl border border-teal/30 bg-paper p-4 text-sm">
           <p className="font-semibold">{profile.tutorName}: Posso guardar este detalhe para personalizar suas próximas aulas?</p>
           <p className="mt-2 break-words">“{pendingMemory.fato}”</p>
           <p className="mt-2 text-xs text-ink-muted">Fica salvo na sua conta até você apagar. Não é prova de qualificação. Você pode recusar e continuar estudando normalmente.</p>
