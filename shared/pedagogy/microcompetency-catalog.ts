@@ -308,9 +308,15 @@ export function evaluateClosedMicrotask(
   if(!answer||isQuestion||/^(?:nao sei|nao entendi|ajuda|repete|pode explicar|nao consigo)$/.test(answer))
     return fail("not_a_valid_attempt");
   if(!task.acceptedAnswers.every(x=>x.trim()))return fail("broken_task");
-  return {
-    outcome: task.acceptedAnswers.some(x=>normalize(x)===answer)?"meets":"not_yet",
-    assessor:"rule_candidate",
-    reason:"closed_form_match_only",
-  };
+  if (task.acceptedAnswers.some(x=>normalize(x)===answer))
+    return {outcome:"meets",assessor:"rule_candidate",reason:"closed_form_match_only"};
+  // Reject only a CLEAR lexical distractor from another vetted task of the
+  // same kind. Otherwise this could be a new question, alternate phrasing or
+  // personal goal — it needs clarification, not a grade of "wrong".
+  const knownDistractor = MICRO_TASKS.some(other =>
+    other.mode===task.mode && other.id!==task.id &&
+    other.acceptedAnswers.some(x=>normalize(x)===answer));
+  return knownDistractor
+    ? {outcome:"not_yet",assessor:"rule_candidate",reason:"known_lexical_distractor"}
+    : {outcome:"not_evaluable",assessor:"rule_candidate",reason:"unrecognized_free_text"};
 }
