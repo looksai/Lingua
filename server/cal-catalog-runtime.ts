@@ -10,7 +10,7 @@ import {
   attestCatalogTaskDelivery,respondToCatalogTask,resumeCatalogSession,
   listCatalogOptions,type CatalogCALSession,
 } from "../shared/pedagogy/cal-catalog-adapter";
-import {getMicrotask,evaluateClosedMicrotask} from "../shared/pedagogy/microcompetency-catalog";
+import {getMicrotask,getMicrocompetency,MICRO_TASKS,evaluateClosedMicrotask} from "../shared/pedagogy/microcompetency-catalog";
 import {TUTOR_MAX_TEXT} from "../shared/tutor";
 
 const LIMIT=100,TTL_MS=30*60_000;
@@ -140,8 +140,22 @@ export class CALCatalogTutorSessions {
       modality==="typed" && !message.includes("?")){
       const task=getMicrotask(state.task.taskId);
       // Unknown free text/questions cannot be graded as wrong attempts.
-      if(!task || evaluateClosedMicrotask(task,message,"typed").outcome==="not_evaluable")
-        return null;
+      if(!task)return null;
+      const candidate=evaluateClosedMicrotask(task,message,"typed");
+      if(candidate.outcome==="not_evaluable")return null;
+      // A recognized answer for an unrelated learning DOMAIN may be a
+      // greeting, a topic change, or a new question — not a wrong attempt.
+      // Only a lexical distractor from the SAME domain can count as error.
+      if(candidate.outcome==="not_yet"){
+        const domain=getMicrocompetency(task.competencyId)?.domain;
+        const answer=normalize(message).replace(/[.!?,;:]+/g,"").trim();
+        const sameDomainDistractor=MICRO_TASKS.some(other=>
+          other.id!==task.id && other.mode===task.mode &&
+          getMicrocompetency(other.competencyId)?.domain===domain &&
+          other.acceptedAnswers.some(value=>
+            normalize(value).replace(/[.!?,;:]+/g,"").trim()===answer));
+        if(!sameDomainDistractor)return null;
+      }
       const p=respondToCatalogTask(state,userId,{
         kind:"explicit_answer",text:message,modality:"typed",attemptedAtMs:time,
       });
