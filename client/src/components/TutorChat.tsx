@@ -9,6 +9,12 @@ import {TutorCatalogTaskView} from "@/components/TutorCatalogTaskView";
 import {splitCatalogTaskText,type CatalogClientTask} from "@shared/pedagogy/cal-client-delivery";
 import {tutorAsyncResultIsCurrent} from "@shared/pedagogy/tutor-async-epoch";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
+import {
+  clearStudyTopicBookmark,loadStudyTopicBookmark,saveStudyTopicBookmark,
+  setStudyTopicBookmarkEnabled,studyTopicBookmarkKeys,studyTopicRestartRequest,
+  type StudyTopicBookmark,
+} from "@/lib/tutor-study-topic-bookmark";
+import {getMicrocompetency,getMicrotask} from "@shared/pedagogy/microcompetency-catalog";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
   TUTOR_MAX_TEXT, tutorAudioTypes, type TutorAudioType, type TutorHistory, type TutorProfile } from "@shared/tutor";
@@ -111,6 +117,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const [previewVoiceAudio,setPreviewVoiceAudio]=useState<string|null>(null);
   const [previewVoiceNotice,setPreviewVoiceNotice]=useState("");
   const [memoryChoice,setMemoryChoice]=useState<{scope:string;enabled:boolean}>({scope:"",enabled:false});
+  const [topicChoice,setTopicChoice]=useState<{
+    scope:string;enabled:boolean;bookmark:StudyTopicBookmark|null;
+  }>({scope:"",enabled:false,bookmark:null});
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousConsentKey=useRef<string|null>(null);
@@ -122,6 +131,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const englishLocalVoice=selectEnglishLocalVoice(localVoices,selectedVoiceURI);
   const memoryKeys=provider&&provider!=="off"?conversationStorageKeys(accountEmail,provider):null;
   const memoryScope=memoryKeys?.conversation??"";
+  const topicKeys=provider&&provider!=="off"?studyTopicBookmarkKeys(accountEmail,provider):null;
+  const topicScope=topicKeys?.bookmark??"";
   useEffect(()=>{
     if(typeof window.speechSynthesis==="undefined")return;
     const synth=window.speechSynthesis;
@@ -198,7 +209,32 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(!memoryKeys||memoryChoice.scope!==memoryScope||!memoryChoice.enabled)return;
     saveChatMemory(window.localStorage,memoryKeys,messages.filter(m=>m.id>0).map(({id,role,text,source})=>({id,role,text,source})));
   },[messages,memoryChoice,memoryScope]);
-  function setMemoryEnabled(enabled:boolean){
+  // Separate, explicit on-device consent. A topic bookmark is NOT a CAL state.
+  useEffect(()=>{
+    if(!topicKeys){setTopicChoice({scope:"",enabled:false,bookmark:null});return;}
+    const restored=loadStudyTopicBookmark(window.localStorage,topicKeys);
+    setTopicChoice({scope:topicScope,...restored});
+  },[topicScope]);
+  function rememberTopic(task:CatalogClientTask|null|undefined){
+    if(!task||!topicKeys)return;
+    const competencyId=getMicrotask(task.taskId)?.competencyId;
+    if(!competencyId||!saveStudyTopicBookmark(window.localStorage,topicKeys,competencyId))return;
+    const restored=loadStudyTopicBookmark(window.localStorage,topicKeys);
+    setTopicChoice(previous=>previous.scope===topicScope?{scope:topicScope,...restored}:previous);
+  }
+  function toggleTopicBookmark(next:boolean){
+    if(!topicKeys)return;
+    if(!setStudyTopicBookmarkEnabled(window.localStorage,topicKeys,next)){
+      setNotice("Este navegador não permite guardar o marcador local.");return;
+    }
+    if(next){
+      const task=recoveredCatalogTask??[...messages].reverse().find(m=>m.catalogTask)?.catalogTask;
+      const competencyId=task?getMicrotask(task.taskId)?.competencyId:undefined;
+      if(competencyId)saveStudyTopicBookmark(window.localStorage,topicKeys,competencyId);
+    }
+    setTopicChoice({scope:topicScope,...loadStudyTopicBookmark(window.localStorage,topicKeys)});
+  }
+    function setMemoryEnabled(enabled:boolean){
     if(!memoryKeys)return;
     if(enabled){
       if(!enableChatMemory(window.localStorage,memoryKeys)){setNotice("Este navegador não permite salvar o histórico local.");return;}
@@ -208,6 +244,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   function eraseConversation(){
     if(memoryKeys)clearChatMemory(window.localStorage,memoryKeys);
+    if(topicKeys)clearStudyTopicBookmark(window.localStorage,topicKeys);
+    setTopicChoice(previous=>previous.scope===topicScope?{...previous,bookmark:null}:previous);
     invalidateConversation();
     stopCapture(false);stopAudioPlayers();stopSpeech();setAutoPlayId(null);
     setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
