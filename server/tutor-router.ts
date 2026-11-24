@@ -16,6 +16,8 @@ import { GROQ_ENGLISH_VOICES, GroqTtsBadRequest, type GroqTtsBadRequestReason } 
 import { createVoiceProvider } from "./voice-provider";
 import { guardTutorLearnerClaims } from "./tutor-fact-guard";
 import { enforceBeginnerPortuguese } from "../shared/tutor-language";
+import { needsAbsoluteBeginnerSupport } from "../shared/tutor-language";
+import { calEnabled, calTutorSessions } from "./cal-integration";
 import {
   memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, loadLearnerMemories,
   listLearnerMemories, saveLearnerMemory, deleteLearnerMemory, clearLearnerMemories,
@@ -125,22 +127,34 @@ export const tutorRouter = router({
       } catch {console.warn("[tutor] memory unavailable: feature will fail closed for this turn");}
     }
     return withTutorBudget(ctx.user.id,async()=>{
+      // CAL is OFF by default. In the pilot, it is restricted by the same
+      // existing authenticated tester allowlist as the external tutor.
+      // No DB writes, memory mutations, SRS or CSLE calls.
+      const calPreview=calEnabled()
+        ? calTutorSessions.prepare(ctx.user.id,input.message,
+            needsAbsoluteBeginnerSupport(input.history,input.message,approvedFacts))
+        : null;
       let text:string;
       let memoryCandidate: {fato:string;categoria:"profissao"|"objetivo"|"interesse"|"preferencia_estudo"}|null=null;
       try {
         const adapter=createSelectedTutor(input.provider!);
         if(memoryReady){
-          const proposed=await adapter.replyWithProposal(p,input.history,input.message,approvedFacts);
+          const proposed=await adapter.replyWithProposal(p,input.history,input.message,approvedFacts,calPreview?.directive);
           text=proposed.text;
           memoryCandidate=proposed.memoryCandidate;
           if(memoryCandidate&&approvedFacts.some(f=>f.trim().toLocaleLowerCase("pt-BR")===memoryCandidate!.fato.toLocaleLowerCase("pt-BR")))
             memoryCandidate=null;
-        }else text=await adapter.reply(p,input.history,input.message);
+        }else text=await adapter.reply(p,input.history,input.message,approvedFacts,calPreview?.directive);
       } catch(error) { return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null}; }
       const checked=guardTutorLearnerClaims(text,input.history,input.message,approvedFacts);
       if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
       const adapted=enforceBeginnerPortuguese(checked.text,input.history,input.message,approvedFacts);
       if(adapted.corrected)console.warn("[tutor] beginner language guard corrected an English-dominant reply");
+      // Only a successful, safe AI reply can commit a provisional CAL turn.
+      // An AI-produced sentence is never graded as learner evidence.
+      // If the beginner fallback replaced the proposed task, the runtime
+      // verifies the actual delivered question before expecting an answer.
+      calPreview?.commit(adapted.text);
       return {text:adapted.text,source:"ai" as const,memoryCandidate,...await optionalSpeech(adapted.text,input.provider==="openai"&&input.voice)};
     });
   }),
