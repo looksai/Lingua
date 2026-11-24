@@ -58,12 +58,12 @@ export function saveStudyTopicBookmark(
 }
 /** A new lesson choice, not a claim of resumed mastery or independent typed work. */
 export function studyTopicRestartRequest(competencyId:string):{
-  message:string;catalogCompetencyId:string;
+  message:string;catalogCompetencyId:string;catalogRestart:true;
 }|null{
   if(!permitted(competencyId))return null;
   return {
     message:"Quero recomeçar este assunto do início, sem recuperar resultados anteriores.",
-    catalogCompetencyId:competencyId,
+    catalogCompetencyId:competencyId,catalogRestart:true,
   };
 }
 export function clearStudyTopicBookmark(
