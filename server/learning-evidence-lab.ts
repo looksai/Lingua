@@ -19,7 +19,7 @@ export type EvidenceGateReason=
   | "consent_invalid" | "consent_expired" | "consent_revoked"
   | "pre_consent_observation" | "wrong_learner" | "invalid_observation"
   | "catalogue_version_mismatch" | "task_not_server_issued"
-  | "receipt_not_server_validated" | "observation_before_render"
+  | "receipt_not_server_validated" | "pre_consent_delivery" | "observation_before_render"
   | "untrusted_origin" | "untrusted_assessor" | "open_task_requires_review"
   | "provisional_closed_rule_only";
 
@@ -160,6 +160,8 @@ export function gateLearningObservation(
   if(!receipt.renderAckRecorded||!nonnegativeTime(receipt.renderedAtMs)||
     receipt.renderedAtMs>ctx.nowMs)
     return decision("rejected","receipt_not_server_validated");
+  if(receipt.renderedAtMs<consent.grantedAtMs)
+    return decision("rejected","pre_consent_delivery");
   if(candidate.observedAtMs<receipt.renderedAtMs)
     return decision("rejected","observation_before_render");
 
