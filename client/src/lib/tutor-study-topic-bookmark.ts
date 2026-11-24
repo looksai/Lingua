@@ -34,7 +34,7 @@ export function loadStudyTopicBookmark(
       // A corrupt value is not a withdrawal of the separate opt-in.
       return {enabled:true,bookmark:null};
     }
-    const valid=parsed?.version===1&&typeof parsed.competencyId==="string"&&
+    const valid=parsed!==null&&parsed.version===1&&typeof parsed.competencyId==="string"&&
       permitted(parsed.competencyId)&&typeof parsed.savedAt==="number"&&
       Number.isFinite(parsed.savedAt)&&parsed.savedAt>=0&&
       parsed.savedAt<=now+60_000&&now-parsed.savedAt<=STUDY_TOPIC_BOOKMARK_TTL_MS;
