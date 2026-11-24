@@ -5,6 +5,8 @@ import {englishExcerpt} from "@/lib/english-example";
 import {modalityForTutorReply,transcriptOriginAfterEdit} from "@shared/pedagogy/tutor-input-modality";
 import {resolveTutorAudio} from "@shared/pedagogy/tutor-audio-action";
 import {TutorAudioControls} from "@/components/TutorAudioControls";
+import {TutorCatalogTaskView} from "@/components/TutorCatalogTaskView";
+import {splitCatalogTaskText,type CatalogClientTask} from "@shared/pedagogy/cal-client-delivery";
 import {tutorAsyncResultIsCurrent} from "@shared/pedagogy/tutor-async-epoch";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
@@ -13,6 +15,7 @@ import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS
 
 type Message = TutorHistory & {
   id: number; source?: "local"|"ai"; audioBase64?: string|null; voiceStatus?: "ready"|"unavailable"|"off";
+  catalogTask?:CatalogClientTask|null;
 };
 type MemoryCandidate = { fato:string; categoria:"profissao"|"objetivo"|"interesse"|"preferencia_estudo"; sourceMessage:string };
 type Capture = { recorder: MediaRecorder; stream: MediaStream; timer?: ReturnType<typeof setTimeout>; chunks: Blob[]; size:number; send:boolean };
@@ -55,6 +58,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const scrollAnchor = useRef<HTMLDivElement>(null);
   const capabilities = trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
   const reply = trpc.tutor.reply.useMutation();
+  const catalogRenderAck=trpc.tutor.catalogRenderAck.useMutation();
+  const catalogPendingTask=trpc.tutor.catalogPendingTask.useMutation();
+  const [recoveredCatalogTask,setRecoveredCatalogTask]=useState<CatalogClientTask|null>(null);
+  const catalogRecoverySequence=useRef(0);
   const savedMemories=trpc.tutor.memoryList.useQuery(undefined,{enabled:capabilities.data?.memory===true,retry:false,refetchOnWindowFocus:false});
   const saveMemory=trpc.tutor.memorySave.useMutation();
   const deleteMemory=trpc.tutor.memoryDelete.useMutation();
@@ -93,6 +100,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   function invalidateConversation():void {
     conversationVersion.current++;
+    catalogRecoverySequence.current++;
+    setRecoveredCatalogTask(null);
     // Unlock the new account while late results from the old operation are discarded.
     operationToken.current++;
     inFlight.current=false;
@@ -147,7 +156,23 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     }
   },[provider,consentKey,identityScope]);
 
-  // Local history is optional, account-scoped and never includes audio.
+  // Reload recovery uses a protected mutation, avoiding a shared cached query
+  // whose result could outlive a login change. No LLM or learner-evidence writes.
+  useEffect(()=>{
+    if(!enabled||!consent||provider==="off")return;
+    const epoch=conversationVersion.current;
+    const request=++catalogRecoverySequence.current;
+    let cancelled=false;
+    void catalogPendingTask.mutateAsync().then(task=>{
+      if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch))
+        setRecoveredCatalogTask(task);
+    }).catch(()=>{
+      if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch))
+        setRecoveredCatalogTask(null);
+    });
+    return ()=>{cancelled=true;};
+  },[enabled,consent,identityScope]);
+    // Local history is optional, account-scoped and never includes audio.
   useEffect(()=>{
     // Provider off/unknown must not leave the previous learner's text visible.
     if(!memoryKeys){
@@ -235,6 +260,18 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       beginPlacement();
     }
   },[placementRequested,placement.data,placementActive]);
+  async function reportCatalogRendered(task:CatalogClientTask):Promise<boolean>{
+    if(!consent)return false;
+    const epoch=conversationVersion.current;
+    try {
+      const response=await catalogRenderAck.mutateAsync({
+        consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId,
+      });
+      if(isCurrent(epoch)&&response.status==="rejected")
+        setNotice("A atividade não está mais ativa nesta sessão. Escolha novamente o assunto para continuar.");
+      return isCurrent(epoch)&&(response.status==="recorded"||response.status==="duplicate");
+    }catch{return false;}
+  }
   async function buildPlan(){
     if(!consent){setTermsAccepted(false);setPrivacyPrompt(true);return;}
     if(!placementActive||placement.data?.nextTask||busy)return;
@@ -257,6 +294,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(placementActive&&text.length>800){setNotice("Nesta sondagem, use até 800 caracteres por resposta.");return;}
     const isPlacement=placementActive&&Boolean(placement.data?.nextTask);
     const viaASR=transcriptReady;
+    catalogRecoverySequence.current++;
     const epoch=conversationVersion.current;
     setPendingMemory(null);
     const op=beginBusy();setNotice("");setTranscriptReady(false);
@@ -276,7 +314,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice,
           inputModality:modalityForTutorReply(viaASR)});
         if(!isCurrent(epoch))return;
-        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
+        setRecoveredCatalogTask(null);
+        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:"catalogTask" in res?res.catalogTask:null});
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
         if(res.memoryCandidate&&capabilities.data?.memory)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
@@ -515,6 +554,12 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     <MessageCircle size={21}/><Mic size={15}/><span className="max-w-40 truncate text-sm font-semibold">{profile.tutorName}</span>
   </button>;
 
+  const recoveredMessageId=recoveredCatalogTask
+    ? [...messages].reverse().find(m=>m.role==="assistant"&&
+        splitCatalogTaskText(m.text,recoveredCatalogTask))?.id
+    : undefined;
+  const recoveryWithoutMessage=Boolean(recoveredCatalogTask&&recoveredMessageId===undefined&&
+    !messages.some(m=>m.catalogTask?.deliveryId===recoveredCatalogTask.deliveryId));
   return <aside ref={audioRoot} aria-label={"Chat com "+profile.tutorName}
     className="fixed inset-0 z-40 flex h-[100dvh] w-screen flex-col overflow-hidden bg-white text-ink shadow-2xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100dvh-40px))] sm:w-[min(620px,calc(100vw-40px))] sm:rounded-2xl sm:border sm:border-ink/15">
     <header className="flex shrink-0 items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
@@ -637,7 +682,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             resolved.localVoiceKind==="general"?localVoice:null;
           return <div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
           <div className={m.role==="user"?"max-w-[86%] rounded-2xl bg-ink px-4 py-3 text-sm text-white":"max-w-[92%] rounded-2xl bg-paper px-4 py-3 text-sm"}>
-            <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
+            <TutorCatalogTaskView key={m.catalogTask?.deliveryId??m.id} text={m.text}
+              task={m.catalogTask??(m.role==="assistant"&&m.id===recoveredMessageId?recoveredCatalogTask:null)}
+              active={open&&!settingsOpen&&consent} onRendered={reportCatalogRendered}/>
             {m.source==="local"&&<p className="mt-2 text-[11px] text-ink-muted">Resposta local · IA indisponível ou não autorizada</p>}
             {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" onPlay={e=>{if(recording||permissionPending){e.currentTarget.pause();setNotice("Não é possível reproduzir áudio durante a gravação.");return;}stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
             {m.role==="assistant"&&!m.audioBase64&&neuralAudios[m.id]&&
@@ -653,7 +700,13 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             />
           </div>
         </div>})}
-        {pendingMemory&&<div role="group" aria-label="Permissão para lembrar fato pessoal" className="rounded-xl border border-teal/30 bg-paper p-4 text-sm">
+        {recoveryWithoutMessage&&recoveredCatalogTask&&<div className="rounded-2xl bg-paper px-4 py-3 text-sm">
+          <p className="mb-2 text-xs text-ink-muted">Atividade pendente recuperada desta sessão (não é progresso persistido).</p>
+          <TutorCatalogTaskView key={recoveredCatalogTask.deliveryId}
+            text={recoveredCatalogTask.promptText} task={recoveredCatalogTask}
+            active={open&&!settingsOpen&&consent} onRendered={reportCatalogRendered}/>
+        </div>}
+                {pendingMemory&&<div role="group" aria-label="Permissão para lembrar fato pessoal" className="rounded-xl border border-teal/30 bg-paper p-4 text-sm">
           <p className="font-semibold">{profile.tutorName}: Posso guardar este detalhe para personalizar suas próximas aulas?</p>
           <p className="mt-2 break-words">“{pendingMemory.fato}”</p>
           <p className="mt-2 text-xs text-ink-muted">Fica salvo na sua conta até você apagar. Não é prova de qualificação. Você pode recusar e continuar estudando normalmente.</p>

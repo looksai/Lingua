@@ -5,6 +5,7 @@
  * A delivery ACK here attests SERVER response assembly, NOT browser receipt.
  */
 import {randomUUID} from "node:crypto";
+import type {CatalogClientTask} from "../shared/pedagogy/cal-client-delivery";
 import {
   newCatalogCALSession,chooseCatalogObjective,issueCatalogTask,
   attestCatalogTaskDelivery,respondToCatalogTask,resumeCatalogSession,
@@ -78,7 +79,7 @@ function appendSafely(modelText:string,serverText:string):string {
   const model=modelText.trim().slice(0,budget).trim();
   return model?model+"\n\n"+suffix:suffix;
 }
-type Entry={session:CatalogCALSession;lastActive:number};
+type Entry={session:CatalogCALSession;lastActive:number;renderedDeliveryId:string|null};
 export type CatalogRuntimePreview=Readonly<{
   directive:string;
   /** Commit AFTER the protected tutor route validates the LLM reply. */
@@ -104,6 +105,34 @@ export class CALCatalogTutorSessions {
   }
   inspectForTest(userId:number):CatalogCALSession|null {
     return this.hasSession(userId)?this.entries.get(userId)!.session:null;
+  }
+  /** A pending task may be re-rendered after a refresh while this in-process session exists. */
+  pendingClientTask(userId:number):CatalogClientTask|null {
+    if(!this.hasSession(userId))return null;
+    const current=this.entries.get(userId)!.session;
+    const task=current.task;
+    if(current.cal.status!=="active"||!task?.delivered)return null;
+    return {sessionId:current.sessionId,deliveryId:task.deliveryId,
+      taskId:task.taskId,taskVersion:task.taskVersion,promptText:task.promptText};
+  }
+  /** Server-bound descriptor: the reply must contain the exact delivered task suffix. */
+  clientTaskForReply(userId:number,replyText:string):CatalogClientTask|null {
+    const task=this.pendingClientTask(userId);
+    if(!task)return null;
+    if(replyText!==task.promptText&&!replyText.endsWith("\n\n"+task.promptText))return null;
+    return task;
+  }
+  /** Reports DOM-rendering on an authenticated browser, NOT a human reading receipt. */
+  confirmBrowserRender(userId:number,sessionId:string,deliveryId:string):"recorded"|"duplicate"|"rejected" {
+    if(!this.hasSession(userId))return "rejected";
+    const entry=this.entries.get(userId)!;
+    const session=entry.session,task=session.task;
+    if(session.ownerUserId!==userId||session.sessionId!==sessionId||
+      !task?.delivered||task.deliveryId!==deliveryId)return "rejected";
+    if(entry.renderedDeliveryId===deliveryId)return "duplicate";
+    entry.renderedDeliveryId=deliveryId;
+    entry.lastActive=this.now();
+    return "recorded";
   }
   prepare(
     userId:number,message:string,needsPortugueseSupport:boolean,
@@ -137,6 +166,7 @@ export class CALCatalogTutorSessions {
       if(p.outcome!=="accepted")return null;
       state=p.session;reason="help_requested";shouldStore=true;
     } else if(previous && state.cal.status==="active" && state.task?.delivered &&
+      previous.renderedDeliveryId===state.task.deliveryId &&
       modality==="typed" && !message.includes("?")){
       const task=getMicrotask(state.task.taskId);
       // Unknown free text/questions cannot be graded as wrong attempts.
@@ -197,8 +227,10 @@ export class CALCatalogTutorSessions {
         }
         // CAS: concurrent or late model completions never overwrite newer turns.
         if(this.entries.get(userId)!==expectedPrevious)return safeModelText;
+        const renderedDeliveryId=finalState.task?.deliveryId===previous?.session.task?.deliveryId
+          ? previous?.renderedDeliveryId??null : null;
         this.entries.delete(userId);
-        this.entries.set(userId,{session:finalState,lastActive:this.now()});
+        this.entries.set(userId,{session:finalState,lastActive:this.now(),renderedDeliveryId});
         this.cleanup(this.now());
         return reply;
       },
