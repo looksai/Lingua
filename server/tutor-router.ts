@@ -170,10 +170,12 @@ export const tutorRouter = router({
     let approvedFacts:string[]=[];
     let memoryReady=false;
     let accountMemoryEnabled=false;
+    let legacyMemoryPrompt=false;
     if(memoryFeatureEnabled()){
       try {
         const settings=await readPrivacyPreferences(ctx.user.id);
         accountMemoryEnabled=settings.personalMemoryEnabled;
+        legacyMemoryPrompt=settings.legacyAccount;
         if(settings.personalMemoryEnabled || settings.legacyAccount){
           approvedFacts=(await loadLearnerMemories(ctx.user.id)).map(item=>item.fato);
           memoryReady=true;
@@ -236,6 +238,9 @@ export const tutorRouter = router({
         catch{console.warn("[tutor] memory auto-save failed closed");}
         memoryCandidate=null;
       }
+      // Only legacy accounts may still receive individual memory prompts.
+      // For enrolled accounts an opt-out must never re-enable prompts.
+      if(!legacyMemoryPrompt)memoryCandidate=null;
       return {text:finalText,source:"ai" as const,memoryCandidate,catalogTask,
         ...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
     });
