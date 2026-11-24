@@ -52,7 +52,8 @@ const SHORT_ANSWER_MAX = 45;
 const norm = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .toLocaleLowerCase("pt-BR").replace(/[.!?,;:]+/g, "").replace(/\s+/g, " ").trim();
 
-function event(snapshot: CALSnapshot, payload: Omit<CALEvent, "eventId" | "expectedVersion" | "sessionId">): CALSnapshot {
+type PendingCALEvent<T> = T extends unknown ? Omit<T, "eventId" | "expectedVersion" | "sessionId"> : never;
+function event(snapshot: CALSnapshot, payload: PendingCALEvent<CALEvent>): CALSnapshot {
   const next = stepCAL(snapshot, {
     ...payload, eventId: randomUUID(),
     sessionId: snapshot.sessionId, expectedVersion: snapshot.version,
