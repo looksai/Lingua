@@ -61,7 +61,8 @@ describe("explicit opt-in local topic continuity — not evidence of learning",(
     store.setItem(keys.bookmark,JSON.stringify({version:1,competencyId:"unknown.skill",savedAt:now}));
     expect(loadStudyTopicBookmark(store,keys,now).bookmark).toBeNull();
     store.setItem(keys.bookmark,"{bad");
-    expect(loadStudyTopicBookmark(store,keys,now).bookmark).toBeNull();
+    expect(loadStudyTopicBookmark(store,keys,now)).toEqual({enabled:true,bookmark:null});
+    expect(store.data.has(keys.bookmark)).toBe(false);
   });
   it("rejects future timestamps and version drift",()=>{
     const store=fakeStore(),keys=studyTopicBookmarkKeys("a@example.test","groq");
