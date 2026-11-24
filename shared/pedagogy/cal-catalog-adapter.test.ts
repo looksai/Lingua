@@ -168,6 +168,25 @@ describe("Closed task observation and learner agency",()=>{
     }
     expect(s.cal.observations).toHaveLength(0);
   });
+  it("a malformed legacy explicit answer with missing modality is never typed by default",()=>{
+    const s=teaching();
+    const original=structuredClone(s);
+    const malformed={kind:"explicit_answer",text:"Olá",attemptedAtMs:1500} as
+      unknown as Parameters<typeof respondToCatalogTask>[2];
+    const r=respondToCatalogTask(s,USER,malformed);
+    expect(r.outcome).toBe("bypassed");
+    expect(r.reason).toBe("asr_cannot_certify_correctness");
+    expect(r.session).toBe(s);
+    expect(s).toEqual(original);
+    expect(s.cal.observations).toHaveLength(0);
+  });
+  it("future callers must keep modality explicit for a typed closed response",()=>{
+    const s=teaching();
+    const r=respondToCatalogTask(s,USER,{kind:"explicit_answer",text:"Olá",
+      modality:"typed",attemptedAtMs:1500});
+    expect(r.outcome).toBe("accepted");
+    expect(r.session.cal.phase).toBe("PRATICAR");
+  });
   it("spoken transcription and questions cannot be graded as closed task evidence",()=>{
     const s=teaching();
     const asr=respondToCatalogTask(s,USER,{
@@ -230,7 +249,7 @@ describe("Closed task observation and learner agency",()=>{
   });
   it("the same task ID in another account does not authorize cross-account submission",()=>{
     const s=practice();
-    expect(respondToCatalogTask(s,999,{kind:"explicit_answer",text:"Goodbye",attemptedAtMs:2300}).reason)
+    expect(respondToCatalogTask(s,999,{kind:"explicit_answer",text:"Goodbye",modality:"typed",attemptedAtMs:2300}).reason)
       .toBe("wrong_account");
     expect(s.cal.observations).toHaveLength(0);
   });
