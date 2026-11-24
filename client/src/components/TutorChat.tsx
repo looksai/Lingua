@@ -9,6 +9,12 @@ import {TutorCatalogTaskView} from "@/components/TutorCatalogTaskView";
 import {splitCatalogTaskText,type CatalogClientTask} from "@shared/pedagogy/cal-client-delivery";
 import {tutorAsyncResultIsCurrent} from "@shared/pedagogy/tutor-async-epoch";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
+import {
+  clearStudyTopicBookmark,loadStudyTopicBookmark,saveStudyTopicBookmark,
+  setStudyTopicBookmarkEnabled,studyTopicBookmarkKeys,studyTopicRestartRequest,
+  type StudyTopicBookmark,
+} from "@/lib/tutor-study-topic-bookmark";
+import {getMicrocompetency,getMicrotask} from "@shared/pedagogy/microcompetency-catalog";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
   TUTOR_MAX_TEXT, tutorAudioTypes, type TutorAudioType, type TutorHistory, type TutorProfile } from "@shared/tutor";
@@ -111,6 +117,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const [previewVoiceAudio,setPreviewVoiceAudio]=useState<string|null>(null);
   const [previewVoiceNotice,setPreviewVoiceNotice]=useState("");
   const [memoryChoice,setMemoryChoice]=useState<{scope:string;enabled:boolean}>({scope:"",enabled:false});
+  const [topicChoice,setTopicChoice]=useState<{
+    scope:string;enabled:boolean;bookmark:StudyTopicBookmark|null;
+  }>({scope:"",enabled:false,bookmark:null});
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousConsentKey=useRef<string|null>(null);
@@ -122,6 +131,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const englishLocalVoice=selectEnglishLocalVoice(localVoices,selectedVoiceURI);
   const memoryKeys=provider&&provider!=="off"?conversationStorageKeys(accountEmail,provider):null;
   const memoryScope=memoryKeys?.conversation??"";
+  const topicKeys=provider&&provider!=="off"?studyTopicBookmarkKeys(accountEmail,provider):null;
+  const topicScope=topicKeys?.bookmark??"";
   useEffect(()=>{
     if(typeof window.speechSynthesis==="undefined")return;
     const synth=window.speechSynthesis;
@@ -164,8 +175,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     const request=++catalogRecoverySequence.current;
     let cancelled=false;
     void catalogPendingTask.mutateAsync().then(task=>{
-      if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch))
+      if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch)){
         setRecoveredCatalogTask(task);
+        rememberTopic(task);
+      }
     }).catch(()=>{
       if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch))
         setRecoveredCatalogTask(null);
@@ -198,6 +211,31 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(!memoryKeys||memoryChoice.scope!==memoryScope||!memoryChoice.enabled)return;
     saveChatMemory(window.localStorage,memoryKeys,messages.filter(m=>m.id>0).map(({id,role,text,source})=>({id,role,text,source})));
   },[messages,memoryChoice,memoryScope]);
+  // Separate, explicit on-device consent. A topic bookmark is NOT a CAL state.
+  useEffect(()=>{
+    if(!topicKeys){setTopicChoice({scope:"",enabled:false,bookmark:null});return;}
+    const restored=loadStudyTopicBookmark(window.localStorage,topicKeys);
+    setTopicChoice({scope:topicScope,...restored});
+  },[topicScope]);
+  function rememberTopic(task:CatalogClientTask|null|undefined){
+    if(!task||!topicKeys)return;
+    const competencyId=getMicrotask(task.taskId)?.competencyId;
+    if(!competencyId||!saveStudyTopicBookmark(window.localStorage,topicKeys,competencyId))return;
+    const restored=loadStudyTopicBookmark(window.localStorage,topicKeys);
+    setTopicChoice(previous=>previous.scope===topicScope?{scope:topicScope,...restored}:previous);
+  }
+  function toggleTopicBookmark(next:boolean){
+    if(!topicKeys)return;
+    if(!setStudyTopicBookmarkEnabled(window.localStorage,topicKeys,next)){
+      setNotice("Este navegador não permite guardar o marcador local.");return;
+    }
+    if(next){
+      const task=recoveredCatalogTask??[...messages].reverse().find(m=>m.catalogTask)?.catalogTask;
+      const competencyId=task?getMicrotask(task.taskId)?.competencyId:undefined;
+      if(competencyId)saveStudyTopicBookmark(window.localStorage,topicKeys,competencyId);
+    }
+    setTopicChoice({scope:topicScope,...loadStudyTopicBookmark(window.localStorage,topicKeys)});
+  }
   function setMemoryEnabled(enabled:boolean){
     if(!memoryKeys)return;
     if(enabled){
@@ -208,6 +246,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   function eraseConversation(){
     if(memoryKeys)clearChatMemory(window.localStorage,memoryKeys);
+    if(topicKeys)clearStudyTopicBookmark(window.localStorage,topicKeys);
+    setTopicChoice(previous=>previous.scope===topicScope?{...previous,bookmark:null}:previous);
     invalidateConversation();
     stopCapture(false);stopAudioPlayers();stopSpeech();setAutoPlayId(null);
     setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
@@ -315,7 +355,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           inputModality:modalityForTutorReply(viaASR)});
         if(!isCurrent(epoch))return;
         setRecoveredCatalogTask(null);
-        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:"catalogTask" in res?res.catalogTask:null});
+        const deliveredTask="catalogTask" in res?res.catalogTask:null;
+        append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:deliveredTask});
+        rememberTopic(deliveredTask);
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
         if(res.memoryCandidate&&capabilities.data?.memory)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
@@ -325,6 +367,39 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     }finally{
       finishBusy(op);
     }
+  }
+  async function restartSavedTopic(){
+    const competencyId=topicChoice.scope===topicScope?topicChoice.bookmark?.competencyId:undefined;
+    const selection=competencyId?studyTopicRestartRequest(competencyId):null;
+    if(!selection||!enabled||inFlight.current||held.current||recording||permissionPending||placementActive)return;
+    if(draft.trim()){setNotice("Antes de recomeçar, envie ou apague seu rascunho atual.");return;}
+    if(!consent){
+      setSettingsOpen(false);setTermsAccepted(false);setPrivacyPrompt(true);
+      return;
+    }
+    const epoch=conversationVersion.current;
+    const history=messages.slice(-TUTOR_MAX_HISTORY).map(({role,text})=>({role,text}));
+    catalogRecoverySequence.current++;
+    setRecoveredCatalogTask(null);setPendingMemory(null);setOpen(true);setSettingsOpen(false);
+    const op=beginBusy();
+    setNotice("Recomeçando este assunto, sem recuperar acertos, notas ou progresso anterior.");
+    append({role:"user",text:selection.message});
+    try{
+      const res=await reply.mutateAsync({
+        message:selection.message,history,consent:true,provider,voice:false,
+        catalogCompetencyId:selection.catalogCompetencyId,catalogRestart:selection.catalogRestart,
+        // No inputModality: this is a UI selection, NOT independently typed work.
+        // The existing server boundary treats missing modality conservatively.
+      });
+      if(!isCurrent(epoch))return;
+      const deliveredTask="catalogTask" in res?res.catalogTask:null;
+      append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,
+        voiceStatus:res.voiceStatus,catalogTask:deliveredTask});
+      rememberTopic(deliveredTask);
+      if(!deliveredTask)setNotice("Não foi possível iniciar uma nova atividade desse assunto. Tente novamente.");
+    }catch{
+      if(isCurrent(epoch))setNotice("Não foi possível reabrir o assunto. Você pode tentar novamente.");
+    }finally{finishBusy(op);}
   }
   async function acceptMemory(){
     if(!pendingMemory||saveMemory.isPending)return;
@@ -634,7 +709,22 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           Guardar mensagens de texto neste navegador por até 30 dias
         </label>
         <p className="text-xs leading-5 text-ink-muted">Opcional e por conta: recupera o chat após atualizar a página, somente neste navegador. Não salva gravações nem áudio neural, não sincroniza dispositivos e não é memória permanente do tutor. Evite dados sensíveis em dispositivos compartilhados.</p>
-        <button type="button" onClick={eraseConversation} className="text-sm font-semibold text-red-700 underline">Apagar conversa neste aparelho</button>
+        <div className="border-t border-ink/10 pt-3 space-y-2">
+          <h4 className="text-sm font-semibold">Marcador opcional de assunto</h4>
+          <label className="flex items-start gap-2 text-sm leading-5">
+            <input type="checkbox" className="mt-1" disabled={!topicKeys}
+              checked={topicChoice.scope===topicScope&&topicChoice.enabled}
+              onChange={e=>toggleTopicBookmark(e.target.checked)}/>
+            Lembrar somente qual assunto estudei por até 7 dias neste aparelho
+          </label>
+          <p className="text-xs leading-5 text-ink-muted">Consentimento separado do histórico: guarda apenas o identificador de um assunto. Não guarda respostas, resultados, níveis nem competências dominadas. Após reinício, você poderá recomeçar o assunto do zero.</p>
+          {topicChoice.scope===topicScope&&topicChoice.bookmark&&
+            <button type="button" disabled={!enabled||busy||recording||placementActive}
+              onClick={()=>void restartSavedTopic()} className="text-sm font-semibold text-teal underline disabled:opacity-40">
+              Recomeçar: {getMicrocompetency(topicChoice.bookmark.competencyId)?.titlePt??"assunto salvo"}
+            </button>}
+        </div>
+        <button type="button" onClick={eraseConversation} className="text-sm font-semibold text-red-700 underline">Apagar conversa e marcador neste aparelho</button>
       </div>
       {capabilities.data?.memory&&<div className="border-t border-ink/10 pt-5 space-y-3">
         <h3 className="font-semibold">Memórias pessoais aprovadas</h3>
@@ -727,6 +817,13 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           <button type="button" onClick={()=>{setPlacementActive(false);setNotice("Sondagem pausada. Suas respostas já enviadas foram salvas.");}} className="text-ink-muted underline">Sair da sondagem</button>
         </div>}
         {!enabled&&<p className="text-xs text-ink-muted">Conversa com IA temporariamente indisponível. Você pode continuar com sugestões locais.</p>}
+        {topicChoice.scope===topicScope&&topicChoice.bookmark&&!recoveredCatalogTask&&
+          !messages.some(m=>Boolean(m.catalogTask))&&!placementActive&&
+          <button type="button" disabled={!enabled||busy||recording||permissionPending}
+            onClick={()=>void restartSavedTopic()}
+            className="text-left text-xs font-semibold text-teal underline disabled:opacity-40">
+            Recomeçar assunto salvo: {getMicrocompetency(topicChoice.bookmark.competencyId)?.titlePt??"assunto"}
+          </button>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&memoryChoice.enabled&&<p className="text-[10px] text-ink-muted">Histórico local ativado · até 30 dias · apagar nas configurações</p>}
         {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}

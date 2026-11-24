@@ -137,12 +137,18 @@ export class CALCatalogTutorSessions {
   prepare(
     userId:number,message:string,needsPortugueseSupport:boolean,
     selectedId:string|undefined,modality:"typed"|"asr_text",
+    restartSelectedObjective=false,
   ):CatalogRuntimePreview|null {
     if(!Number.isSafeInteger(userId)||userId<=0)return null;
     const time=this.now();
     this.cleanup(time);
     const previous=this.entries.get(userId);
-    let state=previous?.session??newCatalogCALSession(userId,randomUUID());
+    if(restartSelectedObjective&&!selectedId)return null;
+    // Only an explicit, server-validated curriculum ID can restart this pilot.
+    // The previous session is not copied and no learning evidence is persisted.
+    let state=restartSelectedObjective
+      ?newCatalogCALSession(userId,randomUUID())
+      :previous?.session??newCatalogCALSession(userId,randomUUID());
     let suffix="",reason="",shouldStore=false;
     const objective=selectedId||explicitCatalogGoal(message);
     if(objective) {

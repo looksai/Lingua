@@ -288,6 +288,49 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
       sessionId:bt.sessionId,deliveryId:bt.deliveryId})).status).toBe("recorded");
     expect(calCatalogTutorSessions.inspectForTest(b)?.cal.phase).toBe("ENSINAR");
   });
+  it("requires a server-validated curriculum ID for an explicit fresh restart",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
+    const uid=++id,c=caller(uid);
+    await expect(c.reply(request("Quero recomeçar",{catalogRestart:true})))
+      .rejects.toMatchObject({code:"BAD_REQUEST"});
+    await expect(c.reply(request("Quero recomeçar",{
+      catalogCompetencyId:"unknown.malicious",catalogRestart:true,
+    }))).rejects.toMatchObject({code:"BAD_REQUEST"});
+    vi.stubEnv("CAL_CATALOG_ENABLED","false");
+    await expect(c.reply(request("Quero recomeçar",{
+      catalogCompetencyId:"greeting.hello",catalogRestart:true,
+    }))).rejects.toMatchObject({code:"PRECONDITION_FAILED"});
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toBeNull();
+    expect(calTutorSessions.inspectForTest(uid)).toBeNull();
+  });
+  it("restarts the same saved topic without carrying any CAL attempts from the prior session",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
+    const uid=++id,c=caller(uid);
+    const initial=await c.reply(request("Quero praticar Hello",{inputModality:"typed"}));
+    const first=initial.catalogTask!;
+    await c.catalogRenderAck({consent:true,sessionId:first.sessionId,deliveryId:first.deliveryId});
+    const afterMeaning=await c.reply(request("Olá",{inputModality:"typed"}));
+    const practice=afterMeaning.catalogTask!;
+    await c.catalogRenderAck({consent:true,sessionId:practice.sessionId,deliveryId:practice.deliveryId});
+    await c.reply(request("Hello",{inputModality:"typed"}));
+    const before=calCatalogTutorSessions.inspectForTest(uid)!;
+    expect(before.cal.observations).toHaveLength(1);
+
+    // No typed modality: the student's click is a new curriculum selection, not an answer.
+    const restarted=await c.reply(request("Quero recomeçar este assunto do início.",{
+      catalogCompetencyId:"greeting.hello",catalogRestart:true,
+    }));
+    expect(restarted.catalogTask).toBeTruthy();
+    expect(restarted.catalogTask!.sessionId).not.toBe(before.sessionId);
+    const after=calCatalogTutorSessions.inspectForTest(uid)!;
+    expect(after.selectedCompetencyId).toBe("greeting.hello");
+    expect(after.cal.phase).toBe("ENSINAR");
+    expect(after.cal.observations).toEqual([]);
+    expect(after.cal.consecutiveErrors).toBe(0);
+    expect((await c.catalogRenderAck({consent:true,
+      sessionId:first.sessionId,deliveryId:first.deliveryId})).status).toBe("rejected");
+    expect(after).not.toHaveProperty("learnerEvidences");
+  });
   it("uses an exact server-validated catalogue ID from future UI instead of model decision",async()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
     const uid=++id,c=caller(uid);
