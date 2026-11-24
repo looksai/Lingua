@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "
 import { MessageCircle, Mic, Minus, Send, Square, Volume2, Settings2, ChevronLeft } from "lucide-react";
 import {availableLocalVoices,selectLocalVoice,speechText} from "@/lib/tutor-speech";
 import {englishExcerpt} from "@/lib/english-example";
+import {audioActionFor} from "@shared/pedagogy/tutor-audio-action";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
@@ -294,7 +295,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     }catch{
       if(mounted.current){
         setNeuralFallback(old=>({...old,[message.id]:true}));
-        setNotice("A voz neural está indisponível ou atingiu a cota. Se houver voz instalada neste dispositivo, use Ouvir (voz local).");
+        setNotice(localVoice?"A voz neural está indisponível. Você pode ouvir pela voz local.":"A voz neural está indisponível. Você pode tentar novamente; o texto permanece disponível.");
       }
     }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
@@ -505,31 +506,35 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       <button type="button" onClick={()=>setSettingsOpen(false)} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Voltar à conversa</button>
     </section> : <>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5" role="log" aria-live="polite">
-        {messages.map(m=><div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
+        {messages.map(m=>{const action=audioActionFor({
+          assistant:m.role==="assistant",hasAudio:Boolean(m.audioBase64||neuralAudios[m.id]),
+          isWelcome:m.id===0,consent,ttsAvailable:capabilities.data?.tts===true,
+          capabilitiesReady:capabilities.data!==undefined,neuralEligible:provider==="groq"&&consent&&capabilities.data?.neuralEnglish===true&&Boolean(englishExcerpt(m.text)),
+          neuralFailed:Boolean(neuralFallback[m.id]),hasLocalVoice:Boolean(localVoice),speakingLocally:speakingId===m.id
+        });return <div key={m.id} className={m.role==="user"?"flex justify-end":"flex justify-start"}>
           <div className={m.role==="user"?"max-w-[86%] rounded-2xl bg-ink px-4 py-3 text-sm text-white":"max-w-[92%] rounded-2xl bg-paper px-4 py-3 text-sm"}>
             <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
             {m.source==="local"&&<p className="mt-2 text-[11px] text-ink-muted">Resposta local · IA indisponível ou não autorizada</p>}
             {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
             {m.role==="assistant"&&!m.audioBase64&&neuralAudios[m.id]&&
               <audio controls preload="none" className="mt-2 w-full" src={"data:audio/wav;base64,"+neuralAudios[m.id]}/>}
-            {m.role==="assistant"&&!m.audioBase64&&!neuralAudios[m.id]&&
-              provider==="groq"&&consent&&capabilities.data?.neuralEnglish&&englishExcerpt(m.text)&&!neuralFallback[m.id]&&
+            {(action==="neural"||action==="retry")&&
               <button type="button" disabled={busy||recording||permissionPending} onClick={()=>void playNeural(m)}
+                aria-label={(action==="retry"?"Tentar novamente áudio de ":"Ouvir frase em inglês de ")+profile.tutorName}
                 className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40">
-                <Volume2 size={14}/> Ouvir
+                <Volume2 size={14}/> {busy?"Preparando áudio…":action==="retry"?"Tentar novamente":"Ouvir frase em inglês"}
               </button>}
-            {m.role==="assistant"&&!m.audioBase64&&!neuralAudios[m.id]&&localVoice&&
-              (!(provider==="groq"&&consent&&capabilities.data?.neuralEnglish&&englishExcerpt(m.text))||neuralFallback[m.id])&&
-              <button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,m.id)}
+            {action==="local"&&
+              <button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(englishExcerpt(m.text)??m.text,m.id)}
                 className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40"
-                aria-label={(speakingId===m.id?"Parar áudio de ":"Ouvir mensagem de ")+profile.tutorName}>
+                aria-label={(speakingId===m.id?"Parar áudio de ":"Ouvir pela voz local de ")+profile.tutorName}>
                 {speakingId===m.id?<Square size={14}/>:<Volume2 size={14}/>}
-                {speakingId===m.id?"Parar":neuralFallback[m.id]?"Ouvir (voz local)":"Ouvir"}
+                {speakingId===m.id?"Parar":englishExcerpt(m.text)?"Ouvir frase (voz local)":"Ouvir (voz local)"}
               </button>}
             {m.voiceStatus==="unavailable"&&<p className="mt-1 text-xs text-ink-muted">Áudio externo indisponível. Mensagem preservada.</p>}
-            {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
+            {action==="welcome"&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
           </div>
-        </div>)}
+        </div>})}
         {pendingMemory&&<div role="group" aria-label="Permissão para lembrar fato pessoal" className="rounded-xl border border-teal/30 bg-paper p-4 text-sm">
           <p className="font-semibold">{profile.tutorName}: Posso guardar este detalhe para personalizar suas próximas aulas?</p>
           <p className="mt-2 break-words">“{pendingMemory.fato}”</p>
