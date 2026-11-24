@@ -753,8 +753,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         <p className="text-xs text-ink-muted">O Naruto registra somente fatos elegíveis que você informar, sem perguntar a cada conversa. Você pode desligar aqui e apagar os fatos abaixo. Dados sensíveis não devem ser memorizados.</p>
       </div>}
       {capabilities.data?.memory&&<div className="border-t border-ink/10 pt-5 space-y-3">
-        <h3 className="font-semibold">Memórias pessoais aprovadas</h3>
-        <p className="text-xs leading-5 text-ink-muted">Só guardamos trechos sobre você que você confirmou. São distintos do histórico local e não comprovam diplomas ou domínio de inglês. Use Apagar para retirar um fato da próxima conversa.</p>
+        <h3 className="font-semibold">Memórias pessoais</h3>
+        <p className="text-xs leading-5 text-ink-muted">Em contas novas, estas lembranças seguem sua preferência inicial de memória; em contas antigas, foram confirmadas individualmente. Não comprovam diplomas nem domínio de inglês. Você pode apagar fatos a qualquer momento.</p>
         {savedMemories.isError&&<p role="alert" className="text-xs text-red-700">Memórias indisponíveis. Confirme a atualização do banco.</p>}
         {savedMemories.data?.length===0&&<p className="text-xs text-ink-muted">Nenhuma memória salva.</p>}
         {savedMemories.data?.map(item=><div key={item.id} className="flex items-start justify-between gap-3 rounded-xl bg-paper p-3 text-xs">
