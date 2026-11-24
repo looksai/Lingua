@@ -4,6 +4,7 @@ import {availableLocalVoices,selectEnglishLocalVoice,selectLocalVoice,speechText
 import {englishExcerpt} from "@/lib/english-example";
 import {modalityForTutorReply,transcriptOriginAfterEdit} from "@shared/pedagogy/tutor-input-modality";
 import {resolveTutorAudio} from "@shared/pedagogy/tutor-audio-action";
+import {tutorAsyncResultIsCurrent} from "@shared/pedagogy/tutor-async-epoch";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
@@ -74,13 +75,38 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const autoPlayRef=useRef<HTMLAudioElement|null>(null);
   const audioRoot=useRef<HTMLElement|null>(null);
   const conversationVersion=useRef(0);
+  const isCurrent=(epoch:number)=>tutorAsyncResultIsCurrent(epoch,conversationVersion.current,mounted.current);
+  const operationToken=useRef(0);
+  function beginBusy():number {
+    const op=++operationToken.current;
+    inFlight.current=true;
+    setBusy(true);
+    return op;
+  }
+  function finishBusy(op:number):void {
+    // A retired operation must never unlock a newer one.
+    if(!tutorAsyncResultIsCurrent(op,operationToken.current,mounted.current))return;
+    inFlight.current=false;
+    setBusy(false);
+    setGeneratingId(null);
+  }
+  function invalidateConversation():void {
+    conversationVersion.current++;
+    // Unlock the new account while late results from the old operation are discarded.
+    operationToken.current++;
+    inFlight.current=false;
+    if(mounted.current){setBusy(false);setGeneratingId(null);}
+  }
+
   const [previewVoiceAudio,setPreviewVoiceAudio]=useState<string|null>(null);
   const [previewVoiceNotice,setPreviewVoiceNotice]=useState("");
   const [memoryChoice,setMemoryChoice]=useState<{scope:string;enabled:boolean}>({scope:"",enabled:false});
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousConsentKey=useRef<string|null>(null);
+  const previousIdentityScope=useRef<string|null>(null);
   const consentVersion=capabilities.data?.memory?2:1;
+  const identityScope=`${accountEmail.trim().toLowerCase()}:${provider??"pending"}`;
   const consentKey=provider&&provider!=="off"?`lingua:provider-consent:v${consentVersion}:${accountEmail.trim().toLowerCase()}:${provider}`:null;
   const localVoice=selectLocalVoice(localVoices,selectedVoiceURI);
   const englishLocalVoice=selectEnglishLocalVoice(localVoices,selectedVoiceURI);
@@ -95,26 +121,46 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     return ()=>synth.removeEventListener?.("voiceschanged",refresh);
   },[]);
   useEffect(()=>{
-    if(previousConsentKey.current===consentKey)return;
+    const identityChanged=previousIdentityScope.current!==identityScope;
+    if(previousConsentKey.current===consentKey&&!identityChanged)return;
+    previousIdentityScope.current=identityScope;
     previousConsentKey.current=consentKey;
     let accepted=false;
     if(consentKey){try{
       const stored=JSON.parse(window.localStorage.getItem(consentKey)??"null") as {accepted?:boolean;version?:number}|null;
       accepted=stored?.accepted===true&&stored?.version===consentVersion;
     }catch{/* Storage blocked: ask once in memory only. */}}
-    conversationVersion.current++;
-    stopAudioPlayers();stopSpeech();
+    invalidateConversation();
+    stopCapture(false);stopAudioPlayers();stopSpeech();
     setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null);
+    setPendingMemory(null);setPreviewVoiceAudio(null);setPreviewVoiceNotice("");
     setConsent(accepted);setTermsAccepted(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);
     setDraft("");setTranscriptReady(false);
-    setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
-  },[provider,consentKey]);
+    if(identityChanged){
+      sequence.current=0;
+      // Do not show text from the old provider/account during local history restoration.
+      setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
+    }else{
+      // Consent schema changes can occur after capabilities load; do not erase the conversation.
+      setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
+    }
+  },[provider,consentKey,identityScope]);
 
   // Local history is optional, account-scoped and never includes audio.
   useEffect(()=>{
-    if(!memoryKeys)return;
-    conversationVersion.current++;
-    stopAudioPlayers();stopSpeech();setAutoPlayId(null);setNeuralFallback({});
+    // Provider off/unknown must not leave the previous learner's text visible.
+    if(!memoryKeys){
+      invalidateConversation();
+      stopCapture(false);stopAudioPlayers();stopSpeech();
+      setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
+      sequence.current=0;setMemoryChoice({scope:"",enabled:false});
+      setPendingMemory(null);setDraft("");setTranscriptReady(false);
+      setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null);
+      return;
+    }
+    invalidateConversation();
+    stopCapture(false);stopAudioPlayers();stopSpeech();setAutoPlayId(null);setNeuralFallback({});
+    setPendingMemory(null);setPreviewVoiceAudio(null);setDemo(null);
     setDraft("");setTranscriptReady(false);
     const saved=loadChatMemory(window.localStorage,memoryKeys);
     const restored:Message[]=[{id:0,role:"assistant",text:greeting(profile),source:"local"},...saved.messages];
@@ -136,10 +182,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   function eraseConversation(){
     if(memoryKeys)clearChatMemory(window.localStorage,memoryKeys);
-    conversationVersion.current++;
-    stopAudioPlayers();stopSpeech();setAutoPlayId(null);
+    invalidateConversation();
+    stopCapture(false);stopAudioPlayers();stopSpeech();setAutoPlayId(null);
     setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
-    sequence.current=0;setPendingMemory(null);setNeuralAudios({});setNeuralFallback({});setPreviewVoiceAudio(null);setDraft("");setTranscriptReady(false);setNotice("Histórico apagado neste dispositivo.");
+    sequence.current=0;setPendingMemory(null);setNeuralAudios({});setNeuralFallback({});setPreviewVoiceAudio(null);setDemo(null);setDraft("");setTranscriptReady(false);setNotice("Histórico apagado neste dispositivo.");
   }
 
   function stopCapture(send:boolean) {
@@ -147,6 +193,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     const current=capture.current;
     if(!current) { generation.current++; setPermissionPending(false);return; }
     current.send=send;
+    if(!send && capture.current===current)capture.current=null;
     if(current.timer)clearTimeout(current.timer);
     if(current.recorder.state!=="inactive")current.recorder.stop();
     current.stream.getTracks().forEach(t=>t.stop());
@@ -190,16 +237,18 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   async function buildPlan(){
     if(!consent){setTermsAccepted(false);setPrivacyPrompt(true);return;}
     if(!placementActive||placement.data?.nextTask||busy)return;
-    inFlight.current=true;setBusy(true);setNotice("");
+    const epoch=conversationVersion.current;
+    const op=beginBusy();setNotice("");
     try{
       const res=await placementGenerate.mutateAsync({consent:true});
-      if(!mounted.current)return;
+      if(!isCurrent(epoch))return;
       await placement.refetch();
+      if(!isCurrent(epoch))return;
       append({role:"assistant",text:"Seu plano de quatro semanas foi salvo como sugestão provisória, sem classificação CEFR. Acesse Meu início para conferir as atividades e as habilidades ainda não avaliadas."});
       if(res.source==="rule_based")setNotice("A IA não conseguiu gerar sugestões. Foi salvo um plano básico transparente, que pode ser revisto.");
       setPlacementActive(false);onPlacementCompleted();
-    }catch{if(mounted.current)setNotice("Não foi possível gerar ou salvar o plano agora. Suas três respostas continuam registradas.");}
-    finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+    }catch{if(isCurrent(epoch))setNotice("Não foi possível gerar ou salvar o plano agora. Suas três respostas continuam registradas.");}
+    finally{finishBusy(op);}
   }
   async function submitMessage(authorized:boolean){
     const text=draft.trim();
@@ -207,8 +256,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(placementActive&&text.length>800){setNotice("Nesta sondagem, use até 800 caracteres por resposta.");return;}
     const isPlacement=placementActive&&Boolean(placement.data?.nextTask);
     const viaASR=transcriptReady;
+    const epoch=conversationVersion.current;
     setPendingMemory(null);
-    inFlight.current=true;setBusy(true);setNotice("");setTranscriptReady(false);
+    const op=beginBusy();setNotice("");setTranscriptReady(false);
     setDraft("");
     const history=messages.slice(-TUTOR_MAX_HISTORY).map(({role,text})=>({role,text}));
     append({role:"user",text});
@@ -216,41 +266,46 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       if(isPlacement&&placement.data?.nextTask){
         await placementSubmit.mutateAsync({consent:true,taskId:placement.data.nextTask.id,
           answer:text,modality:viaASR?"asr_text":"text"});
-        if(!mounted.current)return;
+        if(!isCurrent(epoch))return;
         const next=await placement.refetch();
+        if(!isCurrent(epoch))return;
         if(next.data?.nextTask)append({role:"assistant",text:next.data.nextTask.prompt});
         else append({role:"assistant",text:"Obrigado! Agora temos três amostras de texto. Elas não bastam para atribuir um nível, mas podemos criar um plano inicial de quatro semanas. Clique em Gerar plano provisório."});
       }else{
         const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice,
           inputModality:modalityForTutorReply(viaASR)});
-        if(!mounted.current)return;
+        if(!isCurrent(epoch))return;
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
         if(res.memoryCandidate&&capabilities.data?.memory)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
       }
     }catch{
-      if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);setTranscriptReady(viaASR);}
+      if(isCurrent(epoch)){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);setTranscriptReady(viaASR);}
     }finally{
-      inFlight.current=false;if(mounted.current)setBusy(false);
+      finishBusy(op);
     }
   }
   async function acceptMemory(){
     if(!pendingMemory||saveMemory.isPending)return;
+    const epoch=conversationVersion.current;
     try{
       await saveMemory.mutateAsync({...pendingMemory,consent:true});
+      if(!isCurrent(epoch))return;
       setPendingMemory(null);setNotice("Memória salva com sua autorização. Você pode apagá-la nas configurações.");
       await savedMemories.refetch();
-    }catch{setNotice("Não foi possível guardar esta memória. Ela não foi confirmada.");}
+    }catch{if(isCurrent(epoch))setNotice("Não foi possível guardar esta memória. Ela não foi confirmada.");}
   }
   async function forgetMemory(id:number){
-    try{await deleteMemory.mutateAsync({id});await savedMemories.refetch();}
-    catch{setNotice("Não foi possível apagar esta memória.");}
+    const epoch=conversationVersion.current;
+    try{await deleteMemory.mutateAsync({id});if(isCurrent(epoch))await savedMemories.refetch();}
+    catch{if(isCurrent(epoch))setNotice("Não foi possível apagar esta memória.");}
   }
   async function forgetAllMemories(){
     if(!window.confirm("Apagar todas as memórias pessoais guardadas no servidor?"))return;
-    try{await clearMemories.mutateAsync();await savedMemories.refetch();setPendingMemory(null);setNotice("Memórias do servidor apagadas.");}
-    catch{setNotice("Não foi possível apagar as memórias.");}
+    const epoch=conversationVersion.current;
+    try{await clearMemories.mutateAsync();if(!isCurrent(epoch))return;await savedMemories.refetch();if(!isCurrent(epoch))return;setPendingMemory(null);setNotice("Memórias do servidor apagadas.");}
+    catch{if(isCurrent(epoch))setNotice("Não foi possível apagar as memórias.");}
   }
   function send(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
@@ -269,14 +324,14 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   async function speakWelcome(){
     if(inFlight.current||!consent||!capabilities.data?.tts)return;
     const requestVersion=conversationVersion.current;
-    inFlight.current=true;setBusy(true);setNotice("");
+    const op=beginBusy();setNotice("");
     try{
       const res=await welcome.mutateAsync({consent:true,provider});
-      if(!mounted.current||requestVersion!==conversationVersion.current)return;
+      if(!isCurrent(requestVersion))return;
       setMessages(previous=>previous.map(m=>m.id===0?{...m,text:res.text??m.text,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus}:m));
       if(!res.audioBase64)setNotice("Voz indisponível; a mensagem de boas-vindas continua em texto.");
-    }catch{if(mounted.current)setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
-    finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+    }catch{if(isCurrent(requestVersion))setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
+    finally{finishBusy(op);}
   }
   function stopAudioPlayers(except?:HTMLAudioElement){
     audioRoot.current?.querySelectorAll("audio").forEach(audio=>{
@@ -287,11 +342,12 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   // Keep native controls visible and explain the fallback rather than claiming autoplay worked.
   useEffect(()=>{
     if(autoPlayId===null)return;
+    const epoch=conversationVersion.current;
     const audio=autoPlayRef.current;
     if(!audio){setAutoPlayId(null);return;}
     stopAudioPlayers(audio);stopSpeech();
     void audio.play().catch((error:unknown)=>{
-      if(!mounted.current)return;
+      if(!isCurrent(epoch))return;
       const blocked=error instanceof DOMException&&error.name==="NotAllowedError";
       setNotice(blocked?
         "Áudio preparado. Toque em reproduzir no player para ouvir; este navegador bloqueou a reprodução automática.":
@@ -325,49 +381,51 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(!phrase){setNotice("Ainda não há uma frase em inglês identificável nesta resposta.");return;}
     if(inFlight.current)return;
     const requestVersion=conversationVersion.current;
-    inFlight.current=true;setBusy(true);setGeneratingId(message.id);setNotice("");
+    const op=beginBusy();setGeneratingId(message.id);setNotice("");
     try{
       const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",text:phrase});
-      if(mounted.current&&conversationVersion.current===requestVersion){
+      if(isCurrent(requestVersion)){
         setNeuralAudios(old=>({...old,[message.id]:result.audioBase64}));
         setNeuralFallback(old=>({...old,[message.id]:false}));
         setAutoPlayId(message.id);
       }
     }catch(error){
-      if(mounted.current&&conversationVersion.current===requestVersion){
+      if(isCurrent(requestVersion)){
         setNeuralFallback(old=>({...old,[message.id]:true}));
         const quota=(error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS";
         setNotice(englishLocalVoice?
           (quota?"Cota de voz neural atingida.":"Voz neural indisponível.")+" Use Ouvir frase (voz local).":
           (quota?"Cota de voz neural atingida.":"Voz neural indisponível.")+" Sem voz inglesa local neste dispositivo; você pode tentar novamente mais tarde.");
       }
-    }finally{inFlight.current=false;if(mounted.current){setBusy(false);setGeneratingId(null);}}
+    }finally{finishBusy(op);}
   }
   async function previewNeuralVoice(){
     if(inFlight.current)return;
     if(!consent){setSettingsOpen(false);setPrivacyPrompt(true);return;}
     if(!enabled||!capabilities.data?.neuralEnglish){setPreviewVoiceNotice("Voz neural não habilitada nesta conta.");return;}
-    inFlight.current=true;setBusy(true);setPreviewVoiceNotice("");setPreviewVoiceAudio(null);
+    const epoch=conversationVersion.current;
+    const op=beginBusy();setPreviewVoiceNotice("");setPreviewVoiceAudio(null);
     try{
       const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",
         text:"Hello! I am your English tutor. Let us practice together."});
-      if(mounted.current)setPreviewVoiceAudio(result.audioBase64);
+      if(isCurrent(epoch))setPreviewVoiceAudio(result.audioBase64);
     }catch(error){
-      if(mounted.current){
+      if(isCurrent(epoch)){
         const message=(error as {message?:unknown})?.message;
         const diagnosed=typeof message==="string"&&message.startsWith("Groq recusou a voz neural (HTTP 400):")&&message.length<=180;
         setPreviewVoiceNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?
           "Limite gratuito de voz atingido. Aguarde a renovação da cota.":
           diagnosed?message:"Erro na voz neural Groq. Nenhum fallback de áudio externo foi acionado.");
       }
-    }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+    }finally{finishBusy(op);}
   }
   async function playGeminiDemo(){
     if(inFlight.current||!demoConsent||!capabilities.data?.geminiDemo)return;
-    inFlight.current=true;setBusy(true);setNotice("");
-    try {const res=await gemini.mutateAsync({consent:true,phraseIndex:1});if(mounted.current)setDemo(res);}
-    catch{if(mounted.current)setNotice("Voz Gemini indisponível. O chat e a voz local continuam separados.");}
-    finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+    const epoch=conversationVersion.current;
+    const op=beginBusy();setNotice("");
+    try {const res=await gemini.mutateAsync({consent:true,phraseIndex:1});if(isCurrent(epoch))setDemo(res);}
+    catch{if(isCurrent(epoch))setNotice("Voz Gemini indisponível. O chat e a voz local continuam separados.");}
+    finally{finishBusy(op);}
   }
   async function startCapture(){
     if(!consent&&enabled){setTermsAccepted(false);setPrivacyPrompt(true);return;}
@@ -379,11 +437,12 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       setNotice("Este navegador não permite gravação. Use o teclado.");return;
     }
     held.current=true;setPermissionPending(true);setNotice("");
+    const epoch=conversationVersion.current;
     const attempt=++generation.current;
     let stream:MediaStream|undefined;
     try{
       stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      if(!mounted.current||!held.current||attempt!==generation.current){
+      if(!isCurrent(epoch)||!held.current||attempt!==generation.current){
         stream.getTracks().forEach(t=>t.stop());return;
       }
       const mime=tutorAudioTypes.find(m=>MediaRecorder.isTypeSupported(m));
@@ -392,15 +451,20 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       const current:Capture={recorder,stream,chunks:[],size:0,send:false};
       capture.current=current;
       recorder.ondataavailable=(event)=>{
+        if(!isCurrent(epoch))return;
         if(event.data.size){current.chunks.push(event.data);current.size+=event.data.size;}
-        if(current.size>TUTOR_MAX_AUDIO_BYTES){stopCapture(false);if(mounted.current)setNotice("Áudio excedeu o limite.");}
+        if(current.size>TUTOR_MAX_AUDIO_BYTES){
+          if(capture.current===current)stopCapture(false);
+          if(isCurrent(epoch))setNotice("Áudio excedeu o limite.");
+        }
       };
       recorder.onstop=async()=>{
-        capture.current=null;
+        // A late stop event from an old recorder must not clear a newer capture.
+        if(capture.current===current)capture.current=null;
         current.stream.getTracks().forEach(t=>t.stop());
-        if(!mounted.current||!current.send||!current.size||current.size>TUTOR_MAX_AUDIO_BYTES)return;
+        if(!isCurrent(epoch)||!current.send||!current.size||current.size>TUTOR_MAX_AUDIO_BYTES)return;
         const blob=new Blob(current.chunks,{type:mime});
-        inFlight.current=true;setBusy(true);
+        const op=beginBusy();
         try{
           const base64=await new Promise<string>((resolve,reject)=>{
             const reader=new FileReader();
@@ -408,23 +472,26 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             reader.onload=()=>resolve(String(reader.result).split(",")[1]??"");
             reader.readAsDataURL(blob);
           });
-          if(!mounted.current)return;
+          if(!isCurrent(epoch))return;
           const result=await transcribe.mutateAsync({consent:true,provider,audio:{mime:mime as TutorAudioType,base64}});
-          if(mounted.current){
+          if(isCurrent(epoch)){
             setDraft(result.text);setTranscriptReady(true);
             setNotice("Confira a transcrição e envie quando estiver correta. Ela não é uma nota de pronúncia.");
           }
-        }catch(error){if(mounted.current)setNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?"O tutor está descansando. Tente novamente em alguns minutos.":"Não foi possível transcrever. Tente novamente ou digite.");}
-        finally{inFlight.current=false;if(mounted.current)setBusy(false);}
+        }catch(error){if(isCurrent(epoch))setNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?"O tutor está descansando. Tente novamente em alguns minutos.":"Não foi possível transcrever. Tente novamente ou digite.");}
+        finally{finishBusy(op);}
       };
-      recorder.onerror=()=>{stopCapture(false);if(mounted.current)setNotice("Falha na gravação. Use o teclado.");};
+      recorder.onerror=()=>{
+        if(capture.current===current)stopCapture(false);
+        if(isCurrent(epoch))setNotice("Falha na gravação. Use o teclado.");
+      };
       recorder.start(250);
       current.timer=setTimeout(()=>stopCapture(true),TUTOR_MAX_RECORD_MS);
       setRecording(true);
     }catch{
       stream?.getTracks().forEach(t=>t.stop());capture.current=null;held.current=false;
-      if(mounted.current)setNotice("Não foi possível acessar o microfone. Verifique a permissão ou digite.");
-    }finally{if(mounted.current&&attempt===generation.current)setPermissionPending(false);}
+      if(isCurrent(epoch))setNotice("Não foi possível acessar o microfone. Verifique a permissão ou digite.");
+    }finally{if(isCurrent(epoch)&&attempt===generation.current)setPermissionPending(false);}
   }
   function pointerStart(event:PointerEvent<HTMLButtonElement>){
     if(event.button!==0)return;
@@ -435,8 +502,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function minimize(){stopCapture(false);stopAudioPlayers();stopSpeech();setSettingsOpen(false);setPrivacyPrompt(false);setOpen(false);}
   function updateConsent(next:boolean){
     if(!next){if(consentKey)try{window.localStorage.removeItem(consentKey);}catch{/* no local storage */}
-      conversationVersion.current++;
-      stopAudioPlayers();stopSpeech();stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");setDraft("");
+      invalidateConversation();
+      stopAudioPlayers();stopSpeech();stopCapture(false);setVoice(false);setTranscriptReady(false);setDraft("");
+      setPendingMemory(null);setPreviewVoiceAudio(null);setPreviewVoiceNotice("");setDemo(null);
       setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null); }
     setConsent(next);
   }
