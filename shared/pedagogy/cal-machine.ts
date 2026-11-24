@@ -190,8 +190,9 @@ export function stepCAL(
       return accept({}, "comprehension_not_verified");
     }
     case "ATTEMPT": {
-      if (!["PRATICAR", "RETOMAR", "TRANSFERIR"].includes(state.phase))
-        return reject("not_in_attempt_phase");
+      const attemptPhase = state.phase;
+      if (attemptPhase !== "PRATICAR" && attemptPhase !== "RETOMAR" &&
+          attemptPhase !== "TRANSFERIR") return reject("not_in_attempt_phase");
       if (!event.attemptId.trim() || !event.taskId.trim() || !event.contextId.trim() ||
           !Number.isFinite(event.atMs) || event.atMs < 0)
         return reject("invalid_attempt");
@@ -204,7 +205,7 @@ export function stepCAL(
       const outcome = valid ? event.outcome : "not_evaluable";
       const obs: CALObservation = {
         attemptId: event.attemptId, taskId: event.taskId, contextId: event.contextId,
-        stage: state.phase, outcome, assessor: event.assessor,
+        stage: attemptPhase, outcome, assessor: event.assessor,
         assistance: event.assistance, observedAtMs: event.atMs,
       };
       const observations = [...state.observations, obs].slice(-MAX_OBSERVATIONS);
