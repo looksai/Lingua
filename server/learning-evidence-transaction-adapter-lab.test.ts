@@ -192,7 +192,8 @@ describe("In-memory transaction double — not proof of real SQL atomicity",()=>
 
   it("never trusts the command's alleged consent instead of committed consent",async()=>{
     const adapter=new SimulatedEvidenceTransactionAdapter();
-    const request=propose();
+    // Match the empty ledger's revision so the missing-consent gate is exercised.
+    const request=propose(USER,0);
     if(request.kind!=="propose")throw Error("unexpected");
     const answer=await adapter.execute(USER,{
       ...request,context:{...request.context,currentConsent:consent()},
