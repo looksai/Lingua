@@ -183,6 +183,9 @@ export class CALCatalogTutorSessions {
     return {
       directive:directive(planned.cal.phase,planned.selectedCompetencyId,reason),
       complete:(safeModelText:string):string=>{
+        // Do not show a task whose ticket lost the concurrency race:
+        // the learner would answer an exercise the server no longer owns.
+        if(this.entries.get(userId)!==expectedPrevious)return safeModelText;
         const reply=appendSafely(safeModelText,appendix);
         if(task && !task.delivered && !reply.endsWith(task.promptText))
           return safeModelText;
@@ -193,7 +196,7 @@ export class CALCatalogTutorSessions {
           finalState=confirmed.session;
         }
         // CAS: concurrent or late model completions never overwrite newer turns.
-        if(this.entries.get(userId)!==expectedPrevious)return reply;
+        if(this.entries.get(userId)!==expectedPrevious)return safeModelText;
         this.entries.delete(userId);
         this.entries.set(userId,{session:finalState,lastActive:this.now()});
         this.cleanup(this.now());
