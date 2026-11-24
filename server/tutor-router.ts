@@ -20,6 +20,7 @@ import { enforceBeginnerPortuguese } from "../shared/tutor-language";
 import { needsAbsoluteBeginnerSupport } from "../shared/tutor-language";
 import { calEnabled, calTutorSessions } from "./cal-integration";
 import {catalogCALRuntimeEnabled,calCatalogTutorSessions} from "./cal-catalog-runtime";
+import {getMicrocompetency} from "../shared/pedagogy/microcompetency-catalog";
 import {
   memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, loadLearnerMemories,
   listLearnerMemories, saveLearnerMemory, deleteLearnerMemory, clearLearnerMemories,
@@ -138,8 +139,13 @@ export const tutorRouter = router({
     // Client hint only; server cannot cryptographically attest ASR origin yet.
     inputModality:z.enum(["typed","asr_text"]).optional()})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
-    if(input.catalogRestart===true&&!input.catalogCompetencyId)
-      throw new TRPCError({code:"BAD_REQUEST",message:"O reinício exige um assunto do catálogo válido."});
+    if(input.catalogRestart===true){
+      if(!input.catalogCompetencyId||!getMicrocompetency(input.catalogCompetencyId))
+        throw new TRPCError({code:"BAD_REQUEST",message:"O reinício exige um assunto válido do catálogo."});
+      // Prevent a stale client from inadvertently starting the legacy Hello pilot.
+      if(!catalogCALRuntimeEnabled())
+        throw new TRPCError({code:"PRECONDITION_FAILED",message:"O catálogo de atividades não está disponível."});
+    }
     const p=await profileFor(ctx.user.id);
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
       return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const,memoryCandidate:null};
