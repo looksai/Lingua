@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { billingCheckoutAttemptId } from "@/lib/billing-ids";
 
 /** Staging-only billing UI. All authority comes from billing.status,
  * never a success URL or data stored by the browser.
@@ -13,20 +14,10 @@ export default function Premium({success=false}:{success?:boolean}){
   const portal=trpc.billing.createPortalSession.useMutation();
   const [currency,setCurrency]=useState<"usd"|"brl">("usd");
   const [notice,setNotice]=useState("");
-  function attemptId(){
-    const key="lingua:billing:checkout-attempt:"+currency;
-    let id:string|null=null;
-    try{id=window.sessionStorage.getItem(key);}catch{/* storage optional */}
-    if(!id || !/^[A-Za-z0-9_-]{12,80}$/.test(id)){
-      id=crypto.randomUUID();
-      try{window.sessionStorage.setItem(key,id);}catch{/* server still idempotent */}
-    }
-    return id;
-  }
   async function subscribe(){
     setNotice("");
     try{
-      const result=await checkout.mutateAsync({currency,attemptId:attemptId()});
+      const result=await checkout.mutateAsync({currency,attemptId:billingCheckoutAttemptId(currency)});
       // Backend verifies Stripe-hosted URL; never redirect based on a querystring.
       const u=new URL(result.url);
       if(u.protocol!=="https:"||u.hostname!=="checkout.stripe.com")throw Error("bad checkout redirect");
@@ -53,12 +44,12 @@ export default function Premium({success=false}:{success?:boolean}){
         {status.data.access==="premium"?
           <p className="mt-4">Sua assinatura Premium está ativa, conforme confirmação do servidor.</p>:
           <p className="mt-4">{success?"Aguardando a confirmação do pagamento pela Stripe. O retorno ao aplicativo não ativa a assinatura.": "Assinaturas em homologação de testes."}</p>}
-        {status.data.access==="trial"&&<p className="mt-3 text-sm">Teste disponível: até {status.data.remainingReplies} respostas com IA restantes, respeitando o prazo de 72 horas a partir da primeira resposta.</p>}
-        <p className="mt-5 text-sm">Proposta inicial: US$ 9,90/mês. Valores e meios de pagamento dependem do Checkout da Stripe; não há promessa de uso ilimitado.</p>
+        {status.data.access==="trial"&&<p className="mt-3 text-sm">Teste disponível: até {status.data.remainingReplies} mensagens com IA restantes, respeitando o prazo de 72 horas a partir da primeira resposta.</p>}
+        <p className="mt-5 text-sm">Plano de teste: US$ 9,90/mês. Pagamentos são realizados exclusivamente no ambiente de testes da Stripe; nenhum cartão real será cobrado nesta homologação. Não há promessa de uso ilimitado.</p>
         <div className="mt-4 flex flex-wrap gap-3">
-          <button type="button" disabled={checkout.isPending} onClick={()=>void subscribe()}
+          <button type="button" disabled={checkout.isPending||status.data.access==="premium"} onClick={()=>void subscribe()}
             className="rounded-full bg-ink px-5 py-3 text-sm font-medium text-white disabled:opacity-60">
-            {checkout.isPending?"Abrindo Stripe...":"Assinar no Stripe (teste)"}
+            {checkout.isPending?"Abrindo Stripe...":"Assinar Premium por US$ 9,90/mês (teste)"}
           </button>
           <button type="button" disabled={portal.isPending} onClick={()=>void manage()}
             className="rounded-full border border-ink/20 px-5 py-3 text-sm disabled:opacity-60">Gerenciar assinatura</button>
