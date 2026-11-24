@@ -21,3 +21,10 @@ Uma experiência simples: uso normal do tutor não exige novo aceite a cada conv
 7. Validar a base legal de cada finalidade com revisão jurídica. Não condicionar uso de serviço a um consentimento opcional sem necessidade.
 
 Nenhum destes passos autoriza deploy para produção ou uso de dados de alunos reais.
+
+## Revisão adicional de segurança (24/11/2026)
+- Na conta nova com memória desativada, o tutor não cria proposta de memória nem mostra nova pergunta de autorização.
+- Na conta nova com memória ativada, a resposta de IA só grava fato elegível depois de reconferir a preferência sob lock transacional.
+- O endpoint legado `memorySave` também verifica sob lock: uma preferência de conta explicitamente desligada não pode ser contornada enviando `consent:true` manualmente. Para contas antigas sem linha continua valendo confirmação individual.
+- O teste Chromium do TutorChat inicialmente falhou porque a fixture não tinha o novo hook; corrigido na fixture. A alteração de frontend com aceite inicial ganhou cenário dedicado.
+- **Ainda não há prova de concorrência em MySQL Aiven nem rollout aprovado.** A validação final dos commits mais recentes deve ser exigida antes de merge.
