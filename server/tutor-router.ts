@@ -212,6 +212,20 @@ export const tutorRouter = router({
             memoryCandidate=null;
         }else text=await adapter.reply(p,input.history,input.message,approvedFacts,pedagogicalDirective);
       } catch(error) { return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null}; }
+      // A late AI reply may have incorporated previously approved personal facts.
+      // If the student disabled memory during generation, do not return that
+      // personalized reply or commit a CAL turn based on it.
+      if(accountMemoryEnabled){
+        try{
+          const latest=await readPrivacyPreferences(ctx.user.id);
+          if(!latest.personalMemoryEnabled)
+            return {text:"A preferência de memória mudou durante a resposta. Envie sua mensagem novamente para continuar.",
+              source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
+        }catch{
+          return {text:"Não foi possível conferir a preferência de memória. Envie sua mensagem novamente.",
+            source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
+        }
+      }
       const checked=guardTutorLearnerClaims(text,input.history,input.message,approvedFacts);
       if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
       const adapted=enforceBeginnerPortuguese(checked.text,input.history,input.message,approvedFacts);
