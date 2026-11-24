@@ -140,7 +140,7 @@ export class CALTutorSessions {
       if (!ASKED_TO_RESUME.test(userMessage)) return null;
       snapshot = event(snapshot, {kind: "RESUME"});
     }
-    if (ASKED_TO_PAUSE.test(userMessage)) {
+    // "Tchau" may be the student\'s *wrong translation* of Hello when a\n    // closed question is pending. Require an unambiguous stop request there.\n    if (ASKED_TO_PAUSE.test(userMessage) && !(pending && norm(userMessage) === "tchau")) {
       const paused = event(snapshot, {kind: "PAUSE"});
       // Do not send prompt or update in-memory learning evidence on a pause.
       this.sessions.set(userId, {snapshot: paused, pending: null, lastActive: now});
