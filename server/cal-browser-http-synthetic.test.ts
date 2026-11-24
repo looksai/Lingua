@@ -74,8 +74,9 @@ async function context(token?:string){
 async function send(page:any,message:string,mode:"typed"|"asr_text"="typed"){
   await page.getByTestId("message").fill(message);
   await page.getByTestId("modality").selectOption(mode);
+  const response=page.waitForResponse((r:any)=>r.url().includes("/api/trpc/tutor.reply")&&r.request().method()==="POST");
   await page.getByTestId("send").click();
-  await page.getByTestId("send").waitFor({state:"visible"});
+  await response;
   await page.waitForFunction(()=>!(document.querySelector('[data-testid="send"]') as HTMLButtonElement)?.disabled);
 }
 async function show(page:any){
@@ -238,7 +239,9 @@ describe.skipIf(!gate)("synthetic-browser HTTP → signed tRPC → CAL → real 
       await send(first.page,"Quero praticar Hello");
       await first.page.getByText("Na frase Hello, qual é o significado?").waitFor();
       const old=calCatalogTutorSessions.pendingClientTask(a.id)!;
+      const resetReply=first.page.waitForResponse((r:any)=>r.url().includes("/api/trpc/tutor.reply")&&r.request().method()==="POST");
       await first.page.getByTestId("reset").click();
+      await resetReply;
       await first.page.waitForFunction(()=>!(document.querySelector('[data-testid="reset"]') as HTMLButtonElement)?.disabled);
       const current=calCatalogTutorSessions.pendingClientTask(a.id)!;
       expect(current.sessionId).not.toBe(old.sessionId);
