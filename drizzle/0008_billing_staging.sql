@@ -57,7 +57,7 @@ CREATE TABLE `tutorUsage` (
   KEY `tutorUsage_user_created_idx` (`userId`,`createdAt`),
   CONSTRAINT `tutorUsage_user_fk` FOREIGN KEY (`userId`) REFERENCES `users` (`id`) ON DELETE CASCADE
 );
--- Current schema is a review candidate. No runtime route writes to these tables.
+-- Guarded staging-only migration; app writes only after approval, 0008 apply and sandbox enablement.
 
 CREATE TABLE `billingCheckoutAttempts` (
   `id` int NOT NULL AUTO_INCREMENT,
