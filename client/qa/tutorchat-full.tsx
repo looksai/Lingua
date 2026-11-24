@@ -1,6 +1,6 @@
 import React,{useState} from "react";
 import {createRoot} from "react-dom/client";
-import TutorChat,type {TutorVoiceSettings} from "../src/components/TutorChat";
+import TutorChat, {type TutorVoiceSettings} from "../src/components/TutorChat";
 import {qaTutorRpc} from "./tutorchat-trpc-fixture";
 
 function FullTutorChatQa(){
