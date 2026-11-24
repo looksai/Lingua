@@ -386,7 +386,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     try{
       const res=await reply.mutateAsync({
         message:selection.message,history,consent:true,provider,voice:false,
-        catalogCompetencyId:selection.catalogCompetencyId,
+        catalogCompetencyId:selection.catalogCompetencyId,catalogRestart:true,
         // No inputModality: this is a UI selection, NOT independently typed work.
         // The existing server boundary treats missing modality conservatively.
       });
@@ -395,6 +395,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,
         voiceStatus:res.voiceStatus,catalogTask:deliveredTask});
       rememberTopic(deliveredTask);
+      if(!deliveredTask)setNotice("Não foi possível iniciar uma nova atividade desse assunto. Tente novamente.");
     }catch{
       if(isCurrent(epoch))setNotice("Não foi possível reabrir o assunto. Você pode tentar novamente.");
     }finally{finishBusy(op);}
