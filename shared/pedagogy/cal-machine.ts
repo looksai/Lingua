@@ -49,6 +49,7 @@ export type CALSnapshot = Readonly<{
 }>;
 
 type CALBaseEvent = Readonly<{
+  sessionId: string;
   eventId: string;
   expectedVersion: number;
 }>;
@@ -122,6 +123,7 @@ export function stepCAL(
 ): CALDecision {
   const reject = (reason: string): CALDecision => ({result: "rejected", reason, snapshot: state});
   if (!validPolicy(policy)) return reject("invalid_policy");
+  if (event.sessionId !== state.sessionId) return reject("wrong_session");
   if (!event.eventId.trim()) return reject("invalid_event_id");
   if (state.processedEventIds.includes(event.eventId))
     return {result: "duplicate", reason: "already_processed", snapshot: state};
@@ -181,7 +183,7 @@ export function stepCAL(
       if (state.phase !== "ENSINAR") return reject("not_teaching");
       if (event.signal === "wants_to_try")
         return accept({phase: "PRATICAR", consecutiveErrors: 0}, "learner_opted_into_practice_unverified");
-      if (event.signal === "demonstrated" && trustedAssessor(event.assessor))
+      if (event.signal === "demonstrated" && state.lastTaughtAtMs !== null && trustedAssessor(event.assessor))
         return accept({phase: "PRATICAR", consecutiveErrors: 0}, "microcomprehension_observed");
       // "Entendi", mere self-report, LLM-only judgments and unclear signals
       // do not prove comprehension or advance the learner.
@@ -274,6 +276,7 @@ export function stepCAL(
       return accept({phase: "COMPROVAR"}, "bounded_evidence_summary_no_mastery");
     }
   }
+  return reject("unsupported_event");
 }
 
 export type CALStrategy =
