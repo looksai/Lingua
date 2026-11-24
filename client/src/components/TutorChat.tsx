@@ -66,6 +66,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const gemini = trpc.tutor.geminiDemo.useMutation();
   const neural = trpc.tutor.neuralEnglish.useMutation();
   const [neuralAudios,setNeuralAudios]=useState<Record<number,string>>({});
+  const [neuralFallback,setNeuralFallback]=useState<Record<number,boolean>>({});
   const [previewVoiceAudio,setPreviewVoiceAudio]=useState<string|null>(null);
   const [previewVoiceNotice,setPreviewVoiceNotice]=useState("");
   const [memoryChoice,setMemoryChoice]=useState<{scope:string;enabled:boolean}>({scope:"",enabled:false});
@@ -286,9 +287,15 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     inFlight.current=true;setBusy(true);setNotice("");
     try{
       const result=await neural.mutateAsync({consent:true,provider:"groq",voice:voiceSettings.neuralVoice??"troy",text:phrase});
-      if(mounted.current)setNeuralAudios(old=>({...old,[message.id]:result.audioBase64}));
+      if(mounted.current){
+        setNeuralAudios(old=>({...old,[message.id]:result.audioBase64}));
+        setNeuralFallback(old=>({...old,[message.id]:false}));
+      }
     }catch{
-      if(mounted.current)setNotice("A voz neural está indisponível ou atingiu a cota. O texto permanece; a voz local é opcional nas configurações.");
+      if(mounted.current){
+        setNeuralFallback(old=>({...old,[message.id]:true}));
+        setNotice("A voz neural está indisponível ou atingiu a cota. Se houver voz instalada neste dispositivo, use Ouvir (voz local).");
+      }
     }finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   async function previewNeuralVoice(){
@@ -503,18 +510,22 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             <p className="whitespace-pre-wrap break-words leading-6">{m.text}</p>
             {m.source==="local"&&<p className="mt-2 text-[11px] text-ink-muted">Resposta local · IA indisponível ou não autorizada</p>}
             {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
-            {m.role==="assistant"&&!m.audioBase64&&provider==="groq"&&consent&&capabilities.data?.neuralEnglish&&englishExcerpt(m.text)&&<div className="mt-2 space-y-2">
-              {neuralAudios[m.id]?<audio controls preload="none" className="w-full" src={"data:audio/wav;base64,"+neuralAudios[m.id]}/>:
-                <button type="button" disabled={busy||recording||permissionPending} onClick={()=>void playNeural(m)}
-                  className="inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40">
-                  <Volume2 size={14}/> Ouvir exemplo em inglês (voz neural)
-                </button>}
-            </div>}
-            {m.role==="assistant"&&!m.audioBase64&&localVoice&&<button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,m.id)}
-              className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40" aria-label={(speakingId===m.id?"Parar áudio de ":"Ouvir mensagem de ")+profile.tutorName}>
-              {speakingId===m.id?<Square size={14}/>:<Volume2 size={14}/>}
-              {speakingId===m.id?"Parar":"Voz local (alternativa)"}
-            </button>}
+            {m.role==="assistant"&&!m.audioBase64&&neuralAudios[m.id]&&
+              <audio controls preload="none" className="mt-2 w-full" src={"data:audio/wav;base64,"+neuralAudios[m.id]}/>}
+            {m.role==="assistant"&&!m.audioBase64&&!neuralAudios[m.id]&&
+              provider==="groq"&&consent&&capabilities.data?.neuralEnglish&&englishExcerpt(m.text)&&!neuralFallback[m.id]&&
+              <button type="button" disabled={busy||recording||permissionPending} onClick={()=>void playNeural(m)}
+                className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40">
+                <Volume2 size={14}/> Ouvir
+              </button>}
+            {m.role==="assistant"&&!m.audioBase64&&!neuralAudios[m.id]&&localVoice&&
+              (!(provider==="groq"&&consent&&capabilities.data?.neuralEnglish&&englishExcerpt(m.text))||neuralFallback[m.id])&&
+              <button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(m.text,m.id)}
+                className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40"
+                aria-label={(speakingId===m.id?"Parar áudio de ":"Ouvir mensagem de ")+profile.tutorName}>
+                {speakingId===m.id?<Square size={14}/>:<Volume2 size={14}/>}
+                {speakingId===m.id?"Parar":neuralFallback[m.id]?"Ouvir (voz local)":"Ouvir"}
+              </button>}
             {m.voiceStatus==="unavailable"&&<p className="mt-1 text-xs text-ink-muted">Áudio externo indisponível. Mensagem preservada.</p>}
             {m.id===0&&!m.audioBase64&&consent&&capabilities.data?.tts&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
           </div>
