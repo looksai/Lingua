@@ -27,7 +27,13 @@ export function loadStudyTopicBookmark(
     const raw=store.getItem(keys.bookmark);
     if(!raw)return {enabled:true,bookmark:null};
     if(raw.length>300){store.removeItem(keys.bookmark);return {enabled:true,bookmark:null};}
-    const parsed=JSON.parse(raw) as {version?:unknown;competencyId?:unknown;savedAt?:unknown};
+    let parsed:{version?:unknown;competencyId?:unknown;savedAt?:unknown}|null;
+    try{parsed=JSON.parse(raw) as typeof parsed;}
+    catch{
+      try{store.removeItem(keys.bookmark);}catch{/* storage denied */}
+      // A corrupt value is not a withdrawal of the separate opt-in.
+      return {enabled:true,bookmark:null};
+    }
     const valid=parsed?.version===1&&typeof parsed.competencyId==="string"&&
       permitted(parsed.competencyId)&&typeof parsed.savedAt==="number"&&
       Number.isFinite(parsed.savedAt)&&parsed.savedAt>=0&&
