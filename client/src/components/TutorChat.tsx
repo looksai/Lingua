@@ -212,7 +212,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
       }
     }catch{
-      if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);}
+      if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);setTranscriptReady(viaASR);}
     }finally{
       inFlight.current=false;if(mounted.current)setBusy(false);
     }
@@ -548,7 +548,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         {transcriptReady&&<p className="text-xs font-semibold text-teal">Confira o texto reconhecido antes de enviar.</p>}
         <form onSubmit={send} className="flex items-end gap-2">
           <textarea aria-label="Sua mensagem" rows={2} maxLength={TUTOR_MAX_TEXT} value={draft}
-            onChange={e=>setDraft(e.target.value)} disabled={busy||recording||permissionPending}
+            onChange={e=>{setDraft(e.target.value);if(!e.target.value.trim())setTranscriptReady(false);}} disabled={busy||recording||permissionPending}
             placeholder="Converse com seu tutor..." className="min-w-0 flex-1 resize-none rounded-xl border border-ink/20 p-3 text-sm"/>
           <button type="button" aria-label={recording?"Soltar para transcrever":"Segure para falar; teclado: ativar e parar"}
             disabled={!enabled||!capabilities.data?.asr||busy}
