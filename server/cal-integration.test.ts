@@ -188,7 +188,7 @@ describe("CAL directive forwarded to existing providers at one-call cost",()=>{
     expect(fake).toHaveBeenCalledOnce();
   });
   it("OpenAI receives CAL only as an optional additive system hint",async()=>{
-    const fake=vi.fn<typeof fetch>().mockResolvedValue(
+    const fake=vi.fn<typeof fetch>().mockImplementation(async()=>
       new Response(JSON.stringify({choices:[{message:{content:teaching}}]})));
     const ai=createOpenAITutor({OPENAI_API_KEY:"fake"},fake);
     await ai.reply(profile,[],first,[],calDirective("ENSINAR","translated_microexample",null));
