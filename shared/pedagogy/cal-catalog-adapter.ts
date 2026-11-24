@@ -173,10 +173,11 @@ export function attestCatalogTaskDelivery(
 /** The trusted host has already classified the student's intent. */
 export function respondToCatalogTask(
   session:CatalogCALSession,authenticatedUserId:number,
-  response:Readonly<{
-    kind:"explicit_answer"|"question"|"help"|"change_objective"|"pause"|"unclear";
-    text?:string;modality?:"typed"|"asr_text";attemptedAtMs:number;
-  }>,
+  response:Readonly<
+    | {kind:"explicit_answer";text:string;modality:"typed"|"asr_text";attemptedAtMs:number}
+    | {kind:"question"|"help"|"change_objective"|"pause"|"unclear";
+       text?:string;attemptedAtMs:number}
+  >,
 ):CatalogAdapterResult {
   if(!trusted(session,authenticatedUserId))return reject(session,"wrong_account");
   if(session.cal.status!=="active")return reject(session,"session_not_active");
@@ -207,7 +208,9 @@ export function respondToCatalogTask(
       candidate:{outcome:"not_evaluable",assessor:"rule_candidate",reason:"open_transfer"},
     };
   }
-  const candidate=evaluateClosedMicrotask(task,response.text??"",response.modality??"typed");
+  // Guard at the adapter boundary too: even a faulty future caller omitting
+  // modality must never manufacture a typed-answer learning observation.
+  const candidate=evaluateClosedMicrotask(task,response.text,response.modality??"asr_text");
   if(candidate.outcome==="not_evaluable")
     return {outcome:"bypassed",reason:candidate.reason,session,candidate};
   let nextEvent:LocalEvent<CALEvent>;
