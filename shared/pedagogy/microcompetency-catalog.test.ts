@@ -90,6 +90,23 @@ describe("closed-answer candidate checker — narrow and conservative",()=>{
     expect(evaluateClosedMicrotask(task("hello.meaning"),"Tchau").outcome).toBe("not_yet");
     expect(evaluateClosedMicrotask(task("please.expression"),"Thank you").outcome).toBe("not_yet");
   });
+  it("unknown free text is not graded as failure for a closed task",()=>{
+    for(const answer of [
+      "Quero aprender inglês para entrevistas",
+      "Eu trabalho em uma fábrica",
+      "Pode ensinar outra coisa",
+      "Me mostre mais exemplos",
+    ]) {
+      const result=evaluateClosedMicrotask(task("hello.meaning"),answer);
+      expect(result.outcome,answer).toBe("not_evaluable");
+      expect(result.reason).toBe("unrecognized_free_text");
+    }
+  });
+  it("only a known lexical distractor from the same task mode counts as wrong",()=>{
+    const incorrect=evaluateClosedMicrotask(task("please.expression"),"Thank you");
+    expect(incorrect.outcome).toBe("not_yet");
+    expect(incorrect.reason).toBe("known_lexical_distractor");
+  });
   it("never evaluates a question, silence or request for help as an error",()=>{
     for(const answer of ["", "Não sei", "Não entendi", "Repete", "Ajuda", "O que é Hello?", "  "])
       expect(evaluateClosedMicrotask(task("hello.meaning"),answer).outcome).toBe("not_evaluable");
