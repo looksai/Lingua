@@ -1,0 +1,57 @@
+name: Isolated Chromium QA (no student data)
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'client/qa/**'
+      - 'tests/browser/**'
+      - 'client/src/components/TutorCatalogTaskView.tsx'
+      - 'client/src/components/TutorAudioControls.tsx'
+      - 'shared/pedagogy/cal-client-delivery.ts'
+      - '.github/workflows/browser-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-component-qa:
+    name: Real Chromium component interaction (local only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout (no persisted credentials)
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Install Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - name: Install frozen project dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install isolated Playwright CLI (no package or lockfile edits)
+        run: |
+          mkdir -p /tmp/lingua-browser-tools
+          npm install --prefix /tmp/lingua-browser-tools --no-save --ignore-scripts --no-audit --no-fund playwright@1.56.1
+      - name: Install headless Chromium and system dependencies
+        run: /tmp/lingua-browser-tools/node_modules/.bin/playwright install --with-deps chromium
+      - name: Run seven local-only browser interaction cases
+        env:
+          LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
+        run: |
+          set -euo pipefail
+          pnpm exec vite --config tests/browser/vite.qa.config.ts --host 127.0.0.1 --port 4178 --strictPort > /tmp/lingua-browser-vite.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
+          node tests/browser/run-browser-qa.mjs || {
+            cat /tmp/lingua-browser-vite.log
+            exit 1
+          }
