@@ -97,11 +97,16 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
     r?.commit(teaching);
     expect(s.inspectForTest(10)?.snapshot.observations).toHaveLength(0);
   });
-  it("a learner question is not graded as a wrong answer",()=>{
+  it("an unrelated learner question bypasses the fixed task without grading or losing session",()=>{
     const s=sessions();open(s);
+    const before=s.inspectForTest(10)?.snapshot;
     const r=s.prepare(10,"Como se escreve soldador em inglês?",true);
-    expect(r?.phase).toBe("ENSINAR");
-    expect(r?.directive).not.toContain("diferente do gabarito");
+    expect(r).toBeNull();
+    const after=s.inspectForTest(10)?.snapshot;
+    expect(after).toBe(before);
+    expect(after?.phase).toBe("ENSINAR");
+    expect(after?.observations).toHaveLength(0);
+    expect(s.inspectForTest(10)?.pending).toBe("meaning");
   });
   it("does not mark a read-and-repeat task as independent mastery",()=>{
     const s=sessions();moveToPractice(s);
