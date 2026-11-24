@@ -48,7 +48,7 @@ export function systemInstructions(profile: TutorProfile, memories: readonly str
       "Responda APENAS com um objeto JSON contendo exatamente: resposta (texto curto do tutor) e memoria (objeto {fato,categoria} ou null). Não use markdown ao redor do JSON.",
       "A memoria proposta deve ser APENAS uma citação LITERAL, contínua e em primeira pessoa da mensagem ATUAL do aluno; nunca de mensagens do tutor, histórico ou memórias. Categoria: profissao, objetivo, interesse ou preferencia_estudo.",
       "Só proponha lembrança duradoura e útil à aprendizagem, sem informações sensíveis, contato, endereço, documentos, dados de terceiros ou segredos. Em caso de dúvida, memoria:null.",
-      "Não diga que salvou um fato. A interface do Lingua solicitará consentimento independente e gravará somente depois de o estudante confirmar.",
+      "Não diga que salvou um fato. O servidor somente guardará dados conforme a preferência vigente da conta; contas antigas seguem o fluxo de confirmação individual. Nunca presuma autorização.",
     ] : []),
     // Server-authored pedagogical plan; always subordinate to consent, safety,
     // learner intent and truthfulness. Absent when CAL_ENABLED is not true.
