@@ -112,7 +112,7 @@ export class CALCatalogTutorSessions {
     const current=this.entries.get(userId)!.session;
     const task=current.task;
     if(!task?.delivered)return null;
-    if(replyText!==task.promptText&&!replyText.endsWith("\\n\\n"+task.promptText))return null;
+    if(replyText!==task.promptText&&!replyText.endsWith("\n\n"+task.promptText))return null;
     return {
       sessionId:current.sessionId,deliveryId:task.deliveryId,
       taskId:task.taskId,taskVersion:task.taskVersion,promptText:task.promptText,
