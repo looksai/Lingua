@@ -1,6 +1,8 @@
 # CAL — integração gradual no tutor — revisão e plano de testes
 
-**Estado:** PR de implementação em `feat/cal-integration`, **aguardando auditoria e autorização do fundador**. Não inclui deploy, migration, integração CSLE ou alteração da configuração do Render.
+**ESTADO ATUALIZADO EM 24/11/2026:** PR #40 **mergeada** na `main`, junto com #41 (catálogo) e #42 (adaptador puro). **CAL_ENABLED=true foi configurado exclusivamente no staging** `lingua-p1-staging-le7u`. Render confirmou deploy **LIVE** `dep-dc2gjim7bikc738kf1r0`, commit `58718a4f3a6f5f4aad199607c2d6c8e91f4190d1`, às `2026-11-24T03:52:52Z`. **O tutor real usa apenas o piloto CAL da frase Hello; o catálogo e seu adaptador ainda NÃO estão ligados ao `tutor.reply`.** Sem migration/banco/SRS/CSLE/Stripe. O fundador ainda não executou QA manual.
+
+**Registro oficial:** [Ativação do CAL staging, verificação e rollback](./CAL-STAGING-ATIVACAO-2026-11-24.md). As instruções abaixo são o **runbook histórico/prático** que precedeu o deploy e continuam úteis para QA, mas os itens "não fazer deploy" não descrevem mais a situação atual de staging.
 
 ## Scope mínimo
 
@@ -18,12 +20,12 @@
 
 Um texto como «Muito bem!» é saída do tutor, **não evidência de aprendizagem**. O aluno pode ter usado outra intenção ou uma transcrição de fala pode estar errada. Esta PR usa somente respostas breves a tarefas explícitas, com gabarito fechado e proveniência local, e não atribui nota global. O escopo intencionalmente restrito evita criar **falsas comprovações**.
 
-## QA exigido antes de qualquer deploy
+## QA histórico de implantação e QA manual ainda pendente
 
 1. CI P0 verde **incluindo `server/cal-integration.test.ts` e `shared/pedagogy/cal-machine.test.ts`**; TypeScript e build.
 2. Auditoria Deep do isolamento entre usuários, prompts adicionais, validação da pergunta de treino, reversão da flag e atribuição das tentativas; revisão do fundador.
-3. **Nenhum deploy automático:** o serviço Render atual continua na versão anterior. O teste de staging com `CAL_ENABLED=true` exige combinar um **deploy/preview da branch** ou aprovação posterior de merge com flag desligada seguida de deploy manual. Não alterar Render apenas para fazer o CI ficar verde.
-4. Se houver autorização específica para testar em staging, manter allowlist de testadores; confirmar primeiro `CAL_ENABLED=false` reproduz respostas anteriores. Só então habilitar `true` e testar a sequência:
+3. **ATUALIZAÇÃO:** a implantação autorizada já ocorreu e está Live no Render staging; o deploy foi automaticamente disparado pela atualização do ambiente. O CI integrado também passou na PR #43 (somente QA, ainda draft). O antigo plano abaixo foi substituído por esta execução controlada.
+4. **Agora liberado para QA manual quando o fundador puder:** manter allowlist de testadores e testar com `CAL_ENABLED=true` no staging; não confundir CI com teste humano. Sequência recomendada:
    - «Naruto, eu não sei nada de inglês. Quero aprender do zero.» → ENSINAR; exemplo + tradução e uma pergunta de compreensão em português.
    - «Olá» → PRATICAR, se Naruto realmente perguntou «O que significa Hello?».
    - «Hello» → feedback de prática, **sem** dizer que já domina ou aprendeu para sempre.
