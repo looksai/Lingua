@@ -210,7 +210,7 @@ export function respondToCatalogTask(
   }
   // Guard at the adapter boundary too: even a faulty future caller omitting
   // modality must never manufacture a typed-answer learning observation.
-  const candidate=evaluateClosedMicrotask(task,response.text,response.modality??"asr_text");
+  const candidate=evaluateClosedMicrotask(task,response.text??"",response.modality??"asr_text");
   if(candidate.outcome==="not_evaluable")
     return {outcome:"bypassed",reason:candidate.reason,session,candidate};
   let nextEvent:LocalEvent<CALEvent>;
