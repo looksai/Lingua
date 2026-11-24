@@ -90,6 +90,23 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
     await expect(caller(++id,false).catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId}))
       .rejects.toMatchObject({code:"UNAUTHORIZED"});
   });
+  it("allows only the authenticated learner to recover a pending task after reload",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
+    const uid=++id,c=caller(uid);
+    const reply=await c.reply(request("Quero praticar Hello"));
+    const before=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
+    const pending=await c.catalogPendingTask();
+    expect(pending).toEqual(reply.catalogTask);
+    expect(await caller(++id).catalogPendingTask()).toBeNull();
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(before);
+    expect((await c.catalogRenderAck({consent:true,
+      sessionId:pending!.sessionId,deliveryId:pending!.deliveryId})).status).toBe("recorded");
+    expect(await c.catalogPendingTask()).toEqual(pending); // until the closed answer is processed
+    vi.stubEnv("CAL_CATALOG_ENABLED","false");
+    expect(await c.catalogPendingTask()).toBeNull();
+    await expect(caller(++id,false).catalogPendingTask())
+      .rejects.toMatchObject({code:"UNAUTHORIZED"});
+  });
   it("rejects a response from a client that never reported browser rendering",async()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
     const uid=++id,c=caller(uid);
