@@ -13,6 +13,13 @@ export function selectLocalVoice(voices:readonly LocalVoice[],preferredURI:strin
     eligible.find(v=>v.lang.toLowerCase()==="en-us") ??
     eligible[0] ?? null;
 }
+// English practice must never be spoken by a Portuguese-only local voice.
+export function selectEnglishLocalVoice(voices:readonly LocalVoice[],preferredURI:string):LocalVoice|null {
+  const english=availableLocalVoices(voices).filter(v=>/^en(?:-|$)/i.test(v.lang));
+  return english.find(v=>v.voiceURI===preferredURI) ??
+    english.find(v=>v.lang.toLowerCase()==="en-us") ??
+    english[0] ?? null;
+}
 export function speechReady(voices:readonly LocalVoice[]):boolean{return availableLocalVoices(voices).length>0;}
 export function speechText(input:string):string {
   // A TTS engine reads literal asterisks, links and formatting markers awkwardly.
