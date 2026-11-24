@@ -386,7 +386,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     try{
       const res=await reply.mutateAsync({
         message:selection.message,history,consent:true,provider,voice:false,
-        catalogCompetencyId:selection.catalogCompetencyId,catalogRestart:true,
+        catalogCompetencyId:selection.catalogCompetencyId,catalogRestart:selection.catalogRestart,
         // No inputModality: this is a UI selection, NOT independently typed work.
         // The existing server boundary treats missing modality conservatively.
       });
