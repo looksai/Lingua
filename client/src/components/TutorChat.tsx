@@ -236,7 +236,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     }
     setTopicChoice({scope:topicScope,...loadStudyTopicBookmark(window.localStorage,topicKeys)});
   }
-    function setMemoryEnabled(enabled:boolean){
+  function setMemoryEnabled(enabled:boolean){
     if(!memoryKeys)return;
     if(enabled){
       if(!enableChatMemory(window.localStorage,memoryKeys)){setNotice("Este navegador não permite salvar o histórico local.");return;}
@@ -371,7 +371,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   async function restartSavedTopic(){
     const competencyId=topicChoice.scope===topicScope?topicChoice.bookmark?.competencyId:undefined;
     const selection=competencyId?studyTopicRestartRequest(competencyId):null;
-    if(!selection||!enabled||inFlight.current||recording||permissionPending||placementActive)return;
+    if(!selection||!enabled||inFlight.current||held.current||recording||permissionPending||placementActive)return;
+    if(draft.trim()){setNotice("Antes de recomeçar, envie ou apague seu rascunho atual.");return;}
     if(!consent){
       setSettingsOpen(false);setTermsAccepted(false);setPrivacyPrompt(true);
       return;
@@ -400,7 +401,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       if(isCurrent(epoch))setNotice("Não foi possível reabrir o assunto. Você pode tentar novamente.");
     }finally{finishBusy(op);}
   }
-    async function acceptMemory(){
+  async function acceptMemory(){
     if(!pendingMemory||saveMemory.isPending)return;
     const epoch=conversationVersion.current;
     try{
