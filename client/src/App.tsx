@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import StudentHome from "./pages/StudentHome";
+import Premium from "./pages/Premium";
 
 function Loading({ text }: { text: string }) {
   return <main className="flex min-h-screen items-center justify-center bg-paper px-6 text-ink" role="status">{text}</main>;
@@ -57,6 +58,8 @@ function Router() {
     <Route path="/" component={RootPage} />
     <Route path="/demo" component={DemoPage} />
     <Route path="/login" component={Login} />
+    <Route path="/premium"><Premium /></Route>
+    <Route path="/billing/success">{()=> <Premium success />}</Route>
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
   </Switch>;

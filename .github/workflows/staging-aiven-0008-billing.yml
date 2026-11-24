@@ -1,0 +1,53 @@
+name: Lingua Aiven billing 0008 (manual guarded)
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "inspect is READ ONLY; apply creates six billing tables after PRE-0008 backup"
+        required: true
+        type: choice
+        default: inspect
+        options: [inspect, apply]
+      confirmation:
+        description: "For apply only: APLICAR_0008_COBRANCA_STAGING_LINGUA"
+        required: false
+        type: string
+      backup_confirmation:
+        description: "For apply only: BACKUP_PRE_0008_GUARDADO_E_VERIFICADO"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lingua-aiven-staging
+  cancel-in-progress: false
+
+jobs:
+  guarded-0008:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Inspect or apply 0008 only on verified Aiven staging after founder backup
+        env:
+          LINGUA_STAGING_ACTION: ${{ inputs.action }}
+          LINGUA_STAGING_CONFIRMATION: ${{ inputs.confirmation }}
+          LINGUA_STAGING_BACKUP_CONFIRMATION: ${{ inputs.backup_confirmation }}
+          LINGUA_STAGING_DATABASE_URL: ${{ secrets.LINGUA_STAGING_DATABASE_URL }}
+          LINGUA_STAGING_CA_BASE64: ${{ secrets.LINGUA_STAGING_CA_BASE64 }}
+        run: pnpm exec tsx scripts/staging-aiven-0008-billing.ts
