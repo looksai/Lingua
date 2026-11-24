@@ -40,6 +40,7 @@ export type TrustedEvidenceContext=Readonly<{
   receipt:Readonly<{
     userId:number;
     sessionId:string;deliveryId:string;taskId:string;taskVersion:number;
+    contextId:string;stage:EvidenceStage;supportShown:CALAssistance;
     renderedAtMs:number;
     issuedByServer:boolean;
     renderAckRecorded:boolean;
@@ -150,6 +151,9 @@ export function gateLearningObservation(
     receipt.deliveryId!==candidate.deliveryId||
     receipt.taskId!==candidate.taskId||
     receipt.taskVersion!==candidate.taskVersion||
+    receipt.contextId!==candidate.contextId||
+    receipt.stage!==candidate.stage||
+    receipt.supportShown!==candidate.assistance||
     !receipt.issuedByServer||!ctx.authenticatedAttempt)
     return decision("rejected","task_not_server_issued");
   if(!receipt.renderAckRecorded||!nonnegativeTime(receipt.renderedAtMs)||
@@ -166,11 +170,14 @@ export function gateLearningObservation(
     return decision("review_required","untrusted_assessor");
   if(task.mode==="open_transfer"||candidate.stage==="TRANSFERIR")
     return decision("review_required","open_task_requires_review");
-  if(task.mode==="closed_meaning"&&candidate.stage!=="PRATICAR"&&
-    candidate.stage!=="RETOMAR")
+  // Current CAL v0.1 has no evaluated ENSINAR observation, and only
+  // closed_expression tasks are admissible in PRATICAR/RETOMAR.
+  // Never rebrand a comprehension question as independent production.
+  if(task.mode!=="closed_expression"||
+    (candidate.stage!=="PRATICAR"&&candidate.stage!=="RETOMAR"))
     return decision("rejected","invalid_observation");
-  if(task.mode!=="closed_meaning"&&task.mode!=="closed_expression")
-    return decision("review_required","open_task_requires_review");
+  if(task.assessor!=="trusted_closed_rule")
+    return decision("review_required","untrusted_assessor");
   if(candidate.outcome==="not_evaluable")
     return decision("rejected","untrusted_assessor");
 
