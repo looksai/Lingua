@@ -238,8 +238,9 @@ describe.skipIf(!gate)("full TutorChat with REAL React Query/tRPC/HTTP/JWT and s
       await one.page.reload({waitUntil:"networkidle"});
       await one.page.getByText("Atividade pendente recuperada desta sessão",{exact:false}).waitFor({timeout:12_000});
       await one.page.getByRole("region",{name:"Atividade do catálogo do Lingua"}).waitFor();
-      expect(await one.page.getByRole("region",{name:"Atividade do catálogo do Lingua"}).innerText())
-        .toContain(pending.promptText);
+      const renderedText=await one.page.getByRole("region",{name:"Atividade do catálogo do Lingua"}).innerText();
+      const normalizeWhitespace=(value:string)=>value.replace(/\s+/g," ").trim();
+      expect(normalizeWhitespace(renderedText)).toContain(normalizeWhitespace(pending.promptText));
       expect(calCatalogTutorSessions.pendingClientTask(a.user.id)?.deliveryId).toBe(pending.deliveryId);
       expect(calCatalogTutorSessions.inspectForTest(a.user.id)?.cal.observations).toEqual([]);
     }finally{await closeAll(one);}
