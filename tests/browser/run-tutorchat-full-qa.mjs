@@ -86,6 +86,7 @@ try{
     await waitCall(page,1);
     await page.getByText("Resposta sintética Naruto:",{exact:false}).waitFor();
     assert.equal(await page.getByRole("dialog",{name:"Autorização da conversa"}).count(),0);
+    assert.equal(await page.getByText("Guardar esta conversa neste navegador (opcional)").count(),0);
     const calls=await page.evaluate(()=>window.__tutorChatQa.calls().filter(c=>c.name==="reply"));
     assert.equal(calls[0].input.consent,true);
   });
