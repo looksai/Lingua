@@ -4,6 +4,7 @@ import {availableLocalVoices,selectEnglishLocalVoice,selectLocalVoice,speechText
 import {englishExcerpt} from "@/lib/english-example";
 import {modalityForTutorReply,transcriptOriginAfterEdit} from "@shared/pedagogy/tutor-input-modality";
 import {resolveTutorAudio} from "@shared/pedagogy/tutor-audio-action";
+import {tutorAsyncResultIsCurrent} from "@shared/pedagogy/tutor-async-epoch";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
@@ -74,6 +75,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const autoPlayRef=useRef<HTMLAudioElement|null>(null);
   const audioRoot=useRef<HTMLElement|null>(null);
   const conversationVersion=useRef(0);
+  const isCurrent=(epoch:number)=>tutorAsyncResultIsCurrent(epoch,conversationVersion.current,mounted.current);
   const [previewVoiceAudio,setPreviewVoiceAudio]=useState<string|null>(null);
   const [previewVoiceNotice,setPreviewVoiceNotice]=useState("");
   const [memoryChoice,setMemoryChoice]=useState<{scope:string;enabled:boolean}>({scope:"",enabled:false});
@@ -103,18 +105,31 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       accepted=stored?.accepted===true&&stored?.version===consentVersion;
     }catch{/* Storage blocked: ask once in memory only. */}}
     conversationVersion.current++;
-    stopAudioPlayers();stopSpeech();
+    stopCapture(false);stopAudioPlayers();stopSpeech();
     setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null);
+    setPendingMemory(null);setPreviewVoiceAudio(null);setPreviewVoiceNotice("");
     setConsent(accepted);setTermsAccepted(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);
     setDraft("");setTranscriptReady(false);
-    setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
+    sequence.current=0;
+    // Do not show text from the old provider/account during local history restoration.
+    setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
   },[provider,consentKey]);
 
   // Local history is optional, account-scoped and never includes audio.
   useEffect(()=>{
-    if(!memoryKeys)return;
+    // Provider off/unknown must not leave the previous learner's text visible.
+    if(!memoryKeys){
+      conversationVersion.current++;
+      stopCapture(false);stopAudioPlayers();stopSpeech();
+      setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
+      sequence.current=0;setMemoryChoice({scope:"",enabled:false});
+      setPendingMemory(null);setDraft("");setTranscriptReady(false);
+      setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null);
+      return;
+    }
     conversationVersion.current++;
-    stopAudioPlayers();stopSpeech();setAutoPlayId(null);setNeuralFallback({});
+    stopCapture(false);stopAudioPlayers();stopSpeech();setAutoPlayId(null);setNeuralFallback({});
+    setPendingMemory(null);setPreviewVoiceAudio(null);setDemo(null);
     setDraft("");setTranscriptReady(false);
     const saved=loadChatMemory(window.localStorage,memoryKeys);
     const restored:Message[]=[{id:0,role:"assistant",text:greeting(profile),source:"local"},...saved.messages];
@@ -137,9 +152,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function eraseConversation(){
     if(memoryKeys)clearChatMemory(window.localStorage,memoryKeys);
     conversationVersion.current++;
-    stopAudioPlayers();stopSpeech();setAutoPlayId(null);
+    stopCapture(false);stopAudioPlayers();stopSpeech();setAutoPlayId(null);
     setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
-    sequence.current=0;setPendingMemory(null);setNeuralAudios({});setNeuralFallback({});setPreviewVoiceAudio(null);setDraft("");setTranscriptReady(false);setNotice("Histórico apagado neste dispositivo.");
+    sequence.current=0;setPendingMemory(null);setNeuralAudios({});setNeuralFallback({});setPreviewVoiceAudio(null);setDemo(null);setDraft("");setTranscriptReady(false);setNotice("Histórico apagado neste dispositivo.");
   }
 
   function stopCapture(send:boolean) {
