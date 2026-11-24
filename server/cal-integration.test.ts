@@ -162,6 +162,26 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
     r?.commit(teaching);
     expect(s.inspectForTest(10)?.snapshot.consecutiveErrors).toBe(0);
   });
+  it("spoken help is allowed and never recorded as a wrong closed answer",()=>{
+    const s=sessions();open(s);
+    const p=s.prepare(10,"não sei",true,"asr_text");
+    expect(p).not.toBeNull();
+    p?.commit(teaching);
+    expect(s.inspectForTest(10)?.snapshot.observations).toHaveLength(0);
+    expect(s.inspectForTest(10)?.snapshot.consecutiveErrors).toBe(0);
+  });
+  it("spoken pause and resume remain navigation, not graded answers",()=>{
+    const s=sessions();open(s);
+    const before=structuredClone(s.inspectForTest(10));
+    expect(s.prepare(10,"quero parar",true,"asr_text")).toBeNull();
+    expect(s.inspectForTest(10)?.snapshot.status).toBe("paused");
+    expect(s.inspectForTest(10)?.snapshot.observations).toEqual(before?.snapshot.observations);
+    const restored=s.prepare(10,"vamos continuar",true,"asr_text");
+    expect(restored).not.toBeNull();
+    restored?.commit(teaching);
+    expect(s.inspectForTest(10)?.snapshot.status).toBe("active");
+    expect(s.inspectForTest(10)?.snapshot.observations).toHaveLength(0);
+  });
   it("same account has provisional state, a different account starts independently",()=>{
     const s=sessions();open(s,1);
     expect(s.prepare(2,"Naruto, com o que eu trabalho?",true,"typed")).toBeNull();
