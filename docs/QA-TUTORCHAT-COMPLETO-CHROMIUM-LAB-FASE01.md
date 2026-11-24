@@ -5,7 +5,7 @@
 ## Como funciona
 
 - `client/qa/tutorchat-full.html` e `client/qa/tutorchat-full.tsx` montam o `TutorChat` original, um perfil fictício e controles sintéticos de troca de conta.
-- `tests/browser/vite.tutorchat.qa.config.ts` utiliza um plugin local de resolução de importação: **somente neste build Vite de QA**, `@/lib/trpc` é substituído por `client/qa/tutorchat-trpc-fixture.ts`. O componente e os filhos conservam o código original.
+- `tests/browser/vite.tutorchat.qa.config.ts` usa **alias explícito e prioritário** para `@/lib/trpc`: somente neste build Vite de QA ele aponta para `client/qa/tutorchat-trpc-fixture.ts`. O componente e seus filhos conservam o código original; um alias genérico `@/` nunca pode sobrepor essa substituição.
 - O stub implementa capacidades da IA, respostas fictícias, falhas de voz e operações assíncronas que podem ser intencionalmente atrasadas. Ele **não** importa cliente de produção, abre HTTP, conecta banco ou chama serviços externos.
 - `tests/browser/run-tutorchat-full-qa.mjs` usa Chromium headless, contexto limpo por caso e bloqueia qualquer URL fora de `127.0.0.1:4181`. O workflow usa o mesmo Playwright 1.56.1 e Ubuntu 24.04 verificados nas PRs anteriores.
 - O CI P0 padrão mantém a suíte de funções/rotas; o job isolado de navegador executa estes cinco casos **depois** dos 13 casos da PR #68.
