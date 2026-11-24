@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "
 import { MessageCircle, Mic, Minus, Send, Square, Volume2, Settings2, ChevronLeft } from "lucide-react";
 import {availableLocalVoices,selectLocalVoice,speechText} from "@/lib/tutor-speech";
 import {englishExcerpt} from "@/lib/english-example";
+import {modalityForTutorReply} from "@shared/pedagogy/tutor-input-modality";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
@@ -203,7 +204,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         if(next.data?.nextTask)append({role:"assistant",text:next.data.nextTask.prompt});
         else append({role:"assistant",text:"Obrigado! Agora temos três amostras de texto. Elas não bastam para atribuir um nível, mas podemos criar um plano inicial de quatro semanas. Clique em Gerar plano provisório."});
       }else{
-        const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice});
+        const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice,
+          inputModality:modalityForTutorReply(viaASR)});
         if(!mounted.current)return;
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
         if(res.memoryCandidate&&capabilities.data?.memory)
