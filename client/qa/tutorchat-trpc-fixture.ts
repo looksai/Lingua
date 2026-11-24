@@ -6,7 +6,7 @@
 type RpcCall={name:string;input:unknown};
 type PendingReply={resolve:(value:unknown)=>void;reject:(error:Error)=>void};
 const answer={
-  text:"Resposta sintética Naruto: Hello significa olá.",
+  text:'Resposta sintética Naruto: "Hello, how are you?" significa "Olá, como vai?".',
   source:"ai" as const,audioBase64:null,voiceStatus:"off" as const,catalogTask:null,
   memoryCandidate:null,
 };
