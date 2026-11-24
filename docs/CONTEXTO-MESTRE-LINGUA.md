@@ -2,6 +2,8 @@
 
 > **LEIA ESTE ARQUIVO PRIMEIRO AO INICIAR QUALQUER NOVA CONVERSA SOBRE O PROJETO.**
 >
+> **STATUS VIVO ATUALIZADO: leia também [STATUS-ATUAL-DESENVOLVIMENTO.md](./STATUS-ATUAL-DESENVOLVIMENTO.md) antes de qualquer alteração.** A seção operacional antiga abaixo é histórica e pode estar defasada. Esse status registra PRs #46–#56, staging e a branch do laboratório de evidências em andamento; verificar sempre GitHub/CI/Render.
+>
 > **Atualização inicial:** 24/11/2026 UTC (23/11/2026 à noite, horário de Natal/RN).  
 > **Repositório principal:** [looksai/Lingua](https://github.com/looksai/Lingua).  
 > **Fase atual:** **FASE 01 — Naruto**. Histórico inicial de CI vermelho e branch catálogo vazia está documentado nas seções 5 e 10; **status operacional atualizado na linha abaixo e na seção 18.**
