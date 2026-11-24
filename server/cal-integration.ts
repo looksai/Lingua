@@ -48,7 +48,15 @@ const PILOT_TRIGGER = /(?:aprender|estudar|praticar|treinar|come[cç]ar|ensina|a
 const ASKED_TO_PAUSE = /^(?:parar|pausa|pare|chega|hoje n[aã]o|quero parar|at[eé] depois|tchau)[.!? ]*$/iu;
 const ASKED_TO_RESUME = /^(?:continuar|vamos continuar|retomar|voltar|vamos voltar|vamos praticar)[.!? ]*$/iu;
 const HELP_REQUEST = /^(?:n[aã]o sei|n[aã]o entendi|n[aã]o consigo|ajuda|me ajuda|repete|de novo)[.!? ]*$/iu;
-const SHORT_ANSWER_MAX = 45;
+// Only these explicit lexical distractors qualify as wrong answers in the
+// fixed pilot. A free-text request must never become a learner error.
+const KNOWN_MEANING_DISTRACTORS = new Set([
+  "tchau", "adeus", "bom dia", "boa noite", "goodbye",
+  "good morning", "thank you", "obrigado", "obrigada", "por favor", "please",
+]);
+const KNOWN_EXPRESSION_DISTRACTORS = new Set([
+  "goodbye", "good morning", "thank you", "please", "bye", "hi there",
+]);
 const norm = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .toLocaleLowerCase("pt-BR").replace(/[.!?,;:]+/g, "").replace(/\s+/g, " ").trim();
 
@@ -62,13 +70,16 @@ function event(snapshot: CALSnapshot, payload: PendingCALEvent<CALEvent>): CALSn
 }
 function hasAnsweredCurrentPrompt(reply: string, phase: CALSnapshot["phase"]): Pending {
   const normalized = norm(reply);
+  // Only a terminal, explicitly asked question makes the following message
+  // eligible for evaluation. An embedded example, negation, or passing mention
+  // of the question is not sufficient evidence of task delivery.
   if (phase === "ENSINAR" &&
-      normalized.includes("hello") &&
-      /(?:ola|oi)/u.test(normalized) &&
-      /(?:o que significa hello|qual (?:e o )?significado de hello|o que (?:quer dizer|significa) a palavra hello)/u.test(normalized))
+      /(?:^|[^a-z])hello(?:$|[^a-z])/u.test(normalized) &&
+      /(?:^|[^a-z])(?:ola|oi)(?:$|[^a-z])/u.test(normalized) &&
+      /o que significa hello em portugu[eê]s\?\s*$/iu.test(reply))
     return "meaning";
   if (phase === "PRATICAR" &&
-      /(?:como (?:voce |você )?(?:cumprimentaria|diria ola|daria oi)|qual palavra (?:voce |você )?usaria em ingles para cumprimentar)/u.test(normalized))
+      /como voc[eê] cumprimentaria algu[eé]m em ingl[eê]s\?\s*$/iu.test(reply))
     return "english";
   return null;
 }
@@ -143,6 +154,17 @@ export class CALTutorSessions {
     let snapshot = original?.snapshot ?? newCALSession(randomUUID());
     let pending = original?.pending ?? null;
     let result: string | null = null;
+    // Closed exercise only. Unknown free text is an interruption or change
+    // of objective, not a failed answer; the normal tutor handles it.
+    if (pending && snapshot.status === "active" && !HELP_REQUEST.test(userMessage) &&
+        !ASKED_TO_PAUSE.test(userMessage) && !ASKED_TO_RESUME.test(userMessage)) {
+      const answer = norm(userMessage);
+      const recognized = pending === "meaning"
+        ? PILOT_EXERCISE.meaningAnswers.includes(answer) || KNOWN_MEANING_DISTRACTORS.has(answer)
+        : PILOT_EXERCISE.englishAnswers.includes(answer) || KNOWN_EXPRESSION_DISTRACTORS.has(answer);
+      if (!recognized) return null;
+    }
+
 
     if (snapshot.status === "paused") {
       if (!ASKED_TO_RESUME.test(userMessage)) return null;
@@ -163,7 +185,7 @@ export class CALTutorSessions {
     } else if (snapshot.phase === "ENSINAR" && pending === "meaning") {
       if (HELP_REQUEST.test(userMessage)) {
         snapshot = event(snapshot, {kind:"NEEDS_HELP"});
-      } else if (userMessage.trim().length <= SHORT_ANSWER_MAX && !userMessage.includes("?")) {
+      } else if (!userMessage.includes("?")) {
         const correct = PILOT_EXERCISE.meaningAnswers.includes(norm(userMessage));
         snapshot = event(snapshot, {
           kind: "COMPREHENSION", signal: correct ? "demonstrated" : "unclear",
@@ -174,7 +196,7 @@ export class CALTutorSessions {
     } else if (snapshot.phase === "PRATICAR" && pending === "english") {
       if (HELP_REQUEST.test(userMessage)) {
         snapshot = event(snapshot, {kind:"NEEDS_HELP"});
-      } else if (userMessage.trim().length <= SHORT_ANSWER_MAX && !userMessage.includes("?")) {
+      } else if (!userMessage.includes("?")) {
         const correct = PILOT_EXERCISE.englishAnswers.includes(norm(userMessage));
         snapshot = event(snapshot, {
           kind: "ATTEMPT", attemptId: randomUUID(), taskId: "pilot.greeting.production",
