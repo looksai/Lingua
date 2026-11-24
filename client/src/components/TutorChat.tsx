@@ -205,15 +205,17 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   async function buildPlan(){
     if(!consent){setTermsAccepted(false);setPrivacyPrompt(true);return;}
     if(!placementActive||placement.data?.nextTask||busy)return;
+    const epoch=conversationVersion.current;
     inFlight.current=true;setBusy(true);setNotice("");
     try{
       const res=await placementGenerate.mutateAsync({consent:true});
-      if(!mounted.current)return;
+      if(!isCurrent(epoch))return;
       await placement.refetch();
+      if(!isCurrent(epoch))return;
       append({role:"assistant",text:"Seu plano de quatro semanas foi salvo como sugestão provisória, sem classificação CEFR. Acesse Meu início para conferir as atividades e as habilidades ainda não avaliadas."});
       if(res.source==="rule_based")setNotice("A IA não conseguiu gerar sugestões. Foi salvo um plano básico transparente, que pode ser revisto.");
       setPlacementActive(false);onPlacementCompleted();
-    }catch{if(mounted.current)setNotice("Não foi possível gerar ou salvar o plano agora. Suas três respostas continuam registradas.");}
+    }catch{if(isCurrent(epoch))setNotice("Não foi possível gerar ou salvar o plano agora. Suas três respostas continuam registradas.");}
     finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   async function submitMessage(authorized:boolean){
@@ -222,6 +224,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(placementActive&&text.length>800){setNotice("Nesta sondagem, use até 800 caracteres por resposta.");return;}
     const isPlacement=placementActive&&Boolean(placement.data?.nextTask);
     const viaASR=transcriptReady;
+    const epoch=conversationVersion.current;
     setPendingMemory(null);
     inFlight.current=true;setBusy(true);setNotice("");setTranscriptReady(false);
     setDraft("");
@@ -231,41 +234,46 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       if(isPlacement&&placement.data?.nextTask){
         await placementSubmit.mutateAsync({consent:true,taskId:placement.data.nextTask.id,
           answer:text,modality:viaASR?"asr_text":"text"});
-        if(!mounted.current)return;
+        if(!isCurrent(epoch))return;
         const next=await placement.refetch();
+        if(!isCurrent(epoch))return;
         if(next.data?.nextTask)append({role:"assistant",text:next.data.nextTask.prompt});
         else append({role:"assistant",text:"Obrigado! Agora temos três amostras de texto. Elas não bastam para atribuir um nível, mas podemos criar um plano inicial de quatro semanas. Clique em Gerar plano provisório."});
       }else{
         const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice,
           inputModality:modalityForTutorReply(viaASR)});
-        if(!mounted.current)return;
+        if(!isCurrent(epoch))return;
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
         if(res.memoryCandidate&&capabilities.data?.memory)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
       }
     }catch{
-      if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);setTranscriptReady(viaASR);}
+      if(isCurrent(epoch)){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);setTranscriptReady(viaASR);}
     }finally{
       inFlight.current=false;if(mounted.current)setBusy(false);
     }
   }
   async function acceptMemory(){
     if(!pendingMemory||saveMemory.isPending)return;
+    const epoch=conversationVersion.current;
     try{
       await saveMemory.mutateAsync({...pendingMemory,consent:true});
+      if(!isCurrent(epoch))return;
       setPendingMemory(null);setNotice("Memória salva com sua autorização. Você pode apagá-la nas configurações.");
       await savedMemories.refetch();
-    }catch{setNotice("Não foi possível guardar esta memória. Ela não foi confirmada.");}
+    }catch{if(isCurrent(epoch))setNotice("Não foi possível guardar esta memória. Ela não foi confirmada.");}
   }
   async function forgetMemory(id:number){
-    try{await deleteMemory.mutateAsync({id});await savedMemories.refetch();}
-    catch{setNotice("Não foi possível apagar esta memória.");}
+    const epoch=conversationVersion.current;
+    try{await deleteMemory.mutateAsync({id});if(isCurrent(epoch))await savedMemories.refetch();}
+    catch{if(isCurrent(epoch))setNotice("Não foi possível apagar esta memória.");}
   }
   async function forgetAllMemories(){
     if(!window.confirm("Apagar todas as memórias pessoais guardadas no servidor?"))return;
-    try{await clearMemories.mutateAsync();await savedMemories.refetch();setPendingMemory(null);setNotice("Memórias do servidor apagadas.");}
-    catch{setNotice("Não foi possível apagar as memórias.");}
+    const epoch=conversationVersion.current;
+    try{await clearMemories.mutateAsync();if(!isCurrent(epoch))return;await savedMemories.refetch();if(!isCurrent(epoch))return;setPendingMemory(null);setNotice("Memórias do servidor apagadas.");}
+    catch{if(isCurrent(epoch))setNotice("Não foi possível apagar as memórias.");}
   }
   function send(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
@@ -287,10 +295,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     inFlight.current=true;setBusy(true);setNotice("");
     try{
       const res=await welcome.mutateAsync({consent:true,provider});
-      if(!mounted.current||requestVersion!==conversationVersion.current)return;
+      if(!isCurrent(requestVersion))return;
       setMessages(previous=>previous.map(m=>m.id===0?{...m,text:res.text??m.text,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus}:m));
       if(!res.audioBase64)setNotice("Voz indisponível; a mensagem de boas-vindas continua em texto.");
-    }catch{if(mounted.current)setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
+    }catch{if(isCurrent(requestVersion))setNotice("Voz indisponível. Você ainda pode conversar por texto.");}
     finally{inFlight.current=false;if(mounted.current)setBusy(false);}
   }
   function stopAudioPlayers(except?:HTMLAudioElement){
