@@ -39,7 +39,8 @@ export function loadStudyTopicBookmark(
       Number.isFinite(parsed.savedAt)&&parsed.savedAt>=0&&
       parsed.savedAt<=now+60_000&&now-parsed.savedAt<=STUDY_TOPIC_BOOKMARK_TTL_MS;
     if(!valid){store.removeItem(keys.bookmark);return {enabled:true,bookmark:null};}
-    return {enabled:true,bookmark:{competencyId:parsed.competencyId as string,savedAt:parsed.savedAt as number}};
+    const safe=parsed as {competencyId:string;savedAt:number};
+    return {enabled:true,bookmark:{competencyId:safe.competencyId,savedAt:safe.savedAt}};
   }catch{return {enabled:false,bookmark:null};}
 }
 export function setStudyTopicBookmarkEnabled(
