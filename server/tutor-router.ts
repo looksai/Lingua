@@ -113,7 +113,9 @@ export const tutorRouter = router({
     });
   }),
   reply:protectedProcedure.input(z.object({consent,provider,voice:z.boolean(),message:z.string().trim().min(1).max(TUTOR_MAX_TEXT),history,
-    catalogCompetencyId:z.string().max(90).optional()})).mutation(async ({ctx,input})=>{
+    catalogCompetencyId:z.string().max(90).optional(),
+    // Client hint only; server cannot cryptographically attest ASR origin yet.
+    inputModality:z.enum(["typed","asr_text"]).optional()})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
     const p=await profileFor(ctx.user.id);
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
@@ -136,7 +138,8 @@ export const tutorRouter = router({
       // The new catalogue adapter is independently gated. While OFF,
       // CAL_ENABLED=true keeps the existing safe Hello pilot byte-for-byte.
       const catalogPreview=catalogCALRuntimeEnabled()
-        ? calCatalogTutorSessions.prepare(ctx.user.id,input.message,beginner,input.catalogCompetencyId)
+        ? calCatalogTutorSessions.prepare(ctx.user.id,input.message,beginner,input.catalogCompetencyId,
+            input.inputModality??"typed")
         : null;
       // Never allow two different CAL state machines to grade the same turn.
       // A catalogue-mode request with an unknown goal must fall back to
