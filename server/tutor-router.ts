@@ -15,7 +15,6 @@ import { tutorFailureReply } from "./tutor-fallback";
 import { GROQ_ENGLISH_VOICES, GroqTtsBadRequest, type GroqTtsBadRequestReason } from "./groq-tts";
 import { createVoiceProvider } from "./voice-provider";
 import { guardTutorLearnerClaims } from "./tutor-fact-guard";
-import { assertAuxiliaryTutorAccess, withTutorChatQuota } from "./tutor-entitlement";
 import { enforceBeginnerPortuguese } from "../shared/tutor-language";
 import {
   memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, loadLearnerMemories,
@@ -58,7 +57,6 @@ export const tutorRouter = router({
       return {audioBase64:null,voiceStatus:"unavailable" as const,text:null};
     const profile=await profileFor(ctx.user.id);
     const text=greeting(profile);
-    await assertAuxiliaryTutorAccess(ctx.user.id);
     return withTutorBudget(ctx.user.id,async()=>({text,...await optionalSpeech(text,true)}));
   }),
   transcribe:protectedProcedure.input(z.object({consent,provider,audio:audioSchema})).mutation(async ({ctx,input})=>{
@@ -69,7 +67,6 @@ export const tutorRouter = router({
     const bytes=Buffer.from(input.audio.base64,"base64");
     if (!bytes.length||bytes.length>TUTOR_MAX_AUDIO_BYTES||bytes.toString("base64")!==input.audio.base64)
       throw new TRPCError({code:"BAD_REQUEST",message:"Gravação inválida ou grande demais."});
-    await assertAuxiliaryTutorAccess(ctx.user.id);
     return withTutorBudget(ctx.user.id,async()=>{
       try{
         const adapter=createSelectedTutor(input.provider!);
@@ -89,7 +86,6 @@ export const tutorRouter = router({
     if(!freeTutorAllowed(ctx.user.email)||tutorMode()!=="groq")
       throw new TRPCError({code:"PRECONDITION_FAILED",message:"Voz neural de inglês indisponível."});
     await profileFor(ctx.user.id);
-    await assertAuxiliaryTutorAccess(ctx.user.id);
     return withTutorBudget(ctx.user.id,async()=>{
       try{return await createVoiceProvider("groq").synthesize({text:input.text,voice:input.voice,language:"en-US",format:"wav"});}
       catch(error){
@@ -109,12 +105,11 @@ export const tutorRouter = router({
   geminiDemo:protectedProcedure.input(z.object({consent:z.literal(true),phraseIndex:z.number().int().min(0).max(GEMINI_TEST_PHRASES.length-1)})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
     if(!geminiDemoAllowed(ctx.user.email))throw new TRPCError({code:"PRECONDITION_FAILED",message:"Demonstração de voz indisponível."});
-    await assertAuxiliaryTutorAccess(ctx.user.id);
     return withTutorBudget(ctx.user.id,async()=>{
       try{return await geminiTestSpeech(input.phraseIndex);}catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar o áudio de teste."});}
     });
   }),
-  reply:protectedProcedure.input(z.object({consent,provider,voice:z.boolean(),message:z.string().trim().min(1).max(TUTOR_MAX_TEXT),history,interactionId:z.string().regex(/^[A-Za-z0-9_-]{12,120}$/).optional()})).mutation(async ({ctx,input})=>{
+  reply:protectedProcedure.input(z.object({consent,provider,voice:z.boolean(),message:z.string().trim().min(1).max(TUTOR_MAX_TEXT),history})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
     const p=await profileFor(ctx.user.id);
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
@@ -129,7 +124,7 @@ export const tutorRouter = router({
         memoryReady=true;
       } catch {console.warn("[tutor] memory unavailable: feature will fail closed for this turn");}
     }
-    return withTutorBudget(ctx.user.id,()=>withTutorChatQuota(ctx.user.id,input.interactionId,async()=>{
+    return withTutorBudget(ctx.user.id,async()=>{
       let text:string;
       let memoryCandidate: {fato:string;categoria:"profissao"|"objetivo"|"interesse"|"preferencia_estudo"}|null=null;
       try {
@@ -147,7 +142,7 @@ export const tutorRouter = router({
       const adapted=enforceBeginnerPortuguese(checked.text,input.history,input.message,approvedFacts);
       if(adapted.corrected)console.warn("[tutor] beginner language guard corrected an English-dominant reply");
       return {text:adapted.text,source:"ai" as const,memoryCandidate,...await optionalSpeech(adapted.text,input.provider==="openai"&&input.voice)};
-    }));
+    });
   }),
   // All memory operations are owned by the authenticated user. Optional
   // and entirely separate from transcript, curriculum and official evidence.
