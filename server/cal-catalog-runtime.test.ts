@@ -1,0 +1,190 @@
+import {describe,expect,it,vi} from "vitest";
+import {
+  CALCatalogTutorSessions,catalogCALRuntimeEnabled,explicitCatalogGoal,
+} from "./cal-catalog-runtime";
+
+const ID=88881;
+const create=()=>{let ms=1000;return {clock:()=>ms,skip:(n:number)=>{ms+=n;},
+  sessions:new CALCatalogTutorSessions(()=>ms)};};
+function start(s:CALCatalogTutorSessions,id=ID,goal="Quero aprender a me apresentar"){
+  const preview=s.prepare(id,goal,true);
+  expect(preview).not.toBeNull();
+  expect(s.inspectForTest(id)).toBeNull(); // model not yet returned
+  const text=preview!.complete("Vamos praticar com calma.");
+  expect(text).toContain("Tradução:");
+  const current=s.inspectForTest(id);
+  expect(current?.task?.delivered).toBe(true);
+  expect(current?.cal.phase).toBe("ENSINAR");
+  return {text,current:current!,preview:preview!};
+}
+describe("opt-in catalogue runtime controller",()=>{
+  it("requires both the existing CAL flag and a separate catalogue flag",()=>{
+    expect(catalogCALRuntimeEnabled({} as NodeJS.ProcessEnv)).toBe(false);
+    expect(catalogCALRuntimeEnabled({CAL_ENABLED:"true"} as NodeJS.ProcessEnv)).toBe(false);
+    expect(catalogCALRuntimeEnabled({CAL_CATALOG_ENABLED:"true"} as NodeJS.ProcessEnv)).toBe(false);
+    expect(catalogCALRuntimeEnabled({CAL_ENABLED:"true",CAL_CATALOG_ENABLED:"true"} as NodeJS.ProcessEnv)).toBe(true);
+    expect(catalogCALRuntimeEnabled({CAL_ENABLED:"true",CAL_CATALOG_ENABLED:"TRUE"} as NodeJS.ProcessEnv)).toBe(false);
+  });
+  it("only interprets explicit teaching intents; not biography or off-topic needs",()=>{
+    expect(explicitCatalogGoal("Sou soldador MIG/TIG")).toBeNull();
+    expect(explicitCatalogGoal("Trabalho com solda")).toBeNull();
+    expect(explicitCatalogGoal("Quero aprender a pedir direções")).toBeNull();
+    expect(explicitCatalogGoal("Me dê informações sobre entrevista")).toBeNull();
+    expect(explicitCatalogGoal("Quero aprender a me apresentar")).toBe("identity.my-name");
+    expect(explicitCatalogGoal("Quero aprender a falar da minha profissão")).toBe("work.welder-example");
+    expect(explicitCatalogGoal("Quero praticar bom dia")).toBe("greeting.good-morning");
+    expect(explicitCatalogGoal("Quero aprender a agradecer")).toBe("courtesy.thank-you");
+    expect(explicitCatalogGoal("Quero praticar perguntar a profissão")).toBe("conversation.what-do-you-do");
+  });
+  it("offers a real choice for an unspecific English goal, no automatic lesson",()=>{
+    const s=create().sessions;
+    const intro=s.prepare(ID,"Não sei nada de inglês e quero aprender do zero.",true);
+    expect(intro).not.toBeNull();
+    const txt=intro!.complete("Tudo bem!");
+    expect(txt).toContain("Escolha um:");
+    expect(txt).toContain("profissão");
+    expect(s.inspectForTest(ID)).toBeNull();
+  });
+  it("selects vocational goal explicitly without any forced Hello or personal facts",()=>{
+    const s=create().sessions;
+    const {text,current}=start(s,ID,"Quero aprender a falar da minha profissão");
+    expect(current.selectedCompetencyId).toBe("work.welder-example");
+    expect(text).toContain("I am a welder");
+    expect(text).not.toContain("Hello");
+    expect(text).toContain("fictício");
+    expect(current.cal.observations).toHaveLength(0);
+  });
+  it("also supports a controlled future UI goal ID; never trusts a fake ID",()=>{
+    const s=create().sessions;
+    expect(s.prepare(ID,"Selecionar",true,"invalid.unknown")).toBeNull();
+    expect(s.inspectForTest(ID)).toBeNull();
+    const p=s.prepare(ID,"Quero esta lição",true,"courtesy.please");
+    const txt=p!.complete("Certo.");
+    expect(txt).toContain("Please");
+    expect(s.inspectForTest(ID)?.selectedCompetencyId).toBe("courtesy.please");
+  });
+  it("does not commit teaching until a safe response is returned by the host",()=>{
+    const s=create().sessions;
+    const p=s.prepare(ID,"Quero aprender a me apresentar",true);
+    expect(p).not.toBeNull();
+    expect(s.inspectForTest(ID)).toBeNull();
+  });
+  it("a correct closed answer moves ENSINAR -> PRATICAR but not mastery",()=>{
+    const s=create().sessions;
+    start(s,ID,"Quero praticar Hello");
+    const p=s.prepare(ID,"Olá",true);
+    expect(p?.directive).toContain("PRATICAR");
+    expect(s.inspectForTest(ID)?.cal.phase).toBe("ENSINAR");
+    const reply=p!.complete("Muito bem!");
+    expect(reply).toContain("Como você escreveria Olá em inglês?");
+    const state=s.inspectForTest(ID)!;
+    expect(state.cal.phase).toBe("PRATICAR");
+    expect(state.cal.observations).toHaveLength(0);
+    expect(state.task?.delivered).toBe(true);
+  });
+  it("a guided practice success is acknowledged without certifying learning",()=>{
+    const s=create().sessions;start(s,ID,"Quero praticar Hello");
+    s.prepare(ID,"Olá",true)!.complete("Certo!");
+    const answer=s.prepare(ID,"Hello",true)!;
+    expect(answer.directive).toContain("closed_candidate_meets");
+    const msg=answer.complete("Você se esforçou.");
+    expect(msg).toContain("não comprova domínio");
+    expect(s.inspectForTest(ID)?.cal.observations).toHaveLength(1);
+    expect(s.inspectForTest(ID)?.cal.observations[0].assistance).toBe("model");
+    expect(s.inspectForTest(ID)?.task).toBeNull();
+    expect(s.prepare(ID,"Quero mudar para entrevista",true)).toBeNull();
+  });
+  it("unknown text is neither graded nor a change of objective",()=>{
+    const s=create().sessions;
+    const original=start(s).current;
+    expect(s.prepare(ID,"Como funciona uma entrevista?",true)).toBeNull();
+    expect(s.prepare(ID,"Eu estou ocupado",true)).toBeNull();
+    expect(s.prepare(ID,"Não consigo estudar com barulho na minha casa",true)).toBeNull();
+    expect(s.inspectForTest(ID)).toBe(original);
+    expect(s.inspectForTest(ID)?.cal.consecutiveErrors).toBe(0);
+  });
+  it("a known distractor produces local feedback without SRS or persistence",()=>{
+    const s=create().sessions;
+    start(s,ID,"Quero praticar Hello");
+    s.prepare(ID,"Olá",true)!.complete("Certo!");
+    const p=s.prepare(ID,"Goodbye",true);
+    expect(p).not.toBeNull();
+    expect(p?.directive).toContain("closed_candidate_not_yet");
+    const msg=p!.complete("Vamos tentar novamente.");
+    expect(msg).toContain("Como você escreveria Olá em inglês?");
+    expect(s.inspectForTest(ID)?.cal.consecutiveErrors).toBe(1);
+    expect(s.inspectForTest(ID)?.cal.observations).toHaveLength(1);
+    expect(s.inspectForTest(ID)).not.toHaveProperty("srs");
+  });
+  it("a learner can request help without being graded as wrong",()=>{
+    const s=create().sessions;start(s,ID,"Quero praticar Hello");
+    s.prepare(ID,"Olá",true)!.complete("Boa!");
+    const p=s.prepare(ID,"Não sei",true);
+    expect(p).not.toBeNull();
+    const answer=p!.complete("Vamos por partes.");
+    expect(answer).toContain("Hello");
+    expect(s.inspectForTest(ID)?.cal.phase).toBe("ENSINAR");
+    expect(s.inspectForTest(ID)?.cal.consecutiveErrors).toBe(0);
+  });
+  it("can pause and resume without storing a failed answer",()=>{
+    const s=create().sessions;start(s);
+    const p=s.prepare(ID,"Quero parar",true)!;
+    expect(p.complete("Tudo certo.")).toContain("continuar");
+    expect(s.inspectForTest(ID)?.cal.status).toBe("paused");
+    expect(s.prepare(ID,"Não sei",true)).toBeNull();
+    const resumed=s.prepare(ID,"Continuar",true)!;
+    resumed.complete("Vamos prosseguir.");
+    expect(s.inspectForTest(ID)?.cal.status).toBe("active");
+    expect(s.inspectForTest(ID)?.task?.delivered).toBe(true);
+  });
+  it("a different goal resets task and never carries wrong-answer counts",()=>{
+    const s=create().sessions;start(s,ID,"Quero praticar Hello");
+    s.prepare(ID,"Olá",true)!.complete("Certo");
+    s.prepare(ID,"Goodbye",true)!.complete("Ainda não");
+    expect(s.inspectForTest(ID)?.cal.consecutiveErrors).toBe(1);
+    const next=s.prepare(ID,"Quero aprender a me apresentar",true)!;
+    next.complete("Tudo bem.");
+    expect(s.inspectForTest(ID)?.selectedCompetencyId).toBe("identity.my-name");
+    expect(s.inspectForTest(ID)?.cal.consecutiveErrors).toBe(0);
+    expect(s.inspectForTest(ID)?.cal.observations).toHaveLength(0);
+  });
+  it("keeps different authenticated accounts completely separate",()=>{
+    const s=create().sessions;
+    start(s,ID,"Quero praticar Hello");
+    start(s,ID+1,"Quero aprender a me apresentar");
+    expect(s.inspectForTest(ID)?.selectedCompetencyId).toBe("greeting.hello");
+    expect(s.inspectForTest(ID+1)?.selectedCompetencyId).toBe("identity.my-name");
+    expect(s.inspectForTest(ID)?.sessionId).not.toBe(s.inspectForTest(ID+1)?.sessionId);
+    expect(s.prepare(ID+1,"Olá",true)).toBeNull();
+  });
+  it("rejects stale async commits rather than overwriting the newer task",()=>{
+    const s=create().sessions;start(s);
+    const older=s.prepare(ID,"Quero praticar Hello",true)!;
+    const newer=s.prepare(ID,"Quero aprender por favor",true)!;
+    newer.complete("Vamos tentar");
+    const after=s.inspectForTest(ID);
+    older.complete("Entendi");
+    expect(s.inspectForTest(ID)).toBe(after);
+    expect(after?.selectedCompetencyId).toBe("courtesy.please");
+  });
+  it("session expires after thirty minutes without changing the original DB memory",()=>{
+    const c=create();start(c.sessions);
+    c.skip(30*60_000+1);
+    expect(c.sessions.inspectForTest(ID)).toBeNull();
+    expect(c.sessions.hasSession(ID)).toBe(false);
+  });
+  it("keeps the canonical task complete even when the LLM response is long",()=>{
+    const s=create().sessions;
+    const p=s.prepare(ID,"Quero aprender a me apresentar",true)!;
+    const txt=p.complete("Texto de apoio. ".repeat(300));
+    expect(txt.length).toBeLessThanOrEqual(1200);
+    expect(txt.endsWith("Escreva Meu nome é Alex em inglês (Alex é um personagem).")).toBe(false);
+    expect(txt.endsWith("Na frase My name is Alex, que informação é apresentada?")).toBe(true);
+    expect(s.inspectForTest(ID)?.task?.delivered).toBe(true);
+  });
+  it("cannot be confused into grading ASR text as pronunciation",()=>{
+    const s=create().sessions;start(s,ID,"Quero praticar Hello");
+    expect(s.prepare(ID,"Olá",true,undefined,"asr_text")).toBeNull();
+    expect(s.inspectForTest(ID)?.cal.phase).toBe("ENSINAR");
+  });
+});
