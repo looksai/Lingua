@@ -82,7 +82,7 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
     const task=reply.catalogTask!;
     expect(task.deliveryId).toBeTruthy();
     expect((await other.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId})).status).toBe("rejected");
-    expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:"fake"})).status).toBe("rejected");
+    expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:"forged-delivery"})).status).toBe("rejected");
     expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId})).status).toBe("recorded");
     expect((await c.catalogRenderAck({consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId})).status).toBe("duplicate");
     vi.stubEnv("CAL_CATALOG_ENABLED","false");
