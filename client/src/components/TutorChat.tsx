@@ -61,6 +61,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const catalogRenderAck=trpc.tutor.catalogRenderAck.useMutation();
   const catalogPendingTask=trpc.tutor.catalogPendingTask.useMutation();
   const [recoveredCatalogTask,setRecoveredCatalogTask]=useState<CatalogClientTask|null>(null);
+  const catalogRecoverySequence=useRef(0);
   const savedMemories=trpc.tutor.memoryList.useQuery(undefined,{enabled:capabilities.data?.memory===true,retry:false,refetchOnWindowFocus:false});
   const saveMemory=trpc.tutor.memorySave.useMutation();
   const deleteMemory=trpc.tutor.memoryDelete.useMutation();
@@ -99,6 +100,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
   function invalidateConversation():void {
     conversationVersion.current++;
+    catalogRecoverySequence.current++;
     setRecoveredCatalogTask(null);
     // Unlock the new account while late results from the old operation are discarded.
     operationToken.current++;
@@ -159,10 +161,15 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   useEffect(()=>{
     if(!enabled||!consent||provider==="off")return;
     const epoch=conversationVersion.current;
+    const request=++catalogRecoverySequence.current;
     let cancelled=false;
     void catalogPendingTask.mutateAsync().then(task=>{
-      if(!cancelled&&isCurrent(epoch))setRecoveredCatalogTask(task);
-    }).catch(()=>{if(!cancelled&&isCurrent(epoch))setRecoveredCatalogTask(null);});
+      if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch))
+        setRecoveredCatalogTask(task);
+    }).catch(()=>{
+      if(!cancelled&&request===catalogRecoverySequence.current&&isCurrent(epoch))
+        setRecoveredCatalogTask(null);
+    });
     return ()=>{cancelled=true;};
   },[enabled,consent,identityScope]);
     // Local history is optional, account-scoped and never includes audio.
@@ -260,6 +267,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       const response=await catalogRenderAck.mutateAsync({
         consent:true,sessionId:task.sessionId,deliveryId:task.deliveryId,
       });
+      if(isCurrent(epoch)&&response.status==="rejected")
+        setNotice("A atividade não está mais ativa nesta sessão. Escolha novamente o assunto para continuar.");
       return isCurrent(epoch)&&(response.status==="recorded"||response.status==="duplicate");
     }catch{return false;}
   }
@@ -285,6 +294,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(placementActive&&text.length>800){setNotice("Nesta sondagem, use até 800 caracteres por resposta.");return;}
     const isPlacement=placementActive&&Boolean(placement.data?.nextTask);
     const viaASR=transcriptReady;
+    catalogRecoverySequence.current++;
     const epoch=conversationVersion.current;
     setPendingMemory(null);
     const op=beginBusy();setNotice("");setTranscriptReady(false);
