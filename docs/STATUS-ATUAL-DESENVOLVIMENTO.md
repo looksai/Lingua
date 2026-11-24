@@ -1,6 +1,6 @@
 # Lingua / Naruto / CSLE — STATUS VIVO PARA RETOMAR O DESENVOLVIMENTO
 
-**Atualização:** 24/11/2026, após integração da PR #70, durante Fase 01.  
+**Atualização:** 24/11/2026, após integração da PR #72, durante Fase 01.  
 **Repositório:** [looksai/Lingua](https://github.com/looksai/Lingua)  
 **Fonte de histórico e governança:** [CONTEXTO-MESTRE-LINGUA.md](./CONTEXTO-MESTRE-LINGUA.md).  
 **Regra:** em outra conversa, consultar este arquivo, inspecionar **main, PRs, GitHub Actions e Render novamente**; nunca deduzir que o estado abaixo ainda é o mais recente.
@@ -34,6 +34,8 @@
 | [#68](https://github.com/looksai/Lingua/pull/68) | **6 testes de jornada Chromium → HTTP → CAL → React**, mantendo outros 7 testes Chromium | `a053c7872024babe07b81972db6884152e1a9be2` | merged, P0 [45364963177](https://github.com/looksai/Lingua/actions/runs/45364963177) e browser [45364963187](https://github.com/looksai/Lingua/actions/runs/45364963187) verdes |
 | [#69](https://github.com/looksai/Lingua/pull/69) | Checkpoint após QA Chromium+HTTP da #68 | `506a4505ef7215a1822ad951acea0f5ef1603246` | merged, P0 [45365490501](https://github.com/looksai/Lingua/actions/runs/45365490501) verde |
 | [#70](https://github.com/looksai/Lingua/pull/70) | **5 testes Chromium do TutorChat real**, com hooks tRPC simulados, além dos 13 anteriores | `1ad31035b3f104f5bb4a71037874c22748cb5a26` | merged, P0 [45371013134](https://github.com/looksai/Lingua/actions/runs/45371013134) e Chromium [45371012937](https://github.com/looksai/Lingua/actions/runs/45371012937) verdes; 18/18 browser |
+| [#71](https://github.com/looksai/Lingua/pull/71) | Checkpoint após QA de TutorChat completo com hooks simulados | `91966ff9968105f4b3afd809c23844823a217739` | merged, P0 [45371537741](https://github.com/looksai/Lingua/actions/runs/45371537741) verde |
+| [#72](https://github.com/looksai/Lingua/pull/72) | **TutorChat original → React Query/tRPC reais → HTTP/JWT/CAL sintéticos**, quatro novos testes Chromium | `0eb98fb852513d9ebb8ec80b16c63abf8e8132e7` | merged, P0 [45374121944](https://github.com/looksai/Lingua/actions/runs/45374121944) e browser [45374121970](https://github.com/looksai/Lingua/actions/runs/45374121970) verdes; **22/22 browser** |
 
 PR #45 fechada sem merge: substituída pela #47. CI verde em PRs **não** representa QA interativo humano. Verificar novamente cada execução no GitHub.
 
@@ -41,28 +43,28 @@ PR #45 fechada sem merge: substituída pela #47. CI verde em PRs **não** repres
 
 - Render staging: https://lingua-p1-staging-le7u.onrender.com , auto-deploy anteriormente desligado.
 - Último deploy verificado como **Live** no desenvolvimento anterior: `dep-dc2kh0jrjlhs73d0qchg`, commit `6d0034b36258c788682aa91698d2e86c503f3d4d` (PR #56). **Sempre consultar Render atual antes de alegar versão publicada.**
-- **QA de contas reais ainda PENDENTE**: login real, consulta à tabela de usuários, Chrome Android/Safari iOS físicos, microfone/ASR acústico, TTS/autoplay externo, consentimento persistido, cold start e sessões multi-instância. **QA isolado aprovado:** #64 7 casos Chromium de componentes, #66 10 casos HTTP JWT com diretório falso, #68 6 jornadas Chromium→HTTP→CAL usando fixture parcial, e **#70 5 casos do TutorChat original em Chromium com hooks tRPC simulados**. São 18 casos Chromium, mas o TutorChat completo ainda não foi testado com HTTP real; nenhuma suíte prova competência, eficácia pedagógica ou autenticação de usuário persistido.
+- **QA de contas reais ainda PENDENTE**: login real, `createContext` com consulta a usuários persistidos, Chrome Android/Safari iOS físicos, microfone/ASR acústico, TTS/autoplay externo, consentimento persistido, cold start e sessões multi-instância. **QA isolado aprovado:** #64 7 casos de componentes Chromium, #66 10 HTTP JWT isolados, #68 6 Chromium→HTTP→CAL com fixture parcial, #70 5 do TutorChat original com hooks mockados, **#72 4 do TutorChat original usando React Query/tRPC reais sobre HTTP/JWT/CAL com DB/LLM/contas fictícios**. Total **22/22 Chromium** aprovados; nenhum demonstra proficiência, certificação ou autenticação de usuário persistido.
 - O ciclo CAL é provisório e volátil; a transição até `COMPROVAR` não comprova domínio/CEFR/retention/transferência. Sem SRS/CSLE acoplado. Não escrever evidências oficiais com base em transcrição, autorrelato, LLM ou receipt de DOM.
 - **Banco:** MySQL/Aiven + Drizzle; migração 0007 de memória previamente aplicada a staging; **não executar migration 0008**, `db:push` ou alteração produtiva sem revisão específica.
 - Stripe PR #32 permanece congelada; não cobrar nem habilitar billing.
 
 ## TRABALHO ATUAL E PRÓXIMA SEQUÊNCIA
 
-**Última integração confirmada:** [PR #70](https://github.com/looksai/Lingua/pull/70), merge `1ad31035b3f104f5bb4a71037874c22748cb5a26`, CI padrão [45371013134](https://github.com/looksai/Lingua/actions/runs/45371013134) (TypeScript/Vitest/build) e browser [45371012937](https://github.com/looksai/Lingua/actions/runs/45371012937) **ambos SUCCESS**. Resultados do Chromium: **5/5 TutorChat completo**, **6/6 UI→HTTP→CAL da #68**, **7/7 controles de #64**; total **18/18**.
+**Última integração confirmada:** [PR #72](https://github.com/looksai/Lingua/pull/72), merge `0eb98fb852513d9ebb8ec80b16c63abf8e8132e7`, P0 [45374121944](https://github.com/looksai/Lingua/actions/runs/45374121944) **SUCCESS** (TypeScript, Vitest e build), Chromium [45374121970](https://github.com/looksai/Lingua/actions/runs/45374121970) **SUCCESS**: **4/4 novos testes de TutorChat original+HTTP**, mais **6/6 UI→HTTP→CAL** da #68, **7/7 de componentes** da #64 e **5/5 TutorChat isolado** da #70, total **22/22 testes Chromium**.
 
-Arquivos integrados na PR #70:
-- `client/qa/tutorchat-full.html`, `client/qa/tutorchat-full.tsx`: montam o **TutorChat original, sem modificar a fonte**, perfil e trocas de conta fictícios;
-- `client/qa/tutorchat-trpc-fixture.ts`: **stub exclusivamente para laboratório**, sem HTTP, que produz resultados controlados e respostas atrasadas;
-- `tests/browser/vite.tutorchat.qa.config.ts`: alias Vite explícito e prioritário para `@/lib/trpc`, restrito ao laboratório;
-- `tests/browser/run-tutorchat-full-qa.mjs`: Playwright Chromium valida (1) não enviar antes do aceite, (2) resposta atrasada de A não surge em B, (3) revogação impede resposta tardia, (4) opt-ins locais independentes e apagar conversa, (5) falha de voz neural com mensagem e sem áudio inventado;
-- `.github/workflows/browser-qa.yml`: executa os cinco casos **além dos 13 já aprovados**;
-- `docs/QA-TUTORCHAT-COMPLETO-CHROMIUM-LAB-FASE01.md`: escopo, limites e execução.
+Arquivos de código e documentação da #72:
+- `client/qa/tutorchat-http.html` e `client/qa/tutorchat-http.tsx`: **TutorChat original sem alteração**; usa `trpc.Provider`, `QueryClientProvider`, `httpBatchLink`, `superjson` e `@/lib/trpc` reais, conforme `client/src/main.tsx`, sem alias de hooks.
+- `server/cal-browser-full-tutorchat-http.test.ts`: Express/tRPC/tutorRouter/CAL e verificação JWT reais, identidades sintéticas com cookies httpOnly; conta, perfil, budget e LLM simulados; `placement.me` provisório sem DB.
+- `.github/workflows/browser-qa.yml`: adiciona a suíte com `LINGUA_BROWSER_FULL_HTTP_QA=1` aos outros 18 testes browser. Não há secrets nem tráfego externo.
+- `docs/QA-TUTORCHAT-HTTP-JWT-CAL-INTEGRADO-LAB-V1.md`: protocolo, matriz FH-01–FH-04 e limites.
 
-**O que NÃO foi homologado:** #70 testa **a UI inteira, mas NÃO o backend real**; os hooks tRPC são simulados. A #68 testa HTTP/CAL reais, mas usa **outra fixture parcial**. Não afirmar que a interface completa foi testada ponta a ponta com login real, Groq, Aiven, Android, Safari ou ASR real. Nenhuma evidência oficial de aprendizado foi criada. `client_text_claim` continua sem origem atestada, e nada foi acoplado ao SRS/CSLE.
+**Quatro novos portões verificados:** (1) nenhuma chamada ao modelo antes do aceite; atividade emitida e ACK do DOM; progressão ENSINAR→PRATICAR e observação **provisória**; (2) contas A/B com cookies distintos não compartilham tickets; (3) atualização da página recupera somente o ticket pendente associado ao usuário autenticado; (4) resultado HTTP de A, retido durante troca de cookie/identidade, não reaparece visualmente em B. O teste usa mecanismos de laboratório para troca de identidade, não o formulário de login verdadeiro.
 
-**Próxima sequência de engenharia:** unir o **TutorChat original** ao ambiente Express/tRPC/JWT sintético que já passou na PR #68. Usar o provedor React Query/tRPC real em fixture de laboratório, cookies fictícios e DB/LLM mocked, cobrindo consentimento, troca de conta e guardas de sessão, antes de qualquer QA com login e banco reais. Evitar duplicar a lógica do TutorChat. Como prioridade paralela, expandir casos de microfone/ASR e áudio com eventos sintéticos, sem alegar teste acústico. Não criar migration, liberar billing ou executar `db:push`.
+**Limites inegociáveis:** apesar da UI, HTTP, tRPC/JWT e CAL reais, o `createContext` de produção é **substituído** por diretório sintético e a consulta de perfil/budget/LLM é mock. Não foi testado login por senha, revogação *server-side* de consentimento durante uma requisição já recebida, persistência MySQL, dispositivos físicos, voz ASR/TTS externa, SRS/CSLE, domínio ou CEFR. Uma mensagem `typed` ainda é alegada pelo cliente; ACK não prova leitura humana. Nenhuma escrita em `learnerEvidences`, migration ou deploy ocorreu.
 
-**Staging:** último deploy confirmado Live no checkpoint anterior: `dep-dc2kh0jrjlhs73d0qchg`, commit #56. #57–#70 não foram publicados: só laboratório/documentos/testes. Verificar Render novamente antes de falar sobre a versão ativa.
+**Próxima sequência recomendada:** (1) ampliar os testes de revogação no servidor com requisições em trânsito e distinguir cancelamento de UI de commit CAL, sem DB real; (2) estudar as fronteiras de autenticação e logout com duas contas em banco **descartável** antes de qualquer uso de `createContext` real; (3) protocolos QA físicos Android/Safari, microfone/ASR, voz/autoplay; (4) comparador de aprendizagem com/sem CAL, mantendo a honestidade do motor. Evitar alterações em Aiven, billing e CSLE sem decisão formal.
+
+**Staging:** última implantação Live verificada anteriormente: `dep-dc2kh0jrjlhs73d0qchg`, commit #56. A sequência #72 incluiu somente testes/fixture/workflow/documentação **sem deploy**. Confirmar no Render antes de afirmar versão ativa.
 
 ## Documentos e critérios vigentes
 
@@ -77,12 +79,13 @@ Arquivos integrados na PR #70:
 - [QA HTTP com sessões assinadas sintéticas](./QA-HTTP-SESSAO-SINTETICA-NARUTO-FASE01.md)
 - [QA Chromium integrado com HTTP e CAL](./QA-BROWSER-HTTP-CAL-SINTETICO-FASE01.md)
 - [QA TutorChat completo em Chromium](./QA-TUTORCHAT-COMPLETO-CHROMIUM-LAB-FASE01.md)
+- [QA TutorChat completo com tRPC HTTP/JWT e CAL reais no laboratório](./QA-TUTORCHAT-HTTP-JWT-CAL-INTEGRADO-LAB-V1.md)
 
 ## Protocolo obrigatório para nova conversa
 
 1. Ler `docs/STATUS-ATUAL-DESENVOLVIMENTO.md` **e** `docs/CONTEXTO-MESTRE-LINGUA.md`.
 2. Conferir HEAD real da `main`, branches, PRs abertas e CIs; consultar Render se houver alteração de staging.
-3. Conferir PR #70 integrada (TutorChat completo com hooks simulados, 5 casos novos), PR #68 (Chromium + HTTP + CAL, 6 casos) e #64 (7 controles) — 18/18 browser. Próxima tarefa: ligar a UI original ao HTTP/JWT sintético em ambiente isolado; preservar migrations e staging.
+3. Conferir PR #72 integrada (TutorChat original com tRPC HTTP/JWT/CAL reais, 4 casos novos, 22/22 browser) e PRs #70/#68/#64. Próxima tarefa: avaliar revogação durante requisição em trânsito e fronteiras de autorização no servidor; preservar staging e migrations.
 4. Trabalhar em branch, executar `pnpm check`, `pnpm test`, `pnpm build` no CI, revisar diff e só integrar com gates verdes.
 5. Atualizar **este mesmo documento** ao concluir cada sequência com PRs, commits, testes, deploy, blockers e próxima ação. Atualizar o CONTEXTO-MESTRE resumidamente quando o marco alterar decisões ou arquitetura.
 6. Comunicar ao fundador um balanço sucinto e seguir quando ele escrever `ok`; solicitar opinião apenas em decisões criativas/de produto não resolvidas. Nunca afirmar testes manuais inexistentes.
