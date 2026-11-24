@@ -4,6 +4,7 @@ import {availableLocalVoices,selectEnglishLocalVoice,selectLocalVoice,speechText
 import {englishExcerpt} from "@/lib/english-example";
 import {modalityForTutorReply,transcriptOriginAfterEdit} from "@shared/pedagogy/tutor-input-modality";
 import {resolveTutorAudio} from "@shared/pedagogy/tutor-audio-action";
+import {TutorAudioControls} from "@/components/TutorAudioControls";
 import {tutorAsyncResultIsCurrent} from "@shared/pedagogy/tutor-async-epoch";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
@@ -641,21 +642,15 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             {m.role==="assistant"&&m.audioBase64&&<audio className="mt-2 w-full" controls preload="none" onPlay={e=>{if(recording||permissionPending){e.currentTarget.pause();setNotice("Não é possível reproduzir áudio durante a gravação.");return;}stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/mpeg;base64,"+m.audioBase64}/>}
             {m.role==="assistant"&&!m.audioBase64&&neuralAudios[m.id]&&
               <audio ref={autoPlayId===m.id?autoPlayRef:undefined} controls preload="none" className="mt-2 w-full" onPlay={e=>{if(recording||permissionPending){e.currentTarget.pause();setNotice("Não é possível reproduzir áudio durante a gravação.");return;}stopSpeech();stopAudioPlayers(e.currentTarget);}} src={"data:audio/wav;base64,"+neuralAudios[m.id]}/>}
-            {(action==="neural"||action==="retry")&&
-              <button type="button" disabled={busy||recording||permissionPending} onClick={()=>void playNeural(m)}
-                aria-label={(action==="retry"?"Tentar novamente áudio de ":"Ouvir frase em inglês de ")+profile.tutorName}
-                className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40">
-                <Volume2 size={14}/> {generatingId===m.id?"Preparando áudio…":action==="retry"?"Tentar novamente":"Ouvir frase em inglês"}
-              </button>}
-            {action==="local"&&
-              <button type="button" disabled={recording||permissionPending} onClick={()=>browserSpeak(phrase??m.text,m.id,playbackVoice?.voiceURI)}
-                className="mt-2 inline-flex items-center gap-2 rounded-full px-2 py-1 text-xs font-semibold text-teal hover:bg-ink/5 disabled:opacity-40"
-                aria-label={(speakingId===m.id?"Parar áudio de ":"Ouvir pela voz local de ")+profile.tutorName}>
-                {speakingId===m.id?<Square size={14}/>:<Volume2 size={14}/>}
-                {speakingId===m.id?"Parar":phrase?"Ouvir frase (voz local)":"Ouvir (voz local)"}
-              </button>}
-            {m.voiceStatus==="unavailable"&&<p className="mt-1 text-xs text-ink-muted">Áudio externo indisponível. Mensagem preservada.</p>}
-            {action==="welcome"&&<button type="button" disabled={busy||recording||permissionPending} onClick={()=>void speakWelcome()} className="mt-2 flex items-center gap-2 text-xs font-semibold text-teal"><Volume2 size={15}/> Preparar áudio das boas-vindas</button>}
+            <TutorAudioControls
+              action={action} tutorName={profile.tutorName} busy={busy}
+              generating={generatingId===m.id} recording={recording}
+              permissionPending={permissionPending} speakingLocally={speakingId===m.id}
+              hasEnglishPhrase={Boolean(phrase)} voiceUnavailable={m.voiceStatus==="unavailable"}
+              onNeural={()=>void playNeural(m)}
+              onLocal={()=>browserSpeak(phrase??m.text,m.id,playbackVoice?.voiceURI)}
+              onWelcome={()=>void speakWelcome()}
+            />
           </div>
         </div>})}
         {pendingMemory&&<div role="group" aria-label="Permissão para lembrar fato pessoal" className="rounded-xl border border-teal/30 bg-paper p-4 text-sm">
