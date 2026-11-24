@@ -10,7 +10,7 @@ const teaching="Entendi! **Hello** significa **Olá**. O que significa Hello em 
 const practice="Boa tentativa. Como você cumprimentaria alguém em inglês?";
 const sessions=()=>new CALTutorSessions(()=>5000);
 const open=(s:CALTutorSessions, uid=10)=>{
-  const p=s.prepare(uid,first,true);
+  const p=s.prepare(uid,first,true,"typed");
   expect(p).not.toBeNull();
   expect(p?.phase).toBe("ENSINAR");
   expect(p?.strategy).toBe("translated_microexample");
@@ -18,7 +18,7 @@ const open=(s:CALTutorSessions, uid=10)=>{
 };
 const moveToPractice=(s:CALTutorSessions,uid=10)=>{
   open(s,uid);
-  const p=s.prepare(uid,"Olá",true);
+  const p=s.prepare(uid,"Olá",true,"typed");
   expect(p?.phase).toBe("PRATICAR");
   expect(p?.directive).toContain("tentativa anterior foi compatível");
   p?.commit(practice);
@@ -33,13 +33,13 @@ describe("CAL feature flag and no-regression contract",()=>{
   });
   it("is opt-in by real learner study request, not by an arbitrary question",()=>{
     const s=sessions();
-    expect(s.prepare(10,"Naruto, com o que eu trabalho?",true)).toBeNull();
+    expect(s.prepare(10,"Naruto, com o que eu trabalho?",true,"typed")).toBeNull();
     expect(s.inspectForTest(10)).toBeNull();
-    expect(s.prepare(-1,first,true)).toBeNull();
-    expect(s.prepare(10,first,true)?.phase).toBe("ENSINAR");
+    expect(s.prepare(-1,first,true,"typed")).toBeNull();
+    expect(s.prepare(10,first,true,"typed")?.phase).toBe("ENSINAR");
   });
   it("computes a fixed server directive that does not invent qualifications/CEFR",()=>{
-    const s=sessions(),p=s.prepare(10,first,true);
+    const s=sessions(),p=s.prepare(10,first,true,"typed");
     expect(p?.directive).toContain("Hello = Olá");
     expect(p?.directive).toContain("O que significa Hello");
     expect(p?.directive).toContain("Não invente");
@@ -48,21 +48,21 @@ describe("CAL feature flag and no-regression contract",()=>{
   });
   it("does not start or mutate session after provider failure",()=>{
     const s=sessions();
-    s.prepare(10,first,true);
+    s.prepare(10,first,true,"typed");
     expect(s.inspectForTest(10)).toBeNull();
-    const preview=s.prepare(10,first,true);
+    const preview=s.prepare(10,first,true,"typed");
     preview?.commit("");
     expect(s.inspectForTest(10)).toBeNull();
   });
   it("a model reply without the closed question can never be graded",()=>{
-    const s=sessions(),p=s.prepare(10,first,true);
+    const s=sessions(),p=s.prepare(10,first,true,"typed");
     p?.commit("Hello significa Olá. Quer conversar sobre trabalho?");
     expect(s.inspectForTest(10)?.pending).toBeNull();
-    const next=s.prepare(10,"Olá",true);
+    const next=s.prepare(10,"Olá",true,"typed");
     expect(next?.phase).toBe("ENSINAR");
   });
   it("an unsafe or untrusted LLM reply is not considered learner evidence",()=>{
-    const s=sessions(),p=s.prepare(10,first,true);
+    const s=sessions(),p=s.prepare(10,first,true,"typed");
     p?.commit("I am a certified welder with 20 years of experience.");
     const state=s.inspectForTest(10);
     expect(state?.snapshot.observations).toHaveLength(0);
@@ -76,7 +76,7 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
     open(s);
     expect(s.inspectForTest(10)?.snapshot.phase).toBe("ENSINAR");
     expect(s.inspectForTest(10)?.pending).toBe("meaning");
-    const r=s.prepare(10,"Olá",true);
+    const r=s.prepare(10,"Olá",true,"typed");
     expect(r?.phase).toBe("PRATICAR");
     expect(s.inspectForTest(10)?.snapshot.phase).toBe("ENSINAR"); // no commit until AI succeeds
     r?.commit(practice);
@@ -85,7 +85,7 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
   it("a mere 'entendi' bypasses grading without proving comprehension",()=>{
     const s=sessions();open(s);
     const before=s.inspectForTest(10)?.snapshot;
-    const r=s.prepare(10,"Entendi",true);
+    const r=s.prepare(10,"Entendi",true,"typed");
     expect(r).toBeNull();
     expect(s.inspectForTest(10)?.snapshot).toBe(before);
     expect(s.inspectForTest(10)?.snapshot.phase).toBe("ENSINAR");
@@ -93,7 +93,7 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
   });
   it("short wrong translation is not a false positive",()=>{
     const s=sessions();open(s);
-    const r=s.prepare(10,"tchau",true);
+    const r=s.prepare(10,"tchau",true,"typed");
     expect(r?.phase).toBe("ENSINAR");
     expect(r?.directive).toContain("diferente do gabarito");
     r?.commit(teaching);
@@ -102,7 +102,7 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
   it("an unrelated learner question bypasses the fixed task without grading or losing session",()=>{
     const s=sessions();open(s);
     const before=s.inspectForTest(10)?.snapshot;
-    const r=s.prepare(10,"Como se escreve soldador em inglês?",true);
+    const r=s.prepare(10,"Como se escreve soldador em inglês?",true,"typed");
     expect(r).toBeNull();
     const after=s.inspectForTest(10)?.snapshot;
     expect(after).toBe(before);
@@ -113,26 +113,26 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
   it("does not grade a learner's new goal as a wrong answer during a closed task",()=>{
     const s=sessions();open(s);
     const before=s.inspectForTest(10)?.snapshot;
-    expect(s.prepare(10,"Quero estudar para entrevista",true)).toBeNull();
+    expect(s.prepare(10,"Quero estudar para entrevista",true,"typed")).toBeNull();
     expect(s.inspectForTest(10)?.snapshot).toBe(before);
     expect(s.inspectForTest(10)?.pending).toBe("meaning");
   });
   it("does not punish short non-answer statements during practice",()=>{
     const s=sessions();moveToPractice(s);
     const before=s.inspectForTest(10)?.snapshot;
-    expect(s.prepare(10,"Eu trabalho com solda",true)).toBeNull();
+    expect(s.prepare(10,"Eu trabalho com solda",true,"typed")).toBeNull();
     expect(s.inspectForTest(10)?.snapshot).toBe(before);
     expect(s.inspectForTest(10)?.snapshot.consecutiveErrors).toBe(0);
   });
   it("a quoted or discussed question without actually asking it cannot create a pending task",()=>{
-    const s=sessions();const p=s.prepare(10,first,true);
+    const s=sessions();const p=s.prepare(10,first,true,"typed");
     p?.commit("Hello quer dizer Olá. O exemplo de pergunta seria: O que significa Hello em português? Mas agora vamos conversar.");
     expect(s.inspectForTest(10)?.pending).toBeNull();
-    expect(s.prepare(10,"Olá",true)?.phase).toBe("ENSINAR");
+    expect(s.prepare(10,"Olá",true,"typed")?.phase).toBe("ENSINAR");
   });
   it("does not mark a read-and-repeat task as independent mastery",()=>{
     const s=sessions();moveToPractice(s);
-    const r=s.prepare(10,"Hello",true);
+    const r=s.prepare(10,"Hello",true,"typed");
     expect(r?.phase).toBe("PRATICAR");
     r?.commit(practice);
     const obs=s.inspectForTest(10)?.snapshot.observations;
@@ -144,11 +144,11 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
   it("three trusted wrong closed answers lead to a different teaching strategy",()=>{
     const s=sessions();moveToPractice(s);
     for(let i=0;i<2;i++){
-      const r=s.prepare(10,"goodbye",true);
+      const r=s.prepare(10,"goodbye",true,"typed");
       expect(r?.phase).toBe("PRATICAR");
       r?.commit(practice);
     }
-    const third=s.prepare(10,"goodbye",true);
+    const third=s.prepare(10,"goodbye",true,"typed");
     expect(third?.phase).toBe("ENSINAR");
     expect(third?.strategy).toBe("contrastive_reteach");
     third?.commit(teaching);
@@ -157,15 +157,15 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
   });
   it("student help request is never counted as an error",()=>{
     const s=sessions();moveToPractice(s);
-    const r=s.prepare(10,"não sei",true);
+    const r=s.prepare(10,"não sei",true,"typed");
     expect(r?.phase).toBe("ENSINAR");
     r?.commit(teaching);
     expect(s.inspectForTest(10)?.snapshot.consecutiveErrors).toBe(0);
   });
   it("same account has provisional state, a different account starts independently",()=>{
     const s=sessions();open(s,1);
-    expect(s.prepare(2,"Naruto, com o que eu trabalho?",true)).toBeNull();
-    const other=s.prepare(2,first,true);
+    expect(s.prepare(2,"Naruto, com o que eu trabalho?",true,"typed")).toBeNull();
+    const other=s.prepare(2,first,true,"typed");
     other?.commit(teaching);
     expect(s.inspectForTest(1)?.snapshot.sessionId)
       .not.toBe(s.inspectForTest(2)?.snapshot.sessionId);
@@ -173,30 +173,30 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
   });
   it("a duplicate commit of the same model reply does not replay learner evidence",()=>{
     const s=sessions();moveToPractice(s);
-    const r=s.prepare(10,"hello",true);
+    const r=s.prepare(10,"hello",true,"typed");
     expect(r?.commit(practice)).not.toBeNull();
     expect(r?.commit(practice)).toBeNull();
     expect(s.inspectForTest(10)?.snapshot.observations).toHaveLength(1);
   });
   it("two stale requests cannot overwrite a newer CAL snapshot",()=>{
     const s=sessions();
-    const first=s.prepare(10,"quero aprender",true);
-    const competing=s.prepare(10,"quero aprender",true);
+    const first=s.prepare(10,"quero aprender",true,"typed");
+    const competing=s.prepare(10,"quero aprender",true,"typed");
     first?.commit(teaching);
     expect(competing?.commit(teaching)).toBeNull();
     expect(s.inspectForTest(10)?.snapshot.phase).toBe("ENSINAR");
   });
   it("pause/resume and idle expiry are supported without timers or unsolicited pings",()=>{
     let now=10_000;const s=new CALTutorSessions(()=>now);
-    const p=s.prepare(10,first,true);p?.commit(teaching);
-    expect(s.prepare(10,"quero parar",true)).toBeNull();
+    const p=s.prepare(10,first,true,"typed");p?.commit(teaching);
+    expect(s.prepare(10,"quero parar",true,"typed")).toBeNull();
     expect(s.inspectForTest(10)?.snapshot.status).toBe("paused");
-    expect(s.prepare(10,"Olá",true)).toBeNull();
-    const r=s.prepare(10,"vamos continuar",true);
+    expect(s.prepare(10,"Olá",true,"typed")).toBeNull();
+    const r=s.prepare(10,"vamos continuar",true,"typed");
     expect(r?.phase).toBe("ENSINAR");
     r?.commit(teaching);
     now+=31*60_000;
-    expect(s.prepare(10,"Olá",true)).toBeNull();
+    expect(s.prepare(10,"Olá",true,"typed")).toBeNull();
     expect(s.inspectForTest(10)).toBeNull();
   });
 });
