@@ -1,3 +1,4 @@
+import { needsAbsoluteBeginnerSupport } from "../shared/tutor-language";
 import { parseTutorMemoryEnvelope } from "./learner-memory";
 import { TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_TEXT, type TutorAudioType, type TutorHistory, type TutorProfile, systemInstructions } from "../shared/tutor";
 
@@ -69,7 +70,7 @@ export function createOpenAITutor(env = process.env, request: typeof fetch = fet
       const raw = await call("chat/completions",JSON.stringify({
         model:textModel,max_tokens:240,
         messages:[
-          {role:"system",content:systemInstructions(profile,memoryFacts)},
+          {role:"system",content:systemInstructions(profile,memoryFacts,false,needsAbsoluteBeginnerSupport(history,message,memoryFacts))},
           ...history.map(m=>({role:m.role,content:m.text})),
           {role:"user",content:message},
         ],
@@ -81,7 +82,7 @@ export function createOpenAITutor(env = process.env, request: typeof fetch = fet
       const raw = await call("chat/completions",JSON.stringify({
         model:textModel,max_tokens:350,response_format:{type:"json_object"},
         messages:[
-          {role:"system",content:systemInstructions(profile,memoryFacts,true)},
+          {role:"system",content:systemInstructions(profile,memoryFacts,true,needsAbsoluteBeginnerSupport(history,message,memoryFacts))},
           ...history.map(m=>({role:m.role,content:m.text})),
           {role:"user",content:message},
         ],
