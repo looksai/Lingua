@@ -36,6 +36,10 @@ const capabilities={data:{
   chat:true,provider:"groq" as const,tts:true,asr:true,
   neuralEnglish:true,memory:false,geminiDemo:false,
 },isLoading:false,isPending:false,error:null,refetch:async()=>({data:capabilities.data})};
+const privacyPreferences={data:{
+  serviceAccepted:false,personalMemoryEnabled:false,legacyAccount:true,
+},isError:false,isPending:false,isLoading:false,
+  refetch:async()=>({data:privacyPreferences.data})};
 const placement={data:{nextTask:null,answers:[]},isPending:false,isLoading:false,
   isError:false,refetch:async()=>({data:placement.data})};
 const emptyMemory={data:[],isError:false,isPending:false,isLoading:false,
@@ -70,6 +74,8 @@ const disabledQuery={useQuery:()=>emptyMemory};
 export const trpc={
   tutor:{
     capabilities:{useQuery:()=>capabilities},
+    privacyPreferences:{useQuery:()=>privacyPreferences},
+    updatePersonalMemory:makeMutation("updatePersonalMemory"),
     reply:makeMutation("reply"),
     catalogRenderAck:makeMutation("catalogRenderAck"),
     catalogPendingTask:makeMutation("catalogPendingTask"),
