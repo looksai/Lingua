@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type PointerEvent } from "
 import { MessageCircle, Mic, Minus, Send, Square, Volume2, Settings2, ChevronLeft } from "lucide-react";
 import {availableLocalVoices,selectLocalVoice,speechText} from "@/lib/tutor-speech";
 import {englishExcerpt} from "@/lib/english-example";
+import {modalityForTutorReply,transcriptOriginAfterEdit} from "@shared/pedagogy/tutor-input-modality";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
@@ -94,12 +95,14 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       accepted=stored?.accepted===true&&stored?.version===consentVersion;
     }catch{/* Storage blocked: ask once in memory only. */}}
     setConsent(accepted);setTermsAccepted(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);
+    setDraft("");setTranscriptReady(false);
     setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
   },[provider,consentKey]);
 
   // Local history is optional, account-scoped and never includes audio.
   useEffect(()=>{
     if(!memoryKeys)return;
+    setDraft("");setTranscriptReady(false);
     const saved=loadChatMemory(window.localStorage,memoryKeys);
     const restored:Message[]=[{id:0,role:"assistant",text:greeting(profile),source:"local"},...saved.messages];
     sequence.current=Math.max(0,...saved.messages.map(x=>x.id));
@@ -121,7 +124,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function eraseConversation(){
     if(memoryKeys)clearChatMemory(window.localStorage,memoryKeys);
     setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
-    sequence.current=0;setPendingMemory(null);setNeuralAudios({});setPreviewVoiceAudio(null);setNotice("Histórico apagado neste dispositivo.");
+    sequence.current=0;setPendingMemory(null);setNeuralAudios({});setPreviewVoiceAudio(null);setDraft("");setTranscriptReady(false);setNotice("Histórico apagado neste dispositivo.");
   }
 
   function stopCapture(send:boolean) {
@@ -203,14 +206,16 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         if(next.data?.nextTask)append({role:"assistant",text:next.data.nextTask.prompt});
         else append({role:"assistant",text:"Obrigado! Agora temos três amostras de texto. Elas não bastam para atribuir um nível, mas podemos criar um plano inicial de quatro semanas. Clique em Gerar plano provisório."});
       }else{
-        const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice});
+        const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice,
+          inputModality:modalityForTutorReply(viaASR)});
         if(!mounted.current)return;
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
+        if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
         if(res.memoryCandidate&&capabilities.data?.memory)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
       }
     }catch{
-      if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);}
+      if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);setTranscriptReady(viaASR);}
     }finally{
       inFlight.current=false;if(mounted.current)setBusy(false);
     }
@@ -546,7 +551,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         {transcriptReady&&<p className="text-xs font-semibold text-teal">Confira o texto reconhecido antes de enviar.</p>}
         <form onSubmit={send} className="flex items-end gap-2">
           <textarea aria-label="Sua mensagem" rows={2} maxLength={TUTOR_MAX_TEXT} value={draft}
-            onChange={e=>setDraft(e.target.value)} disabled={busy||recording||permissionPending}
+            onChange={e=>{setDraft(e.target.value);setTranscriptReady(old=>transcriptOriginAfterEdit(old,e.target.value));}} disabled={busy||recording||permissionPending}
             placeholder="Converse com seu tutor..." className="min-w-0 flex-1 resize-none rounded-xl border border-ink/20 p-3 text-sm"/>
           <button type="button" aria-label={recording?"Soltar para transcrever":"Segure para falar; teclado: ativar e parar"}
             disabled={!enabled||!capabilities.data?.asr||busy}

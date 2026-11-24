@@ -137,7 +137,7 @@ export class CALTutorSessions {
    * Planning is pure relative to stored runtime state. No mutation is committed
    * if the model fails or a guard rejects the answer. Reuse only for one request.
    */
-  prepare(userId: number, userMessage: string, supportsPortuguese: boolean): CALPilotPreview | null {
+  prepare(userId: number, userMessage: string, supportsPortuguese: boolean, modality: "typed" | "asr_text"): CALPilotPreview | null {
     if (!Number.isSafeInteger(userId) || userId <= 0) return null;
     const now = this.now();
     this.cleanup(now);
@@ -154,6 +154,11 @@ export class CALTutorSessions {
     let snapshot = original?.snapshot ?? newCALSession(randomUUID());
     let pending = original?.pending ?? null;
     let result: string | null = null;
+    // A transcript is practice, never an independently typed closed answer.
+    // Keep the pending ticket unchanged; still allow explicit help and pause commands.
+    if (pending && modality !== "typed" &&
+        !HELP_REQUEST.test(userMessage) && !ASKED_TO_RESUME.test(userMessage) &&
+        !(ASKED_TO_PAUSE.test(userMessage) && norm(userMessage)!=="tchau")) return null;
     // Closed exercise only. Unknown free text is an interruption or change
     // of objective, not a failed answer; the normal tutor handles it.
     if (pending && snapshot.status === "active" && !HELP_REQUEST.test(userMessage) &&

@@ -49,7 +49,7 @@ const caller = (id = ++userId, authenticated = true) =>
     req: {} as never, res: {} as never,
   });
 const input = (message:string, consent=true) =>
-  ({message,history:[],consent,voice:false,provider:"groq" as const});
+  ({message,history:[],consent,voice:false,provider:"groq" as const,inputModality:"typed" as const});
 const teachText="Entendi! **Hello** significa **Olá**. O que significa Hello em português?";
 const practiceText="Muito bem. Como você cumprimentaria alguém em inglês?";
 
@@ -99,6 +99,37 @@ describe("CAL backend router regression — fake provider, no HTTP/DB writes",()
     expect(obs).toHaveLength(1);
     expect(obs?.[0].outcome).toBe("meets");
     expect(obs?.[0].assistance).toBe("model");
+  });
+  it("does not grade a spoken ASR answer in the legacy Hello pilot",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");
+    const id=++userId,c=caller(id);
+    await c.reply(input("Não sei nada de inglês, quero começar do zero."));
+    const before=structuredClone(calTutorSessions.inspectForTest(id));
+    const r=await c.reply({...input("Olá"),inputModality:"asr_text"});
+    expect(r.source).toBe("ai");
+    expect(mocks.modelReply.mock.calls[1][4]).toBeUndefined();
+    expect(calTutorSessions.inspectForTest(id)).toEqual(before);
+  });
+  it("fails closed on legacy clients without modality in the Hello pilot",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");
+    const id=++userId,c=caller(id);
+    await c.reply(input("Não sei nada de inglês, quero começar do zero."));
+    const before=structuredClone(calTutorSessions.inspectForTest(id));
+    const {inputModality:_unused,...oldClient}=input("Olá");
+    const r=await c.reply(oldClient);
+    expect(r.source).toBe("ai");
+    expect(mocks.modelReply.mock.calls[1][4]).toBeUndefined();
+    expect(calTutorSessions.inspectForTest(id)).toEqual(before);
+  });
+  it("does not count an ASR spoken distractor as a wrong attempt",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");
+    const id=++userId,c=caller(id);
+    await c.reply(input("Não sei nada de inglês, quero começar do zero."));
+    const before=structuredClone(calTutorSessions.inspectForTest(id));
+    const r=await c.reply({...input("tchau"),inputModality:"asr_text"});
+    expect(r.source).toBe("ai");
+    expect(mocks.modelReply.mock.calls[1][4]).toBeUndefined();
+    expect(calTutorSessions.inspectForTest(id)).toEqual(before);
   });
   it("explicit AI refusal/denied consent never invokes CAL or the provider",async()=>{
     vi.stubEnv("CAL_ENABLED","true");

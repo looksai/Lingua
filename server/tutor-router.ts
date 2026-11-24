@@ -1,3 +1,4 @@
+import {safeTutorModality} from "@shared/pedagogy/tutor-input-modality";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -139,13 +140,13 @@ export const tutorRouter = router({
       // CAL_ENABLED=true keeps the existing safe Hello pilot byte-for-byte.
       const catalogPreview=catalogCALRuntimeEnabled()
         ? calCatalogTutorSessions.prepare(ctx.user.id,input.message,beginner,input.catalogCompetencyId,
-            input.inputModality??"typed")
+            safeTutorModality(input.inputModality))
         : null;
       // Never allow two different CAL state machines to grade the same turn.
       // A catalogue-mode request with an unknown goal must fall back to
       // ordinary conversation, NEVER involuntarily restart the Hello pilot.
       const calPreview=calEnabled() && !catalogCALRuntimeEnabled()
-        ? calTutorSessions.prepare(ctx.user.id,input.message,beginner)
+        ? calTutorSessions.prepare(ctx.user.id,input.message,beginner, safeTutorModality(input.inputModality))
         : null;
       const pedagogicalDirective=catalogPreview?.directive??calPreview?.directive;
       let text:string;

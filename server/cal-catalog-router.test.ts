@@ -62,7 +62,7 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
     const current=calCatalogTutorSessions.inspectForTest(uid)!;
     expect(current.cal.phase).toBe("ENSINAR");
     expect(current.task?.delivered).toBe(true);
-    const r=await c.reply(request("Meu nome é Alex"));
+    const r=await c.reply(request("Meu nome é Alex",{inputModality:"typed"}));
     expect(r.text).toContain("Escreva Meu nome é Alex em inglês");
     expect(calCatalogTutorSessions.inspectForTest(uid)?.cal.phase).toBe("PRATICAR");
     expect(calCatalogTutorSessions.inspectForTest(uid)?.cal.observations).toHaveLength(0);
@@ -137,16 +137,28 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
     expect(mocks.reply.mock.calls[0][4]).toBeUndefined();
     expect(calCatalogTutorSessions.inspectForTest(uid)).toBeNull();
   });
+  it("fails closed for an old client that omits modality during a closed task",async()=>{
+    vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
+    const uid=++id,c=caller(uid);
+    await c.reply(request("Quero praticar Hello"));
+    const before=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
+    expect(before?.cal.phase).toBe("ENSINAR");
+    const response=await c.reply(request("Olá"));
+    expect(response.source).toBe("ai");
+    expect(mocks.reply.mock.calls[1][4]).toBeUndefined();
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(before);
+    expect(before?.cal.observations).toHaveLength(0);
+  });
   it("an ASR-origin hint cannot produce closed-answer evidence",async()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
     const uid=++id,c=caller(uid);
     await c.reply(request("Quero praticar Hello"));
-    const before=calCatalogTutorSessions.inspectForTest(uid);
+    const before=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
     expect(before?.cal.phase).toBe("ENSINAR");
     const resp=await c.reply(request("Olá",{inputModality:"asr_text"}));
     expect(resp.source).toBe("ai");
     expect(mocks.reply.mock.calls[1][4]).toBeUndefined();
-    expect(calCatalogTutorSessions.inspectForTest(uid)).toBe(before);
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(before);
     expect(before?.cal.observations).toHaveLength(0);
   });
   it("account A never creates an activity for account B",async()=>{
