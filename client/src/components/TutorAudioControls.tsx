@@ -1,3 +1,4 @@
+import React from "react";
 import {Square,Volume2} from "lucide-react";
 import type {TutorAudioAction} from "@shared/pedagogy/tutor-audio-action";
 
