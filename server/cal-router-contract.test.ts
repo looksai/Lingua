@@ -55,6 +55,7 @@ const practiceText="Muito bem. Como você cumprimentaria alguém em inglês?";
 
 beforeEach(()=>{
   vi.stubEnv("CAL_ENABLED","false");
+  vi.stubEnv("CAL_CATALOG_ENABLED","false");
   vi.stubEnv("LINGUA_TUTOR_MEMORY_ENABLED","false");
   mocks.modelReply.mockReset();
   mocks.createAdapter.mockClear();
