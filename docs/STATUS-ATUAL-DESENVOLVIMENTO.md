@@ -1,6 +1,6 @@
 # Lingua / Naruto / CSLE — STATUS VIVO PARA RETOMAR O DESENVOLVIMENTO
 
-**Atualização:** 24/11/2026, após integração da PR #60, durante Fase 01.  
+**Atualização:** 24/11/2026, após integração da PR #62, durante Fase 01.  
 **Repositório:** [looksai/Lingua](https://github.com/looksai/Lingua)  
 **Fonte de histórico e governança:** [CONTEXTO-MESTRE-LINGUA.md](./CONTEXTO-MESTRE-LINGUA.md).  
 **Regra:** em outra conversa, consultar este arquivo, inspecionar **main, PRs, GitHub Actions e Render novamente**; nunca deduzir que o estado abaixo ainda é o mais recente.
@@ -24,6 +24,8 @@
 | [#58](https://github.com/looksai/Lingua/pull/58) | Laboratório inerte de gate para observações provisórias consentidas | `184d2f546f7f6ef51553f43fa5a87065f36b91f5` | merged, CI [45356534110](https://github.com/looksai/Lingua/actions/runs/45356534110) verde |
 | [#59](https://github.com/looksai/Lingua/pull/59) | Atualização do checkpoint após PR #58 | `4169e28d70888da1772577af748bace36e25381c` | merged, CI [45356797712](https://github.com/looksai/Lingua/actions/runs/45356797712) verde |
 | [#60](https://github.com/looksai/Lingua/pull/60) | LAB inerte de consentimento, revogação, concorrência, expiração e deleção | `da3b20ee472cdaebcdad2d077e9e2edfb877a10e` | merged, CI [45357464069](https://github.com/looksai/Lingua/actions/runs/45357464069) verde |
+| [#61](https://github.com/looksai/Lingua/pull/61) | Checkpoint vivo de continuidade atualizado | `6d2e08d88883313838c162a2ed2358d428a30507` | merged, CI [45357700403](https://github.com/looksai/Lingua/actions/runs/45357700403) verde |
+| [#62](https://github.com/looksai/Lingua/pull/62) | LAB de adaptador transacional simulado, rollback e isolamento por aluno | `37aad8915502bc88859790f92a2f9f3b41dcbe9b` | merged, CI [45358531137](https://github.com/looksai/Lingua/actions/runs/45358531137) verde |
 
 PR #45 fechada sem merge: substituída pela #47. CI verde em PRs **não** representa QA interativo humano. Verificar novamente cada execução no GitHub.
 
@@ -38,16 +40,16 @@ PR #45 fechada sem merge: substituída pela #47. CI verde em PRs **não** repres
 
 ## TRABALHO ATUAL E PRÓXIMA SEQUÊNCIA
 
-**Concluído e mergeado:** [PR #60](https://github.com/looksai/Lingua/pull/60), merge `da3b20ee472cdaebcdad2d077e9e2edfb877a10e`, CI [45357464069](https://github.com/looksai/Lingua/actions/runs/45357464069) **SUCCESS** (TypeScript + Vitest + build). Esta PR avança a [#58](https://github.com/looksai/Lingua/pull/58) e adiciona:
-- `server/learning-evidence-lifecycle-lab.ts`: **simulador puro/inativo**, sem banco/rota, para `grant`, `propose`, `revoke`, `prune`, `erase` com controle de revisão CAS, consentimento vinculado e projeção por allowlist.
-- `server/learning-evidence-lifecycle-lab.test.ts`: simulações de corridas de versão, tentativa duplicada/alterada, revogação com resposta tardia, deleção e expiração.
-- `docs/CAL-CONSENTIMENTO-REVOGACAO-LAB-V1.md`: contrato de segurança, threat model e portões obrigatórios de transação DB, proveniência, retenção, backup e exclusão.
+**Entregue e mergeado:** [PR #62](https://github.com/looksai/Lingua/pull/62), commit `37aad8915502bc88859790f92a2f9f3b41dcbe9b`, CI [45358531137](https://github.com/looksai/Lingua/actions/runs/45358531137) SUCCESS (TypeScript + Vitest + build). Complementa #58 e #60 com:
+- `server/learning-evidence-transaction-adapter-lab.ts`: **test double** com Map em memória e fila por aluno; simula serialização de transações, clonagem de snapshots, lock, rollback antes do commit e rejeição de operações com revisão obsoleta.
+- `server/learning-evidence-transaction-adapter-lab.test.ts`: 12 casos, cobrindo propostas simultâneas, revogação durante tentativa pendente, exclusão com falha simulada, recuperação de lock, idempotência, isolamento de contas e ausência de consentimento.
+- `docs/CAL-ADAPTADOR-TRANSACIONAL-LAB-V1.md`: desenho de banco futuro, transações e índices únicos, plano de rollback/deleção, reconciliação de backups e portões SQL-01–SQL-10.
 
-**FATOS IMPORTANTES:** NÃO existe persistência pedagógica real, nova tabela, migration, rota, gravação Aiven, integração de CAL runtime, CSLE/SRS, cobrança ou certificado. O consentimento da #60 é somente uma estrutura de teste, não um opt-in já oferecido ao aluno. O controle de revisão simula CAS e **não comprova atomicidade de transações reais**. As durações 7 dias (observações) e 30 dias (consentimento) são **parâmetros experimentais não aprovados como política de retenção**. `client_text_claim` não é origem assinada.
+**LIMITES:** isto NÃO é transação real de MySQL, não faz persistência, autenticação HTTP, migration, registro oficial ou exclusão verdadeira de dados. Simulação de fila por processo não cobre múltiplos serviços Render ou DB. Consentimento e retenção definitivos ainda dependem de decisões de produto/privacidade; os parâmetros 7/30 dias dos laboratórios são **hipóteses técnicas**, não política aprovada. `client_text_claim` não é origem assinada. O código está inerte: não há endpoint e não há deploy referente às PRs #57–#62.
 
-**Próxima sequência recomendada:** elaborar o desenho de adapter transacional e o plano de rollback/deleção, sem migration. Em paralelo, priorizar QA autenticado de browser da Fase 01: duas contas, DOM acknowledgement, ASR e microfone/voz, cold start, consentimento e cross-session. Investigar a viabilidade de Playwright test-only em CI, sem credenciais pessoais nem gravações reais. Só avançar para banco após revisar consentimento específico, política de retenção, ameaça de cliente adulterado, isolamento, exigências legais e autorização explícita de produto.
+**Próxima sequência:** criar uma suíte automatizada de navegador em ambiente de teste sem credenciais reais (investigar Playwright já disponível/dependências; teste de renderização/sem backend real primeiro). Em paralelo, revisar threat model do futuro adaptador MySQL e a prova de exclusão/backup; **não** criar migration ou fazer `db:push` antes das decisões de dados. Segue pendente QA autenticado real de duas contas, microfone/ASR/autoplay, consentimento, render ACK, cold start, RETOMAR/TRANSFERIR/COMPROVAR e comparador pedagógico.
 
-**Staging:** último deploy **verificado** como Live: `dep-dc2kh0jrjlhs73d0qchg`, commit #56. PRs #57–#60 **não** disparam deploy: docs, contrato e simuladores inertes. Verificar Render novamente antes de afirmar versão.
+**Staging:** último deploy verificado Live: `dep-dc2kh0jrjlhs73d0qchg`, commit #56. Como #57–#62 contêm apenas documentos/laboratórios inertes, não foi feito deploy nessas etapas. Consultar Render antes de declarar status atual.
 
 ## Documentos e critérios vigentes
 
@@ -57,12 +59,13 @@ PR #45 fechada sem merge: substituída pela #47. CI verde em PRs **não** repres
 - [QA de isolamento e ASR](./QA-TUTOR-ASR-AUDIO-ISOLAMENTO-FASE01.md)
 - [Continuidade opcional do assunto](./CAL-CONTINUIDADE-ASSUNTO-LOCAL-FASE01.md)
 - [Laboratório de consentimento e revogação](./CAL-CONSENTIMENTO-REVOGACAO-LAB-V1.md)
+- [Desenho de adaptador transacional, rollback e exclusão](./CAL-ADAPTADOR-TRANSACIONAL-LAB-V1.md)
 
 ## Protocolo obrigatório para nova conversa
 
 1. Ler `docs/STATUS-ATUAL-DESENVOLVIMENTO.md` **e** `docs/CONTEXTO-MESTRE-LINGUA.md`.
 2. Conferir HEAD real da `main`, branches, PRs abertas e CIs; consultar Render se houver alteração de staging.
-3. Inspecionar os módulos já integrados `server/learning-evidence-lab.ts` e `server/learning-evidence-lifecycle-lab.ts` na `main` e PRs #58/#60. Conferir PRs/branches atuais para não duplicar código. Próxima tarefa: desenho transacional, rollback/deleção e QA real, **sem migrações prematuras**.
+3. Conferir os laboratórios já integrados `server/learning-evidence-lab.ts`, `server/learning-evidence-lifecycle-lab.ts` e `server/learning-evidence-transaction-adapter-lab.ts` na `main` e PRs #58/#60/#62. Próxima tarefa: testes browser em ambiente sem credenciais reais e auditoria SQL/privacidade, sem duplicar módulos ou fazer migrações.
 4. Trabalhar em branch, executar `pnpm check`, `pnpm test`, `pnpm build` no CI, revisar diff e só integrar com gates verdes.
 5. Atualizar **este mesmo documento** ao concluir cada sequência com PRs, commits, testes, deploy, blockers e próxima ação. Atualizar o CONTEXTO-MESTRE resumidamente quando o marco alterar decisões ou arquitetura.
 6. Comunicar ao fundador um balanço sucinto e seguir quando ele escrever `ok`; solicitar opinião apenas em decisões criativas/de produto não resolvidas. Nunca afirmar testes manuais inexistentes.
