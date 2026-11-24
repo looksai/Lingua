@@ -108,6 +108,26 @@ describe("CAL closed exercise: observe → teach → practice (pilot)",()=>{
     expect(after?.observations).toHaveLength(0);
     expect(s.inspectForTest(10)?.pending).toBe("meaning");
   });
+  it("does not grade a learner's new goal as a wrong answer during a closed task",()=>{
+    const s=sessions();open(s);
+    const before=s.inspectForTest(10)?.snapshot;
+    expect(s.prepare(10,"Quero estudar para entrevista",true)).toBeNull();
+    expect(s.inspectForTest(10)?.snapshot).toBe(before);
+    expect(s.inspectForTest(10)?.pending).toBe("meaning");
+  });
+  it("does not punish short non-answer statements during practice",()=>{
+    const s=sessions();moveToPractice(s);
+    const before=s.inspectForTest(10)?.snapshot;
+    expect(s.prepare(10,"Eu trabalho com solda",true)).toBeNull();
+    expect(s.inspectForTest(10)?.snapshot).toBe(before);
+    expect(s.inspectForTest(10)?.snapshot.consecutiveErrors).toBe(0);
+  });
+  it("a quoted or discussed question without actually asking it cannot create a pending task",()=>{
+    const s=sessions();const p=s.prepare(10,first,true);
+    p?.commit("Hello quer dizer Olá. O exemplo de pergunta seria: O que significa Hello em português? Mas agora vamos conversar.");
+    expect(s.inspectForTest(10)?.pending).toBeNull();
+    expect(s.prepare(10,"Olá",true)?.phase).toBe("ENSINAR");
+  });
   it("does not mark a read-and-repeat task as independent mastery",()=>{
     const s=sessions();moveToPractice(s);
     const r=s.prepare(10,"Hello",true);
