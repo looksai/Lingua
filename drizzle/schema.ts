@@ -35,6 +35,19 @@ export const localCredentials = mysqlTable("localCredentials", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+/**
+ * Versioned service acknowledgement and optional personal-memory choice.
+ * No model-training permission is implied. The account is authoritative;
+ * browser localStorage is not a consent record.
+ */
+export const learnerPrivacyPreferences = mysqlTable("learnerPrivacyPreferences", {
+  userId: int("userId").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  policyVersion: int("policyVersion").notNull(),
+  serviceAcceptedAt: timestamp("serviceAcceptedAt").notNull(),
+  personalMemoryEnabled: int("personalMemoryEnabled").notNull().default(0),
+  memoryUpdatedAt: timestamp("memoryUpdatedAt"),
+});
+
 export const knowledgeItems = mysqlTable(
   "knowledgeItems",
   {
