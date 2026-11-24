@@ -150,6 +150,9 @@ describe("Lingua provisional learning observation gate — no DB, no official ev
     rejected("receipt_not_server_validated",withContext({
       receipt:{...context.receipt!,renderedAtMs:2300},
     }));
+    rejected("pre_consent_delivery",withContext({
+      receipt:{...context.receipt!,renderedAtMs:999},
+    }));
     rejected("observation_before_render",changed({observedAtMs:1799}));
   });
   it("rejects ASR and missing-origin payloads even when a task is closed",()=>{
