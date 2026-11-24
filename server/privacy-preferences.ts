@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { learnerPrivacyPreferences } from "../drizzle/schema";
 import { getDb } from "./db";
 
@@ -29,11 +29,16 @@ export async function readPrivacyPreferences(userId: number) {
 export async function changePersonalMemoryPreference(userId: number, enabled: boolean) {
   const db = await getDb();
   if (!db) throw new Error("privacy preferences database unavailable");
-  const current = await readPrivacyPreferences(userId);
-  if (!current.serviceAccepted) return { updated: false as const, reason: "service_not_accepted" as const };
-  await db.update(learnerPrivacyPreferences).set({
-    personalMemoryEnabled: enabled ? 1 : 0,
-    memoryUpdatedAt: new Date(),
-  }).where(eq(learnerPrivacyPreferences.userId, userId));
-  return { updated: true as const, enabled };
+  return db.transaction(async tx => {
+    const [current] = await tx.select().from(learnerPrivacyPreferences)
+      .where(eq(learnerPrivacyPreferences.userId, userId)).for("update").limit(1);
+    if (!current || current.policyVersion !== PRIVACY_POLICY_VERSION)
+      return { updated: false as const, reason: "service_not_accepted" as const };
+    await tx.update(learnerPrivacyPreferences).set({
+      personalMemoryEnabled: enabled ? 1 : 0,
+      memoryUpdatedAt: new Date(),
+    }).where(and(eq(learnerPrivacyPreferences.userId, userId),
+      eq(learnerPrivacyPreferences.policyVersion, PRIVACY_POLICY_VERSION)));
+    return { updated: true as const, enabled };
+  });
 }
