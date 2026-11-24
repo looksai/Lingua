@@ -115,7 +115,7 @@ try{
     await memory.click();await bookmark.click();
     const keys=await page.evaluate(()=>Object.keys(localStorage));
     assert(keys.some(k=>k.includes("study-topic-choice:")));
-    assert(keys.some(k=>k.includes("chat-memory")||k.includes("conversation-memory")||k.includes("chat-history")||k.includes("tutor-chat")));
+    assert(keys.some(k=>k.includes("tutor-memory-choice")||k.includes("tutor-conversation")));
     await page.getByRole("button",{name:"Apagar conversa e marcador neste aparelho"}).click();
     await page.getByRole("button",{name:"Voltar à conversa"}).click();
     assert.equal(await page.getByText("Resposta sintética Naruto:",{exact:false}).count(),0);
