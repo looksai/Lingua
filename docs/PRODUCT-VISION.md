@@ -1,6 +1,8 @@
 # Lingua — Visão de Produto e Estratégia Pedagógica
 
 **Versão:** proposta 0.1 | **Data:** 21/11/2026 | **Estado:** **EM REVISÃO — não aprovado para implementação**
+
+> **Precedência estratégica (23/11/2026):** o [Roadmap Estratégico do Fundador](./ROADMAP-ESTRATEGICO-LINGUA.md) define a ordem atual: **Naruto → CSLE independente → Integração → Correções → Produto/Mercado**. Este documento continua como visão conceitual, mas seu sequenciamento anterior não prevalece sobre o roadmap. O requisito antigo de 100 assinantes como condição para desenvolver CSLE foi revogado; integração real ainda depende de testes e autorização específica. Nenhuma alteração técnica é autorizada por este aviso.
 **Aprovação necessária:** fundador + auditor Deep. Documento de intenção de produto; não declara funcionalidades existentes.
 
 ## 1. Tese
