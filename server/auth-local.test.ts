@@ -51,6 +51,17 @@ describe("local authentication security", () => {
     } as never)).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
+  it("requires authentication for account privacy preferences and changes", async () => {
+    const ctx = { user: null, req: { headers: { origin: "http://lingua.test", host: "lingua.test" } }, res: {} } as TrpcContext;
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.tutor.privacyPreferences()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.tutor.updatePersonalMemory({ enabled: true })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.tutor.memorySave({
+      fato: "Sou soldador", categoria: "profissao",
+      sourceMessage: "Sou soldador", consent: true,
+    })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
   it("denies anonymous learning and offline review, including forged legacy session", async () => {
     const ctx = { user: null, req: { headers: { cookie: `${COOKIE_NAME}=legacy` } }, res: {} } as TrpcContext;
     const caller = appRouter.createCaller(ctx);
