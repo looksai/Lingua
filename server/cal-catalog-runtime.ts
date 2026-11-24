@@ -106,17 +106,21 @@ export class CALCatalogTutorSessions {
   inspectForTest(userId:number):CatalogCALSession|null {
     return this.hasSession(userId)?this.entries.get(userId)!.session:null;
   }
-  /** Server-bound descriptor: the reply must contain the exact delivered task suffix. */
-  clientTaskForReply(userId:number,replyText:string):CatalogClientTask|null {
+  /** A pending task may be re-rendered after a refresh while this in-process session exists. */
+  pendingClientTask(userId:number):CatalogClientTask|null {
     if(!this.hasSession(userId))return null;
     const current=this.entries.get(userId)!.session;
     const task=current.task;
-    if(!task?.delivered)return null;
+    if(current.cal.status!=="active"||!task?.delivered)return null;
+    return {sessionId:current.sessionId,deliveryId:task.deliveryId,
+      taskId:task.taskId,taskVersion:task.taskVersion,promptText:task.promptText};
+  }
+  /** Server-bound descriptor: the reply must contain the exact delivered task suffix. */
+  clientTaskForReply(userId:number,replyText:string):CatalogClientTask|null {
+    const task=this.pendingClientTask(userId);
+    if(!task)return null;
     if(replyText!==task.promptText&&!replyText.endsWith("\n\n"+task.promptText))return null;
-    return {
-      sessionId:current.sessionId,deliveryId:task.deliveryId,
-      taskId:task.taskId,taskVersion:task.taskVersion,promptText:task.promptText,
-    };
+    return task;
   }
   /** Reports DOM-rendering on an authenticated browser, NOT a human reading receipt. */
   confirmBrowserRender(userId:number,sessionId:string,deliveryId:string):"recorded"|"duplicate"|"rejected" {
