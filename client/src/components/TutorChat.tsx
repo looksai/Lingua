@@ -193,6 +193,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     const current=capture.current;
     if(!current) { generation.current++; setPermissionPending(false);return; }
     current.send=send;
+    if(!send && capture.current===current)capture.current=null;
     if(current.timer)clearTimeout(current.timer);
     if(current.recorder.state!=="inactive")current.recorder.stop();
     current.stream.getTracks().forEach(t=>t.stop());
@@ -450,11 +451,16 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       const current:Capture={recorder,stream,chunks:[],size:0,send:false};
       capture.current=current;
       recorder.ondataavailable=(event)=>{
+        if(!isCurrent(epoch))return;
         if(event.data.size){current.chunks.push(event.data);current.size+=event.data.size;}
-        if(current.size>TUTOR_MAX_AUDIO_BYTES){stopCapture(false);if(isCurrent(epoch))setNotice("Áudio excedeu o limite.");}
+        if(current.size>TUTOR_MAX_AUDIO_BYTES){
+          if(capture.current===current)stopCapture(false);
+          if(isCurrent(epoch))setNotice("Áudio excedeu o limite.");
+        }
       };
       recorder.onstop=async()=>{
-        capture.current=null;
+        // A late stop event from an old recorder must not clear a newer capture.
+        if(capture.current===current)capture.current=null;
         current.stream.getTracks().forEach(t=>t.stop());
         if(!isCurrent(epoch)||!current.send||!current.size||current.size>TUTOR_MAX_AUDIO_BYTES)return;
         const blob=new Blob(current.chunks,{type:mime});
@@ -475,7 +481,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         }catch(error){if(isCurrent(epoch))setNotice((error as {data?:{code?:string}})?.data?.code==="TOO_MANY_REQUESTS"?"O tutor está descansando. Tente novamente em alguns minutos.":"Não foi possível transcrever. Tente novamente ou digite.");}
         finally{finishBusy(op);}
       };
-      recorder.onerror=()=>{stopCapture(false);if(isCurrent(epoch))setNotice("Falha na gravação. Use o teclado.");};
+      recorder.onerror=()=>{
+        if(capture.current===current)stopCapture(false);
+        if(isCurrent(epoch))setNotice("Falha na gravação. Use o teclado.");
+      };
       recorder.start(250);
       current.timer=setTimeout(()=>stopCapture(true),TUTOR_MAX_RECORD_MS);
       setRecording(true);
