@@ -56,6 +56,16 @@ export function saveStudyTopicBookmark(
     return true;
   }catch{return false;}
 }
+/** A new lesson choice, not a claim of resumed mastery or independent typed work. */
+export function studyTopicRestartRequest(competencyId:string):{
+  message:string;catalogCompetencyId:string;
+}|null{
+  if(!permitted(competencyId))return null;
+  return {
+    message:"Quero recomeçar este assunto do início, sem recuperar resultados anteriores.",
+    catalogCompetencyId:competencyId,
+  };
+}
 export function clearStudyTopicBookmark(
   store:LocalStore,keys:ReturnType<typeof studyTopicBookmarkKeys>,disable=false,
 ):boolean {
