@@ -301,8 +301,11 @@ export function evaluateClosedMicrotask(
   if(task.assessor!=="trusted_closed_rule")return fail("not_closed_rule");
   if(modality==="asr_text")return fail("asr_cannot_certify_correctness");
   if(typeof studentAnswer!=="string" || studentAnswer.length>120)return fail("invalid_answer");
+  // Preserve the raw question mark: normalization removes punctuation.
+  // A learner question is a request for help, never an incorrect response.
+  const isQuestion = studentAnswer.includes("?");
   const answer=normalize(studentAnswer);
-  if(!answer||answer.includes("?")||/^(?:nao sei|nao entendi|ajuda|repete|pode explicar|nao consigo)$/.test(answer))
+  if(!answer||isQuestion||/^(?:nao sei|nao entendi|ajuda|repete|pode explicar|nao consigo)$/.test(answer))
     return fail("not_a_valid_attempt");
   if(!task.acceptedAnswers.every(x=>x.trim()))return fail("broken_task");
   return {
