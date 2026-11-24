@@ -12,7 +12,7 @@ const props={
 };
 const render=(overrides:Partial<typeof props>={})=>
   renderToStaticMarkup(createElement(TutorAudioControls,{...props,...overrides}));
-const buttonCount=(html:string)=>(html.match(/<button\\b/g)||[]).length;
+const buttonCount=(html:string)=>(html.match(/<button\b/g)||[]).length;
 describe("actual React audio controls (server-rendered markup)",()=>{
   it("renders exactly one neural button and names the tutor",()=>{
     const html=render();
