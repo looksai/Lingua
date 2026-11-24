@@ -82,7 +82,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const [demo,setDemo] = useState<{text:string;audioBase64:string;audioMime:string}|null>(null);
   const [demoConsent,setDemoConsent]=useState(false);
   const previousConsentKey=useRef<string|null>(null);
+  const previousIdentityScope=useRef<string|null>(null);
   const consentVersion=capabilities.data?.memory?2:1;
+  const identityScope=`${accountEmail.trim().toLowerCase()}:${provider??"pending"}`;
   const consentKey=provider&&provider!=="off"?`lingua:provider-consent:v${consentVersion}:${accountEmail.trim().toLowerCase()}:${provider}`:null;
   const localVoice=selectLocalVoice(localVoices,selectedVoiceURI);
   const englishLocalVoice=selectEnglishLocalVoice(localVoices,selectedVoiceURI);
@@ -97,7 +99,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     return ()=>synth.removeEventListener?.("voiceschanged",refresh);
   },[]);
   useEffect(()=>{
-    if(previousConsentKey.current===consentKey)return;
+    const identityChanged=previousIdentityScope.current!==identityScope;
+    if(previousConsentKey.current===consentKey&&!identityChanged)return;
+    previousIdentityScope.current=identityScope;
     previousConsentKey.current=consentKey;
     let accepted=false;
     if(consentKey){try{
@@ -110,10 +114,15 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     setPendingMemory(null);setPreviewVoiceAudio(null);setPreviewVoiceNotice("");
     setConsent(accepted);setTermsAccepted(false);setVoice(false);setDemoConsent(false);setDemo(null);setPrivacyPrompt(false);
     setDraft("");setTranscriptReady(false);
-    sequence.current=0;
-    // Do not show text from the old provider/account during local history restoration.
-    setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
-  },[provider,consentKey]);
+    if(identityChanged){
+      sequence.current=0;
+      // Do not show text from the old provider/account during local history restoration.
+      setMessages([{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
+    }else{
+      // Consent schema changes can occur after capabilities load; do not erase the conversation.
+      setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
+    }
+  },[provider,consentKey,identityScope]);
 
   // Local history is optional, account-scoped and never includes audio.
   useEffect(()=>{
