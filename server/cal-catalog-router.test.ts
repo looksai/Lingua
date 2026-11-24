@@ -141,24 +141,24 @@ describe("catalogue opt-in at the real tutor.reply boundary",()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
     const uid=++id,c=caller(uid);
     await c.reply(request("Quero praticar Hello"));
-    const before=calCatalogTutorSessions.inspectForTest(uid);
+    const before=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
     expect(before?.cal.phase).toBe("ENSINAR");
     const response=await c.reply(request("Olá"));
     expect(response.source).toBe("ai");
     expect(mocks.reply.mock.calls[1][4]).toBeUndefined();
-    expect(calCatalogTutorSessions.inspectForTest(uid)).toBe(before);
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(before);
     expect(before?.cal.observations).toHaveLength(0);
   });
   it("an ASR-origin hint cannot produce closed-answer evidence",async()=>{
     vi.stubEnv("CAL_ENABLED","true");vi.stubEnv("CAL_CATALOG_ENABLED","true");
     const uid=++id,c=caller(uid);
     await c.reply(request("Quero praticar Hello"));
-    const before=calCatalogTutorSessions.inspectForTest(uid);
+    const before=structuredClone(calCatalogTutorSessions.inspectForTest(uid));
     expect(before?.cal.phase).toBe("ENSINAR");
     const resp=await c.reply(request("Olá",{inputModality:"asr_text"}));
     expect(resp.source).toBe("ai");
     expect(mocks.reply.mock.calls[1][4]).toBeUndefined();
-    expect(calCatalogTutorSessions.inspectForTest(uid)).toBe(before);
+    expect(calCatalogTutorSessions.inspectForTest(uid)).toEqual(before);
     expect(before?.cal.observations).toHaveLength(0);
   });
   it("account A never creates an activity for account B",async()=>{
