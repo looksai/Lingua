@@ -29,12 +29,14 @@ export const appRouter = router({
     signUp: publicProcedure.input(z.object({
       email: z.email().max(320),
       password: z.string().min(12).max(128),
+      serviceAccepted: z.literal(true),
+      personalMemoryEnabled: z.boolean().default(false),
     })).mutation(async ({ ctx, input }) => {
       checkRequestOrigin(ctx.req);
       rateLimit("signup:" + (ctx.req.ip ?? "unknown") + ":" + normalizeEmail(input.email));
       let user;
       try {
-        user = await registerLocalUser(input.email, input.password);
+        user = await registerLocalUser(input.email, input.password, input.personalMemoryEnabled);
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         // Drizzle error messages can include SQL parameters and password hashes.

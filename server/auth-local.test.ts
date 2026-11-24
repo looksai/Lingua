@@ -39,6 +39,41 @@ describe("local authentication security", () => {
     for (let i = 0; i < 8; i++) expect(() => rateLimit(key)).not.toThrow();
     expect(() => rateLimit(key)).toThrow(/Tente novamente/);
   });
+  it("rejects registration without the required service acknowledgement", async () => {
+    const ctx = { user: null, req: { ip: "signup-privacy-test", headers: { origin: "http://lingua.test", host: "lingua.test" } }, res: {} } as TrpcContext;
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.auth.signUp({
+      email: "student@example.com", password: "a-long-fake-test-password",
+      serviceAccepted: false,
+    } as never)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect(caller.auth.signUp({
+      email: "student@example.com", password: "a-long-fake-test-password",
+    } as never)).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("requires authentication for account privacy preferences and changes", async () => {
+    const ctx = { user: null, req: { headers: { origin: "http://lingua.test", host: "lingua.test" } }, res: {} } as TrpcContext;
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.tutor.privacyPreferences()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.tutor.updatePersonalMemory({ enabled: true })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.tutor.memorySave({
+      fato: "Sou soldador", categoria: "profissao",
+      sourceMessage: "Sou soldador", consent: true,
+    })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("refuses privacy settings lookups for a different account email", async () => {
+    const ctx = {
+      user: { id: 7, email: "learner-a@example.com" },
+      req: { headers: { origin: "http://lingua.test", host: "lingua.test" } },
+      res: {},
+    } as TrpcContext;
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.tutor.privacyPreferences({
+      accountEmail: "learner-b@example.com",
+    })).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
   it("denies anonymous learning and offline review, including forged legacy session", async () => {
     const ctx = { user: null, req: { headers: { cookie: `${COOKIE_NAME}=legacy` } }, res: {} } as TrpcContext;
     const caller = appRouter.createCaller(ctx);
