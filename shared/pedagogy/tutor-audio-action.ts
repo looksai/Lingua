@@ -6,7 +6,7 @@ export type TutorAudioInputs = {
   isWelcome:boolean;
   consent:boolean;
   ttsAvailable:boolean;
-  capabilitiesReady:boolean;
+  capabilitiesSettled:boolean;
   neuralEligible:boolean;
   neuralFailed:boolean;
   hasLocalVoice:boolean;
@@ -18,8 +18,8 @@ export function audioActionFor(v:TutorAudioInputs):TutorAudioAction {
   if(v.speakingLocally && v.hasLocalVoice)return "local";
   // The greeting's dedicated TTS action owns its slot; never show two controls.
   if(v.isWelcome && v.consent && v.ttsAvailable)return "welcome";
-  // Wait for capabilities before choosing browser TTS to prevent control flipping.
-  if(!v.capabilitiesReady)return "none";
+  // Initial loading must not flip the button; a failed query can still use local TTS.
+  if(!v.capabilitiesSettled)return "none";
   if(v.neuralEligible)return v.neuralFailed?(v.hasLocalVoice?"local":"retry"):"neural";
   return v.hasLocalVoice?"local":"none";
 }
