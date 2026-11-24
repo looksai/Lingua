@@ -1,5 +1,16 @@
 # Lingua — Inglês que acompanha seu caminho
 
+## Diretriz oficial de desenvolvimento (23/11/2026)
+
+**Prioridade: Naruto (qualidade pedagógica) → CSLE (motor independente) → acoplamento auditado → correções e estabilização → produto/distribuição/monetização.**
+
+- [Roadmap estratégico vigente](docs/ROADMAP-ESTRATEGICO-LINGUA.md).
+- [Constituição Pedagógica v0.1](docs/CONSTITUICAO-PEDAGOGICA-v0.1.md).
+- [Backlog de UX, contas e pesquisa](https://github.com/looksai/Lingua/issues/36).
+
+A meta anterior de 100 pagantes não condiciona mais o retorno ao desenvolvimento do CSLE; a integração exige autorização específica do fundador e testes. **Stripe PR #32 permanece pausada em draft, sem merge, migration 0008 ou ativação de billing.** O documento de roadmap não autoriza deploy ou modificações de banco.
+
+
 React / Express / tRPC / Drizzle starter, adapted from the Sandbox web-db-user template.
 
 - `pnpm dev`: development server; honors `PORT` (default 3000).
