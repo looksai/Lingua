@@ -4,6 +4,7 @@ import {availableLocalVoices,selectLocalVoice,speechText} from "@/lib/tutor-spee
 import {englishExcerpt} from "@/lib/english-example";
 import {conversationStorageKeys,loadChatMemory,saveChatMemory,enableChatMemory,clearChatMemory} from "@/lib/tutor-memory";
 import { trpc } from "@/lib/trpc";
+import { billingCheckoutAttemptId, nextTutorInteractionId } from "@/lib/billing-ids";
 import { greeting, TUTOR_MAX_AUDIO_BYTES, TUTOR_MAX_HISTORY, TUTOR_MAX_RECORD_MS,
   TUTOR_MAX_TEXT, tutorAudioTypes, type TutorAudioType, type TutorHistory, type TutorProfile } from "@shared/tutor";
 
@@ -51,6 +52,10 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const scrollAnchor = useRef<HTMLDivElement>(null);
   const capabilities = trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
   const reply = trpc.tutor.reply.useMutation();
+  const billingStatus=trpc.billing.status.useQuery(undefined,{retry:false,refetchOnWindowFocus:true});
+  const billingCheckout=trpc.billing.createCheckout.useMutation();
+  const [quotaBlocked,setQuotaBlocked]=useState(false);
+  const [checkoutNotice,setCheckoutNotice]=useState("");
   const savedMemories=trpc.tutor.memoryList.useQuery(undefined,{enabled:capabilities.data?.memory===true,retry:false,refetchOnWindowFocus:false});
   const saveMemory=trpc.tutor.memorySave.useMutation();
   const deleteMemory=trpc.tutor.memoryDelete.useMutation();
@@ -62,6 +67,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const placementGenerate=trpc.placement.generate.useMutation();
   const [placementActive,setPlacementActive]=useState(false);
   const enabled = capabilities.data?.chat === true;
+  const showPaywall=quotaBlocked || (billingStatus.data?.enabled===true && billingStatus.data.access==="blocked");
   const provider=capabilities.data?.provider;
   const gemini = trpc.tutor.geminiDemo.useMutation();
   const neural = trpc.tutor.neuralEnglish.useMutation();
@@ -203,16 +209,34 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         if(next.data?.nextTask)append({role:"assistant",text:next.data.nextTask.prompt});
         else append({role:"assistant",text:"Obrigado! Agora temos três amostras de texto. Elas não bastam para atribuir um nível, mas podemos criar um plano inicial de quatro semanas. Clique em Gerar plano provisório."});
       }else{
-        const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice});
+        const res=await reply.mutateAsync({message:text,history,consent:authorized,provider,voice:authorized&&voice,interactionId:nextTutorInteractionId()});
+        void billingStatus.refetch();
         if(!mounted.current)return;
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus});
         if(res.memoryCandidate&&capabilities.data?.memory)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
       }
-    }catch{
-      if(mounted.current){setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");setDraft(text);}
+    }catch(error){
+      if(mounted.current){
+        const quotaError=typeof error==="object"&&error!==null&&"message" in error
+          &&String((error as {message?:unknown}).message).includes("LIMIT_REACHED");
+        if(quotaError){setQuotaBlocked(true);setNotice("Seu período gratuito terminou. O tutor continua disponível após a confirmação de uma assinatura.");}
+        else setNotice("Não foi possível obter resposta. Seu texto permanece na conversa; tente novamente.");
+        setDraft(text);
+      }
     }finally{
       inFlight.current=false;if(mounted.current)setBusy(false);
+    }
+  }
+  async function subscribePremium(){
+    setCheckoutNotice("");
+    try{
+      const result=await billingCheckout.mutateAsync({currency:"usd",attemptId:billingCheckoutAttemptId("usd")});
+      const u=new URL(result.url);
+      if(u.protocol!=="https:" || u.hostname!=="checkout.stripe.com")throw Error("Unexpected checkout destination");
+      window.location.assign(u.toString());
+    }catch{
+      setCheckoutNotice("Checkout de testes indisponível. Confira sua conta e tente novamente quando a homologação estiver habilitada.");
     }
   }
   async function acceptMemory(){
@@ -563,5 +587,20 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         {permissionPending&&<p className="text-xs text-ink-muted">Verifique a permissão do microfone no navegador.</p>}
       </div>
     </>}
+      {showPaywall&&<div className="absolute inset-0 z-50 flex items-center justify-center bg-ink/70 p-4">
+        <section role="dialog" aria-modal="true" aria-labelledby="lingua-paywall-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <h2 id="lingua-paywall-title" className="font-display text-2xl">Seu período gratuito terminou</h2>
+          <p className="mt-3 text-sm leading-6">Você utilizou as 20 mensagens com IA ou completou 3 dias desde a primeira resposta. Sua memória e suas revisões continuam preservadas. Para continuar conversando com Naruto, é necessário ter uma assinatura ativa confirmada pelo servidor.</p>
+          <p className="mt-3 text-sm font-semibold">US$ 9,90 por mês · Checkout Stripe em modo de teste</p>
+          <button type="button" disabled={billingCheckout.isPending}
+            onClick={()=>void subscribePremium()} className="mt-5 w-full rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">
+            {billingCheckout.isPending?"Abrindo pagamento de teste...":"Assinar Premium por US$ 9,90/mês"}
+          </button>
+          <a href="/premium" className="mt-3 block text-center text-sm text-teal underline">Ver opções da assinatura</a>
+          <button type="button" onClick={()=>setQuotaBlocked(false)} className="mt-4 block w-full text-center text-xs text-ink-muted underline">Fechar aviso</button>
+          {checkoutNotice&&<p role="alert" className="mt-3 text-sm text-red-700">{checkoutNotice}</p>}
+          <p className="mt-3 text-xs text-ink-muted">Assinaturas em homologação; nenhum pagamento real será cobrado neste ambiente.</p>
+        </section>
+      </div>}
   </aside>;
 }
