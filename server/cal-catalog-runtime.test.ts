@@ -163,9 +163,27 @@ describe("opt-in catalogue runtime controller",()=>{
     const newer=s.prepare(ID,"Quero aprender por favor",true)!;
     newer.complete("Vamos tentar");
     const after=s.inspectForTest(ID);
-    older.complete("Entendi");
+    const staleText=older.complete("Entendi");
+    expect(staleText).toBe("Entendi");
+    expect(staleText).not.toContain("Exemplo:");
     expect(s.inspectForTest(ID)).toBe(after);
     expect(after?.selectedCompetencyId).toBe("courtesy.please");
+  });
+  it("does not expose duplicate tasks when a preview is completed twice",()=>{
+    const s=create().sessions;
+    const p=s.prepare(ID,"Quero aprender a me apresentar",true)!;
+    const first=p.complete("Boa!");
+    expect(first).toContain("My name is Alex");
+    expect(p.complete("Resposta atrasada")).toBe("Resposta atrasada");
+    expect(s.inspectForTest(ID)?.task?.delivered).toBe(true);
+  });
+  it("a different-domain answer does not become a fake error",()=>{
+    const s=create().sessions;
+    start(s,ID,"Quero aprender a me apresentar");
+    const before=s.inspectForTest(ID);
+    expect(s.prepare(ID,"Olá",true)).toBeNull();
+    expect(s.inspectForTest(ID)).toBe(before);
+    expect(s.inspectForTest(ID)?.cal.observations).toHaveLength(0);
   });
   it("session expires after thirty minutes without changing the original DB memory",()=>{
     const c=create();start(c.sessions);
