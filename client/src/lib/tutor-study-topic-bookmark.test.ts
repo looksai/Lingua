@@ -1,7 +1,7 @@
 import {describe,expect,it} from "vitest";
 import {
   STUDY_TOPIC_BOOKMARK_TTL_MS,clearStudyTopicBookmark,loadStudyTopicBookmark,
-  saveStudyTopicBookmark,setStudyTopicBookmarkEnabled,studyTopicBookmarkKeys,
+  saveStudyTopicBookmark,setStudyTopicBookmarkEnabled,studyTopicBookmarkKeys,studyTopicRestartRequest,
 } from "./tutor-study-topic-bookmark";
 function fakeStore(){
   const data=new Map<string,string>();
@@ -70,6 +70,16 @@ describe("explicit opt-in local topic continuity — not evidence of learning",(
     expect(loadStudyTopicBookmark(store,keys,now).bookmark).toBeNull();
     store.setItem(keys.bookmark,JSON.stringify({version:1,competencyId:id,savedAt:now+61_000}));
     expect(loadStudyTopicBookmark(store,keys,now).bookmark).toBeNull();
+  });
+  it("restarts a selected curriculum subject as a fresh lesson, never auto-grades typing",()=>{
+    const request=studyTopicRestartRequest("greeting.hello");
+    expect(request).toEqual({
+      message:"Quero recomeçar este assunto do início, sem recuperar resultados anteriores.",
+      catalogCompetencyId:"greeting.hello",
+    });
+    expect(request).not.toHaveProperty("inputModality");
+    expect(request).not.toHaveProperty("learnerEvidence");
+    expect(studyTopicRestartRequest("invalid.goal")).toBeNull();
   });
   it("turning off consent deletes both preference and saved topic",()=>{
     const store=fakeStore(),keys=studyTopicBookmarkKeys("a@example.test","groq");
