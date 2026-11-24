@@ -22,6 +22,12 @@ let passed=0;
 async function test(label,fn){
   const ctx=await browser.newContext({viewport:{width:1024,height:780}});
   const page=await ctx.newPage();
+  const errors=[];
+  page.on("pageerror",error=>errors.push("pageerror: "+error.message));
+  page.on("console",message=>{
+    if(message.type()==="error")errors.push("console: "+message.text());
+  });
+  page.on("requestfailed",request=>errors.push("network: "+request.url()+" : "+request.failure()?.errorText));
   await page.route("**/*",route=>{
     const u=new URL(route.request().url());
     if(u.protocol==="http:"&&u.hostname==="127.0.0.1"&&u.port==="4181")
@@ -30,13 +36,15 @@ async function test(label,fn){
   });
   try{
     await page.goto(BASE,{waitUntil:"networkidle"});
-    await page.getByRole("complementary",{name:"Chat com Naruto"}).waitFor();
+    await page.getByRole("complementary",{name:"Chat com Naruto"}).waitFor({timeout:18000});
     await fn(page);
     passed++;
     console.log("PASS "+label);
   }catch(e){
     console.error("FAIL "+label);
     console.error(e);
+    console.error("Browser errors: "+JSON.stringify(errors.slice(0,12)));
+    console.error("Browser body: "+String(await page.locator("body").innerText().catch(()=>"(body unreadable)")).slice(0,900));
     throw e;
   }finally{await ctx.close();}
 }
