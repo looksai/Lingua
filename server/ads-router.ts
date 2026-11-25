@@ -42,9 +42,9 @@ export const adsRouter=router({
     if(!adsEnabled())return [];
     const db=await database();
     const now=new Date();
-    return db.select({
+    const rows=await db.select({
       id:portalPartnerAds.id,title:portalPartnerAds.title,
-      body:portalPartnerAds.body,destinationUrl:portalPartnerAds.destinationUrl,
+      body:portalPartnerAds.body,slug:portalPartners.slug,
       company:portalPartners.displayName,
     }).from(portalPartnerAds)
       .innerJoin(portalPartners,eq(portalPartnerAds.partnerId,portalPartners.id))
@@ -55,6 +55,10 @@ export const adsRouter=router({
         or(isNull(portalPartnerAds.endsAt),gt(portalPartnerAds.endsAt,now))
       ))
       .orderBy(desc(portalPartnerAds.id)).limit(3);
+    // Never trust an arbitrary persisted advertiser redirect, including one
+    // manually changed in the DB. Only permit our own verified company route.
+    return rows.filter(row=>/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(row.slug))
+      .map(({slug,...row})=>({...row,destinationUrl:"/portal/parceiro/"+slug}));
   }),
   mine:protectedProcedure.input(z.object({partnerId:id})).query(async ({ctx,input})=>{
     requireAds();
