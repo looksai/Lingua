@@ -1,41 +1,38 @@
 import { Link } from "wouter";
-import { ArrowRight, BookOpen, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Briefcase, Globe, Users } from "lucide-react";
+import "./academy-landing.css";
+
+const benefits = [
+  { title: "Aprenda", text: "Inglês com IA e método adaptativo", Icon: BookOpen },
+  { title: "Prepare-se", text: "Para entrevistas e o mercado global", Icon: Briefcase },
+  { title: "Conecte-se", text: "Comunidade internacional — planejada", Icon: Users },
+  { title: "Expanda", text: "Suas oportunidades de estudo, trabalho e vida", Icon: Globe },
+];
 
 export default function Landing() {
-  return (
-    <main className="min-h-screen bg-paper text-ink">
-      <header className="mx-auto flex max-w-6xl items-center justify-between border-b border-ink/10 px-6 py-5">
-        <span className="font-display text-3xl tracking-tight">lingua<span className="text-teal">/</span></span>
-        <Link href="/login" className="rounded-full border border-ink/15 px-5 py-2 text-sm font-semibold hover:bg-white">
-          Entrar
-        </Link>
+  return <main className="academy-landing">
+    <section className="academy-hero" id="solucao">
+      <header className="academy-nav">
+        <Link href="/" className="academy-logo">Lingua<span>.</span></Link>
+        <nav aria-label="Menu principal"><a href="#solucao">Solução</a><a href="#metodo">Método</a><a href="#empresas">Empresas</a><a href="#sobre">Sobre</a></nav>
+        <div className="academy-actions"><Link href="/login" className="academy-outline">Entrar</Link><Link href="/login" className="academy-gold">Criar conta</Link></div>
       </header>
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 lg:grid-cols-[1.2fr_0.8fr] lg:py-28">
-        <div>
-          <p className="mb-5 text-sm font-bold uppercase tracking-[0.2em] text-teal-deep">Inglês com um caminho que faz sentido</p>
-          <h1 className="font-display text-5xl leading-tight tracking-tight sm:text-7xl">Aprender começa com uma conversa.</h1>
-          <p className="mt-7 max-w-xl text-lg leading-8 text-ink-muted">
-            Descubra o que já sabe, escolha como chamar seu tutor e explore inglês com leitura,
-            prática e revisões no seu ritmo. Sem progresso inventado.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Link href="/login" className="inline-flex items-center gap-2 rounded-full bg-ink px-7 py-4 font-semibold text-white">
-              Conhecer meu tutor <ArrowRight size={18}/>
-            </Link>
-            <Link href="/demo" className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-7 py-4 font-semibold">
-              Ver demonstração
-            </Link>
-          </div>
-          <p className="mt-5 text-xs text-ink-faint">A demonstração é fictícia e não representa resultados de alunos reais.</p>
+      <div className="academy-hero-grid">
+        <div className="academy-copy">
+          <p className="academy-eyebrow">APRENDIZADO • CARREIRA • MOBILIDADE</p>
+          <h1>Inglês que conecta você a <span>oportunidades reais no mundo.</span></h1>
+          <p>Aprenda inglês com um método inteligente e prático, desenvolva habilidades para sua carreira e prepare-se para novas oportunidades.</p>
+          <div className="academy-actions"><Link href="/login" className="academy-gold">Começar agora <ArrowRight size={18}/></Link><Link href="/demo" className="academy-outline">Ver como funciona</Link></div>
         </div>
-        <aside className="grid gap-4 rounded-3xl border border-ink/10 bg-white p-8 shadow-sm">
-          <h2 className="font-display text-3xl">Seu ritmo. Seu tutor.</h2>
-          <div className="flex items-start gap-4"><MessageCircle className="shrink-0 text-teal" /><p>Uma conversa curta para começar. Você escolhe o nome e o tom do tutor.</p></div>
-          <div className="flex items-start gap-4"><BookOpen className="shrink-0 text-teal" /><p>Leitura, produção e revisão com objetivos pedagógicos claros.</p></div>
-          <div className="flex items-start gap-4"><Sparkles className="shrink-0 text-teal" /><p>O plano inicial é explicado e ajustado à medida que há evidências reais.</p></div>
-          <div className="flex items-start gap-4"><ShieldCheck className="shrink-0 text-teal" /><p>A voz é opcional. Sem captação oculta nem certificação automática.</p></div>
+        <aside className="academy-preview" aria-label="Exemplo de jornada">
+          <strong>Inglês</strong><small>Exemplo de jornada</small>
+          <p>Comunicação profissional</p><p>Entrevistas e carreira</p><p>Mobilidade internacional</p>
+          <small>Prévia ilustrativa • não é avaliação</small>
         </aside>
-      </section>
-    </main>
-  );
+      </div>
+    </section>
+    <section id="metodo" className="academy-benefits" aria-label="Pilares do Lingua">{benefits.map(({title,text,Icon})=><article key={title}><Icon aria-hidden="true" size={40}/><div><h2>{title}</h2><p>{text}</p></div></article>)}</section>
+    <section id="empresas" className="academy-partners"><div><p className="academy-tag">Programa de Parceiros Fundadores</p><h2>Construa o futuro da Lingua <span>com a gente.</span></h2><p>Empresas, consultorias, escolas e recrutadoras: visão de pilotos e co-desenvolvimento.</p></div><div><p>Pilotos de capacitação</p><p>Condições comerciais a definir</p><p>Visibilidade institucional futura</p><small>Programa em preparação.</small></div></section>
+    <footer id="sobre" className="academy-footer"><strong>Tutor IA</strong><strong>Carreira</strong><strong>Comunidade</strong><strong>Empresas</strong><span>Uma plataforma global para o seu próximo passo.</span></footer>
+  </main>;
 }
