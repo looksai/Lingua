@@ -46,7 +46,7 @@
 - A senha é criada aleatoriamente somente na execução CI; **nunca usa o segredo verdadeiro do backup do fundador**. O arquivo SQL em texto claro não é persistido em disco nem anexado a logs; o arquivo temporário criptografado é removido ao terminar.
 - A comparação da restauração usa contagem de linhas **e SHA-256 de exportações canônicas das linhas sintéticas** nas tabelas selecionadas. Um controle negativo altera o título de um tópico restaurado, sem mudar a quantidade de linhas, e exige que o hash detecte essa alteração. Dados SQL não são impressos nem persistidos pelos verificadores de hash.
 - Esta evidência é de **rotina sintética**, não prova que o arquivo `lingua-pre-0007.sql.gz.gpg` real pode ser descriptografado ou restaurado. Não publicar, baixar nem subir backups reais para GitHub Issues/PRs; a restauração de backup verdadeiro requer ambiente isolado e autorização específica.
-- MySQL 8.0 em CI não é MySQL 8.4 Aiven; conferir compatibilidade de versão e `mysqldump` durante homologação real.
+- **Alinhamento de versão (2026-11-25):** o serviço MySQL descartável do CI foi atualizado de `mysql:8.0` para `mysql:8.4`, e os scripts de QA de privacidade e portal agora exigem `VERSION()` iniciando por `8.4.` antes de executar SQL. O ensaio criptografado utiliza as ferramentas de backup/restauração do contêiner `mysql:8.4`. Isso melhora a paridade de versão, mas continua sem reproduzir configuração, dados, TLS, rede ou comportamento operacional do Aiven real.
 
 ## Fase C — decisão formal de liberar staging
 - Aprovação independente da PR e do script de migração.
