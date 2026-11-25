@@ -69,8 +69,12 @@ export const communityRouter=router({
     const access=await grantsFor(ctx.user.id,false);
     return rows.filter(group=>group.visibility==="public" ||
       canUsePortal({...access,academyGroupAllowed:group.academyAllowed===1},"read-private"))
-      .map(group=>({id:group.id,title:group.title,slug:group.slug,
-        description:group.description,visibility:group.visibility}));
+      .map(group=>({
+        id:group.id,title:group.title,slug:group.slug,
+        description:group.description,visibility:group.visibility,
+        canCreate:canUsePortal(access,"create-private-topic"),
+        canReply:canUsePortal({...access,academyGroupAllowed:group.academyAllowed===1},"reply-in-private"),
+      }));
   }),
   groupTopics:protectedProcedure.input(z.object({groupId:id})).query(async ({ctx,input})=>{
     requireEnabled();
