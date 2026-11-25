@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import Home from "./pages/Home";
 import PublicLiveController from "./pages/PublicLiveController";
 import {lookupPublicLive} from "./pages/public-live-lookup";
+import PartnerDashboard from "./pages/PartnerDashboard";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -71,6 +72,7 @@ function Router() {
     <Route path="/" component={RootPage} />
     <Route path="/demo" component={DemoPage} />
     {import.meta.env.VITE_PUBLIC_LIVES_ENABLED === "true" && <Route path="/live" component={PublicLivePage} />}
+    {import.meta.env.VITE_PARTNER_DASHBOARD_ENABLED === "true" && <Route path="/partners" component={PartnerDashboard} />}
     <Route path="/login" component={Login} />
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
