@@ -131,6 +131,10 @@ try{
   const [otherRoomRows]=await sqlConn.query(
     "SELECT id FROM portalPartnerInquiries WHERE userId=? ORDER BY id DESC LIMIT 1",[userB]);
   const otherRoomId=(otherRoomRows as Array<{id:number}>)[0].id;
+  // User B's Academy grant was revoked earlier; restore a synthetic, independent
+  // paid entitlement before testing B as the owner of their own room.
+  await sqlConn.query("INSERT INTO portalMembershipGrants(userId,kind,source) VALUES (?,?,?)",
+    [userB,"club","purchase"]);
   const otherStaff=partnerRouter.createCaller({user:{id:userB,role:"user"},req} as never);
   const unauthorizedPartnerStaff=partnerRouter.createCaller({user:{id:userA,role:"user"},req} as never);
   await assert.rejects(unauthorizedPartnerStaff.roomMessages({inquiryId:otherRoomId}),
