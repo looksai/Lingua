@@ -131,6 +131,8 @@ try{
   const [otherRoomRows]=await sqlConn.query(
     "SELECT id FROM portalPartnerInquiries WHERE userId=? ORDER BY id DESC LIMIT 1",[userB]);
   const otherRoomId=(otherRoomRows as Array<{id:number}>)[0].id;
+  await sqlConn.query("INSERT INTO portalMembershipGrants(userId,kind,source) VALUES (?,?,?)",
+    [userB,"club","purchase"]);
   const otherStaff=partnerRouter.createCaller({user:{id:userB,role:"user"},req} as never);
   const unauthorizedPartnerStaff=partnerRouter.createCaller({user:{id:userA,role:"user"},req} as never);
   await assert.rejects(unauthorizedPartnerStaff.roomMessages({inquiryId:otherRoomId}),
