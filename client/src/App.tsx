@@ -12,7 +12,7 @@ import Onboarding from "./pages/Onboarding";
 import StudentHome from "./pages/StudentHome";
 import PublicPortal, { PortalPartners, PortalTopic } from "./pages/PublicPortal";
 import CommunityHub from "./pages/CommunityHub";
-import PartnerDashboard, {PartnerProfile, MyPartnerInquiries} from "./pages/PartnerPortal";
+import PartnerDashboard, {PartnerProfile, MyPartnerInquiries, PartnerReviewPanel} from "./pages/PartnerPortal";
 
 function Loading({ text }: { text: string }) {
   return <main className="flex min-h-screen items-center justify-center bg-paper px-6 text-ink" role="status">{text}</main>;
@@ -62,6 +62,7 @@ function Router() {
     <Route path="/portal" component={PublicPortal} />
     <Route path="/comunidade" component={CommunityHub} />
     <Route path="/portal/parceiros/painel" component={PartnerDashboard} />
+    <Route path="/portal/parceiros/revisao" component={PartnerReviewPanel} />
     <Route path="/portal/parceiros/minhas-solicitacoes" component={MyPartnerInquiries} />
     <Route path="/portal/parceiro/:slug">{params => <PartnerProfile slug={params.slug}/>}</Route>
     <Route path="/portal/parceiros" component={PortalPartners} />
