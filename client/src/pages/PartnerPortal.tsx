@@ -93,6 +93,7 @@ export default function PartnerDashboard(){
       <p className="text-xs font-bold uppercase tracking-widest text-[#956A39]">Lingua Partners</p>
       <h1 className="mt-3 font-display text-4xl">Área da organização</h1>
       <p className="mt-3 text-sm text-[#526478]">Apenas usuários designados para a organização podem visualizar solicitações. Sem acesso à lista de membros.</p>
+      <Link href="/portal/parceiros/anuncios" className="mt-5 inline-block text-sm font-semibold text-[#956A39] underline">Gerenciar anúncios institucionais</Link>
       {!identity.data&&!identity.isPending&&<p className="mt-8">Faça <Link href="/login" className="underline">login</Link> para acessar.</p>}
       {organizations.isError&&<p role="alert" className="mt-8">A área institucional ainda não está habilitada nesta conta.</p>}
       {organizations.isPending&&identity.data&&<p role="status" className="mt-8">Verificando vínculos com organizações...</p>}
