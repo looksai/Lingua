@@ -65,6 +65,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const capabilities = trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
   const reply = trpc.tutor.reply.useMutation();
   const catalogRenderAck=trpc.tutor.catalogRenderAck.useMutation();
+  const revokeCatalogConsent=trpc.tutor.revokeCatalogConsent.useMutation();
+  const [revocationPending,setRevocationPending]=useState(false);
+  const [revocationFailed,setRevocationFailed]=useState(false);
   const catalogPendingTask=trpc.tutor.catalogPendingTask.useMutation();
   const [recoveredCatalogTask,setRecoveredCatalogTask]=useState<CatalogClientTask|null>(null);
   const catalogRecoverySequence=useRef(0);
@@ -429,7 +432,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     void submitMessage(consent);
   }
   function acceptPrivacy(){
-    if(!enabled||!termsAccepted)return;
+    if(!enabled||!termsAccepted||revocationPending||revocationFailed)return;
     setConsent(true);setPrivacyPrompt(false);setTermsAccepted(false);
     if(consentKey)try{window.localStorage.setItem(consentKey,JSON.stringify({version:consentVersion,accepted:true,agreedAt:new Date().toISOString()}));}catch{/* Consent still valid in this tab. */}
 
@@ -615,6 +618,16 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     void startCapture();
   }
   function minimize(){stopCapture(false);stopAudioPlayers();stopSpeech();setSettingsOpen(false);setPrivacyPrompt(false);setOpen(false);}
+  async function confirmRevocation(){
+    const epoch=conversationVersion.current;
+    setRevocationPending(true);setRevocationFailed(false);
+    try{
+      await revokeCatalogConsent.mutateAsync();
+      if(isCurrent(epoch))setNotice("Envio à IA desativado; cancelamento confirmado pelo servidor.");
+    }catch{
+      if(isCurrent(epoch)){setRevocationFailed(true);setNotice("Envio local desativado, mas o servidor não confirmou o cancelamento. Tente novamente.");}
+    }finally{setRevocationPending(false);}
+  }
   function updateConsent(next:boolean){
     if(!next){if(consentKey)try{window.localStorage.removeItem(consentKey);}catch{/* no local storage */}
       invalidateConversation();
@@ -622,6 +635,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       setPendingMemory(null);setPreviewVoiceAudio(null);setPreviewVoiceNotice("");setDemo(null);
       setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));setNeuralAudios({});setNeuralFallback({});setAutoPlayId(null); }
     setConsent(next);
+    if(!next)void confirmRevocation();
   }
 
   if(!open)return <button type="button" onClick={()=>setOpen(true)} aria-label={"Conversar com "+profile.tutorName}
@@ -739,9 +753,11 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       </div>}
       <div className="border-t border-ink/10 pt-5">
         <h3 className="font-semibold">Privacidade da conversa</h3>
+        {revocationPending&&<p role="status">Confirmando cancelamento no servidor…</p>}
+        {revocationFailed&&<button type="button" onClick={()=>void confirmRevocation()}>Tentar confirmar cancelamento novamente</button>}
         <p className="mt-2 text-xs leading-5 text-ink-muted">Seu chat pode enviar texto e gravações ao {provider==="groq"?"Groq":provider==="openai"?"serviço OpenAI":"provedor externo"} somente após autorização. O aceite é lembrado apenas neste navegador, por conta e provedor, até você revogar ou limpar os dados locais. Não constitui registro de consentimento auditado no servidor.</p>
-        {consent?<button type="button" onClick={()=>{updateConsent(false);setNotice("Envio à IA desativado nesta sessão.");}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Desativar envio à IA</button>:
-          <button type="button" disabled={!enabled} onClick={()=>{setSettingsOpen(false);setPrivacyPrompt(true);}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">Autorizar envio à IA</button>}
+        {consent?<button type="button" onClick={()=>updateConsent(false)} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Desativar envio à IA</button>:
+          <button type="button" disabled={!enabled||revocationPending||revocationFailed} onClick={()=>{setSettingsOpen(false);setPrivacyPrompt(true);}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">Autorizar envio à IA</button>}
       </div>
       {provider==="openai"&&<label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={voice} disabled={!consent||!capabilities.data?.tts||busy} onChange={e=>setVoice(e.target.checked)}/>
