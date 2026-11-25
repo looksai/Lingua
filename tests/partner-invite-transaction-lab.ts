@@ -1,4 +1,4 @@
-import {listPartnerEvents,createPartnerEvent,transitionPartnerEvent} from "../server/partner-event-repository";
+import {listMyPartners,listPartnerEvents,createPartnerEvent,transitionPartnerEvent} from "../server/partner-event-repository";
 import express from "express";
 import {createExpressMiddleware} from "@trpc/server/adapters/express";
 import {createPartnerInviteRouter} from "../server/partner-invite-router";
@@ -88,5 +88,12 @@ try{
  await pool.execute("INSERT INTO partnerMembers (partnerId,userId,role,status) VALUES (?,?,'owner','active')",[other.insertId,user]);
  assert.equal(await transitionPartnerEvent(db,user,other.insertId,created.id,"cancelled"),false);
  assert.deepEqual(await listPartnerEvents(db,user,other.insertId),[]);
+ assert.deepEqual((await listMyPartners(db,user)).map(p=>p.id),[partner,other.insertId]);
+ assert.deepEqual((await listMyPartners(db,viewer.insertId)).map(p=>p.id),[partner]);
+ assert.deepEqual(await listMyPartners(db,user+100000),[]);
+ await pool.execute("UPDATE partners SET status='suspended' WHERE id=?",[other.insertId]);
+ assert.deepEqual((await listMyPartners(db,user)).map(p=>p.id),[partner]);
+ await pool.execute("UPDATE partnerMembers SET status='inactive' WHERE partnerId=? AND userId=?",[partner,viewer.insertId]);
+ assert.deepEqual(await listMyPartners(db,viewer.insertId),[]);
  console.log("Transactional and HTTP invitation and event laboratory passed");
 }finally{await pool.end();}
