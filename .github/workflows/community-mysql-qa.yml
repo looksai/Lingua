@@ -12,6 +12,7 @@ on:
       - 'shared/portal-access.ts'
       - 'scripts/qa-portal-mysql.ts'
       - 'scripts/qa-migration-ledger.ts'
+      - 'scripts/qa-disposable-backup-restore.sh'
       - 'tests/migration-ledger.test.ts'
       - 'drizzle/meta/_journal.json'
       - '.github/workflows/community-mysql-qa.yml'
@@ -59,3 +60,5 @@ jobs:
         run: pnpm exec tsx scripts/qa-migration-ledger.ts
       - name: Run migration and isolation assertions against disposable MySQL
         run: pnpm exec tsx scripts/qa-portal-mysql.ts
+      - name: Rehearse restore into an independent synthetic MySQL database
+        run: bash scripts/qa-disposable-backup-restore.sh
