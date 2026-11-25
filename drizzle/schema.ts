@@ -268,6 +268,7 @@ export const portalPartners = mysqlTable("portalPartners",{
   slug:varchar("slug",{length:80}).notNull().unique(),
   displayName:varchar("displayName",{length:160}).notNull(),
   description:text("description").notNull(),
+  draftDescription:text("draftDescription"),
   verificationState:mysqlEnum("verificationState",["pending","verified","suspended"]).notNull().default("pending"),
   createdAt:timestamp("createdAt").notNull().defaultNow(),
 });
