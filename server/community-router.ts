@@ -71,7 +71,7 @@ export const communityRouter=router({
       await db.select({groupId:portalGroupModerators.groupId}).from(portalGroupModerators)
         .where(eq(portalGroupModerators.userId,ctx.user.id));
     const moderateIds=new Set(assigned.map(record=>record.groupId));
-    return rows.filter(group=>group.visibility==="public" ||
+    return rows.filter(group=>ctx.user.role==="admin" || group.visibility==="public" ||
       canUsePortal({...access,academyGroupAllowed:group.academyAllowed===1},"read-private"))
       .map(group=>({
         id:group.id,title:group.title,slug:group.slug,
@@ -88,7 +88,7 @@ export const communityRouter=router({
     const [group]=await db.select().from(portalGroups).where(and(
       eq(portalGroups.id,input.groupId),eq(portalGroups.state,"active"))).limit(1);
     if(!group)throw new TRPCError({code:"NOT_FOUND",message:"Grupo indisponível."});
-    if(group.visibility==="private"&&!canUsePortal(await grantsFor(ctx.user.id,group.academyAllowed===1),"read-private"))
+    if(group.visibility==="private"&&ctx.user.role!=="admin"&&!canUsePortal(await grantsFor(ctx.user.id,group.academyAllowed===1),"read-private"))
       forbidden();
     return db.select({id:portalTopics.id,title:portalTopics.title,body:portalTopics.body,
       createdAt:portalTopics.createdAt}).from(portalTopics)
@@ -134,7 +134,7 @@ export const communityRouter=router({
     const [group]=await db.select().from(portalGroups).where(and(
       eq(portalGroups.id,topic.groupId),eq(portalGroups.state,"active"))).limit(1);
     if(!group)throw new TRPCError({code:"NOT_FOUND",message:"Grupo indisponível."});
-    if(group.visibility==="private"&&!canUsePortal(await grantsFor(ctx.user.id,group.academyAllowed===1),"read-private"))
+    if(group.visibility==="private"&&ctx.user.role!=="admin"&&!canUsePortal(await grantsFor(ctx.user.id,group.academyAllowed===1),"read-private"))
       forbidden();
     return db.select({id:portalReplies.id,body:portalReplies.body,createdAt:portalReplies.createdAt})
       .from(portalReplies).where(and(eq(portalReplies.topicId,topic.id),eq(portalReplies.state,"published")))
