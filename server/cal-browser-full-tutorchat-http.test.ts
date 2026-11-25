@@ -8,7 +8,7 @@ import {createExpressMiddleware} from "@trpc/server/adapters/express";
 import {parse as parseCookie} from "cookie";
 import {COOKIE_NAME} from "../shared/const";
 
-const spies=vi.hoisted(()=>({model:vi.fn(),transcribe:vi.fn()}));
+const spies=vi.hoisted(()=>({model:vi.fn(),transcribe:vi.fn(),synthesize:vi.fn()}));
 vi.mock("./db",()=>({
   // NO MySQL/Aiven: a single fake profile lookup, no writes.
   getDb:async()=>({
@@ -30,6 +30,8 @@ vi.mock("./tutor-provider-selector",()=>({
     replyWithProposal:(...args:unknown[])=>spies.model(...args),
   }),
 }));
+
+vi.mock("./voice-provider",()=>({createVoiceProvider:()=>({synthesize:(...args:unknown[])=>spies.synthesize(...args)})}));
 
 import {tutorRouter} from "./tutor-router";
 import {router,protectedProcedure} from "./_core/trpc";
@@ -189,6 +191,28 @@ describe.skipIf(!gate)("full TutorChat with REAL React Query/tRPC/HTTP/JWT and s
       finish!("late transcript");
       expect(await pending).toBe(412);
     }finally{finish?.("cleanup");await closeAll(one);}
+  },45_000);
+
+  it("revocation rejects delayed neural speech over authenticated HTTP",async()=>{
+    const a=await syntheticIdentity("a");
+    const one=await openBrowser(a.token);
+    let finish:((value:unknown)=>void)|undefined;
+    try{
+      spies.synthesize.mockReset();
+      spies.synthesize.mockImplementationOnce(()=>new Promise(resolve=>{finish=resolve;}));
+      const pending=one.page.evaluate(async()=>{
+        const res=await fetch("/api/trpc/tutor.neuralEnglish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({json:{consent:true,provider:"groq",text:"Hello there",voice:"troy"}})});
+        return res.status;
+      });
+      await vi.waitFor(()=>expect(spies.synthesize).toHaveBeenCalledTimes(1),{timeout:5000});
+      const revoked=await one.page.evaluate(async()=>{
+        const res=await fetch("/api/trpc/tutor.revokeCatalogConsent",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({json:null})});
+        return res.status;
+      });
+      expect(revoked).toBe(200);
+      finish!({audioBase64:"YWJj"});
+      expect(await pending).toBe(412);
+    }finally{finish?.({});await closeAll(one);}
   },45_000);
 
   it("no LLM before consent; actual TutorChat sends HTTP and browser ACK then progresses CAL",async()=>{
