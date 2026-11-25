@@ -1,3 +1,4 @@
+import {listPartnerEvents,createPartnerEvent,transitionPartnerEvent} from "../server/partner-event-repository";
 import express from "express";
 import {createExpressMiddleware} from "@trpc/server/adapters/express";
 import {createPartnerInviteRouter} from "../server/partner-invite-router";
@@ -68,5 +69,24 @@ try{
   const revokedData=await revoked.json() as {result:{data:{json:unknown}}};
   assert.equal(revokedData.result.data.json,null);
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
- console.log("Transactional and HTTP invitation laboratory passed");
+ const [viewer]=await pool.execute<ResultSetHeader>("INSERT INTO users (openId) VALUES ('event-viewer-lab')");
+ await pool.execute("INSERT INTO partnerMembers (partnerId,userId,role,status) VALUES (?,?,'viewer','active')",[partner,viewer.insertId]);
+ const input={title:" Managed event ",visibility:"public" as const,scheduledAt:Date.now()+60000};
+ assert.equal(await createPartnerEvent(db,viewer.insertId,partner,input),null);
+ assert.equal(await createPartnerEvent(db,user+100000,partner,input),null);
+ const created=await createPartnerEvent(db,user,partner,input);assert.ok(created);
+ assert.ok((await listPartnerEvents(db,viewer.insertId,partner))?.some(e=>e.id===created.id&&e.status==="draft"&&e.title==="Managed event"));
+ assert.equal(await listPartnerEvents(db,user+100000,partner),null);
+ assert.equal(await transitionPartnerEvent(db,viewer.insertId,partner,created.id,"published"),false);
+ assert.equal(await transitionPartnerEvent(db,user,partner,created.id,"live"),false);
+ assert.equal(await transitionPartnerEvent(db,user,partner,created.id,"published"),true);
+ const concurrent=await Promise.all([transitionPartnerEvent(db,user,partner,created.id,"live"),transitionPartnerEvent(db,user,partner,created.id,"live")]);
+ assert.equal(concurrent.filter(Boolean).length,1);
+ assert.equal(await transitionPartnerEvent(db,user,partner,created.id,"ended"),true);
+ assert.equal(await transitionPartnerEvent(db,user,partner,created.id,"published"),false);
+ const [other]=await pool.execute<ResultSetHeader>("INSERT INTO partners (name,status) VALUES ('Other tenant','active')");
+ await pool.execute("INSERT INTO partnerMembers (partnerId,userId,role,status) VALUES (?,?,'owner','active')",[other.insertId,user]);
+ assert.equal(await transitionPartnerEvent(db,user,other.insertId,created.id,"cancelled"),false);
+ assert.deepEqual(await listPartnerEvents(db,user,other.insertId),[]);
+ console.log("Transactional and HTTP invitation and event laboratory passed");
 }finally{await pool.end();}
