@@ -1,10 +1,10 @@
-import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
 import { checkRequestOrigin, rateLimit } from "./auth-local";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
-import { portalMembershipGrants, portalPartners, portalPartnerStaff, portalPartnerInquiries } from "../drizzle/schema";
+import { portalMembershipGrants, portalPartners, portalPartnerStaff, portalPartnerInquiries, portalInquiryMessages } from "../drizzle/schema";
 import { hasPortalGrant, type PortalGrant, type PortalAccessInput } from "../shared/portal-access";
 
 /**
@@ -52,6 +52,25 @@ async function staffFor(userId:number,partnerId:number){
     .from(portalPartners).where(eq(portalPartners.id,partnerId)).limit(1);
   if(!partner||partner.verificationState!=="verified")forbidden();
   return staff;
+}
+
+/** Membership and team authority are always looked up server-side. */
+async function authorizedRoom(userId:number,inquiryId:number){
+  const db=await database();
+  const [room]=await db.select({
+    id:portalPartnerInquiries.id,partnerId:portalPartnerInquiries.partnerId,
+    userId:portalPartnerInquiries.userId,state:portalPartnerInquiries.state,
+    partnerState:portalPartners.verificationState,
+  }).from(portalPartnerInquiries)
+    .innerJoin(portalPartners,eq(portalPartners.id,portalPartnerInquiries.partnerId))
+    .where(eq(portalPartnerInquiries.id,inquiryId)).limit(1);
+  if(!room || room.state!=="new" || room.partnerState!=="verified")forbidden();
+  if(room.userId===userId){
+    if(!await validMember(userId))forbidden();
+    return {room,senderKind:"member" as const};
+  }
+  await staffFor(userId,room.partnerId);
+  return {room,senderKind:"partner" as const};
 }
 
 export const partnerRouter=router({
@@ -175,6 +194,37 @@ export const partnerRouter=router({
         eq(portalPartnerInquiries.state,"new")))
       .orderBy(desc(portalPartnerInquiries.createdAt),desc(portalPartnerInquiries.id)).limit(50);
     // No userId, email, phone or learner memory returned.
+  }),
+  roomMessages:protectedProcedure.input(z.object({inquiryId:id})).query(async ({ctx,input})=>{
+    requireEnabled();
+    const {room}=await authorizedRoom(ctx.user.id,input.inquiryId);
+    const db=await database();
+    const records=await db.select({
+      id:portalInquiryMessages.id,body:portalInquiryMessages.body,
+      senderKind:portalInquiryMessages.senderKind,createdAt:portalInquiryMessages.createdAt,
+    }).from(portalInquiryMessages)
+      .where(eq(portalInquiryMessages.inquiryId,room.id))
+      .orderBy(asc(portalInquiryMessages.id)).limit(100);
+    return {messages:records};
+  }),
+  sendRoomMessage:protectedProcedure.input(z.object({
+    inquiryId:id,body:z.string().trim().min(2).max(3000),
+  })).mutation(async ({ctx,input})=>{
+    requireEnabled();checkRequestOrigin(ctx.req);
+    rateLimit("partner-room:"+ctx.user.id);
+    const {room,senderKind}=await authorizedRoom(ctx.user.id,input.inquiryId);
+    const db=await database();
+    await db.transaction(async tx=>{
+      // Lock the room state to serialize against close and withdrawal.
+      const [current]=await tx.select({state:portalPartnerInquiries.state})
+        .from(portalPartnerInquiries).where(eq(portalPartnerInquiries.id,room.id))
+        .for("update").limit(1);
+      if(!current || current.state!=="new")forbidden();
+      await tx.insert(portalInquiryMessages).values({
+        inquiryId:room.id,senderUserId:ctx.user.id,senderKind,body:input.body,
+      });
+    });
+    return {sent:true as const};
   }),
   closeInquiry:protectedProcedure.input(z.object({partnerId:id,inquiryId:id}))
     .mutation(async ({ctx,input})=>{
