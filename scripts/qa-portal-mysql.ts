@@ -86,6 +86,10 @@ try{
   await assert.rejects(accountB.moderationQueue({groupId:privateGroup}), (err:unknown)=>
     typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
   const staffAdmin=communityRouter.createCaller({user:{id:userA,role:"admin",email:"portal-a@synthetic.invalid"}} as never);
+  // An administrator can moderate private groups without buying Club access.
+  const adminPrivate=await staffAdmin.myGroups();
+  assert.equal(adminPrivate.some(group=>group.id===privateGroup&&group.canModerate),true);
+  assert.deepEqual((await staffAdmin.groupTopics({groupId:privateGroup})).map(topic=>topic.title),["Segredo do grupo"]);
   const queue=await staffAdmin.moderationQueue({groupId:publicGroup});
   assert.deepEqual(queue.pendingTopics.map(t=>t.title),["Aguardando moderação"]);
   // Moderator authority requires BOTH explicit group assignment and active Club.
