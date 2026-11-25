@@ -80,5 +80,19 @@ CREATE TABLE `portalPartnerInquiries` (
  CONSTRAINT `portalPartnerInquiries_partner_fk` FOREIGN KEY(`partnerId`) REFERENCES `portalPartners`(`id`) ON DELETE CASCADE,
  CONSTRAINT `portalPartnerInquiries_user_fk` FOREIGN KEY(`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE
 );
+-- Establish ownership without assuming every public group belongs to a business.
+ALTER TABLE `portalGroups`
+ ADD COLUMN `partnerId` int NULL DEFAULT NULL,
+ ADD KEY `portalGroups_partner_idx`(`partnerId`),
+ ADD CONSTRAINT `portalGroups_partner_fk` FOREIGN KEY (`partnerId`) REFERENCES `portalPartners`(`id`) ON DELETE SET NULL;
+CREATE TABLE `portalPartnerStaff` (
+ `partnerId` int NOT NULL,
+ `userId` int NOT NULL,
+ `role` enum('owner','editor') NOT NULL,
+ `state` enum('active','revoked') NOT NULL DEFAULT 'active',
+ PRIMARY KEY(`partnerId`,`userId`),
+ CONSTRAINT `portalPartnerStaff_partner_fk` FOREIGN KEY (`partnerId`) REFERENCES `portalPartners`(`id`) ON DELETE CASCADE,
+ CONSTRAINT `portalPartnerStaff_user_fk` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
 -- No emails or private learner memories copied into partner accounts.
 -- Rollback must be migration-specific, with explicit preservation of paid grants.
