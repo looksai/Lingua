@@ -1,3 +1,4 @@
+import {resolvePublicPartnerInvite} from "../server/partner-public-invite-resolution";
 import assert from "node:assert/strict";
 import mysql from "mysql2/promise";
 import {drizzle} from "drizzle-orm/mysql2";
@@ -18,11 +19,19 @@ try{
  assert.ok(issued);
  const digest=digestLiveInviteToken(issued.token);
  assert.ok(digest);
+ assert.equal((await resolvePublicPartnerInvite(db,issued.token))?.canWatch,false);
+ await pool.execute("UPDATE partnerEvents SET status=\'live\' WHERE id=?",[event]);
+ assert.equal((await resolvePublicPartnerInvite(db,issued.token))?.canWatch,true);
+ assert.equal(await resolvePublicPartnerInvite(db,"invalid"),null);
  const results=await Promise.all([revokePartnerInvite(db,user,partner,event,digest),revokePartnerInvite(db,user,partner,event,digest)]);
  assert.deepEqual(results,[true,true]);
  const [rows]=await pool.execute<RowDataPacket[]>("SELECT revokedAt FROM partnerLiveInvites WHERE digest=?",[digest]);
  assert.ok(rows[0]?.revokedAt);
+ assert.equal(await resolvePublicPartnerInvite(db,issued.token),null);
+ const second=await issuePartnerInvite(db,user,partner,event,null);
+ assert.ok(second);
  await pool.execute("UPDATE partners SET status='suspended' WHERE id=?",[partner]);
  assert.equal(await issuePartnerInvite(db,user,partner,event,null),null);
+ assert.equal(await resolvePublicPartnerInvite(db,second.token),null);
  console.log("Transactional invite laboratory passed");
 }finally{await pool.end();}
