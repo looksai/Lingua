@@ -1,3 +1,18 @@
+# Checkpoint — convites públicos de lives (PRs 91–97)
+
+Main verificada: d901c371171862634c583395e91bbc446ed39753.
+- #91 schema empresarial isolado, não exportado pelo schema de produção.
+- #92 laboratório MySQL descartável com constraints de tenant.
+- #93 política de associação empresarial.
+- #94 emissão/revogação transacionais com locks e autorização.
+- #95 resolução pública com projeção mínima de dados.
+- #96 API tRPC isolada, rate limit local, testes HTTP com MySQL descartável e identidade simulada. P0 45556205993 e MySQL 45556205960 aprovados.
+- #97 página pública, controlador cancelável, transporte sem cookies/referrer e testes estáticos. P0 45556917927 aprovado.
+
+Próximos passos: QA Chromium/mobile, integração controlada de rota/API, gestão empresarial de eventos e convites (identificador administrativo separado do token), autenticação real em laboratório, autorização persistente de streaming, revisão de privacidade e custos. Limitação: rate limit local não distribuído; sem player, sem rota pública ativa, sem migration de produção, sem deploy confirmado. Não ativar Stripe, db:push ou alterar Aiven/CSLE nesta frente. Manter tokens fora de logs/referrers e consentimento de leads separado.
+
+---
+
 # Lingua / Naruto / CSLE — STATUS VIVO PARA RETOMAR O DESENVOLVIMENTO
 
 **Atualização:** 25/11/2026, após integração da PR #82, durante Fase 01.  
