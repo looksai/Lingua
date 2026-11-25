@@ -51,6 +51,33 @@ export async function verifyPortalSchema(connection:mysql.Connection){
       "portalPartnerAds.state","portalMembershipGrants.state"]){
     assert.ok(byColumn.has(key),"Missing moderation/status default column: "+key);
   }
+  // Verify unique group/partner routes and review-by-default semantics.
+  const [indexes]=await connection.query<mysql.RowDataPacket[]>(`
+    SELECT table_name,index_name,non_unique
+    FROM information_schema.statistics
+    WHERE table_schema=DATABASE() AND table_name IN ('portalGroups','portalPartners')`);
+  for(const [table,index] of [
+    ["portalGroups","portalGroups_slug_unique"],
+    ["portalPartners","portalPartners_slug_unique"],
+  ]){
+    assert.ok(indexes.some(row=>
+      String(row.TABLE_NAME??row.table_name)===table &&
+      String(row.INDEX_NAME??row.index_name)===index &&
+      Number(row.NON_UNIQUE??row.non_unique)===0
+    ),"Missing unique public route index: "+table+"."+index);
+  }
+  const expectedDefaults:Record<string,string>={
+    "portalTopics.state":"pending",
+    "portalReplies.state":"pending",
+    "portalPartners.verificationState":"pending",
+    "portalPartnerAds.state":"pending",
+    "portalMembershipGrants.state":"active",
+  };
+  for(const [key,expected] of Object.entries(expectedDefaults)){
+    const record=byColumn.get(key);
+    assert.equal(String(record?.COLUMN_DEFAULT??record?.column_default),expected,
+      "Unsafe default state on "+key);
+  }
   // Fresh migration MUST NOT silently seed memberships, advertisements or organizations.
   for(const table of ["portalMembershipGrants","portalPartners","portalPartnerAds"]){
     const [rows]=await connection.query<mysql.RowDataPacket[]>(`SELECT COUNT(*) AS total FROM \`${table}\``);
