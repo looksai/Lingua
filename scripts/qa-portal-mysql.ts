@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import {readFile} from "node:fs/promises";
 import mysql from "mysql2/promise";
 import {communityRouter} from "../server/community-router";
+import {partnerRouter} from "../server/partner-router";
 
 const dbUrl=process.env.DATABASE_URL;
 if(process.env.LINGUA_PORTAL_MYSQL_QA!=="1" || !dbUrl)throw Error("Disposable MySQL QA not authorized");
@@ -76,6 +77,45 @@ try{
   await sqlConn.query("UPDATE portalMembershipGrants SET state='revoked' WHERE userId=?",[userB]);
   await assert.rejects(accountB.groupTopics({groupId:privateGroup}), (err:unknown)=>
     typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  // Partner contact requires affirmative opt-in and a valid member grant.
+  const req={headers:{origin:"http://localhost:3000",host:"localhost:3000"}};
+  const member=partnerRouter.createCaller({user:{id:userA,role:"user"},req} as never);
+  const company=partnerRouter.createCaller({user:{id:userB,role:"user"},req} as never);
+  await assert.rejects(member.sendInquiry({partnerId,message:"Gostaria de informações sobre os serviços.",consentToShareMessage:true}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  await sqlConn.query("INSERT INTO portalMembershipGrants(userId,kind,source) VALUES (?,?,?)",
+    [userA,"club","purchase"]);
+  await assert.rejects(member.sendInquiry({partnerId,message:"Gostaria de informações sobre os serviços.",consentToShareMessage:false as true}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="BAD_REQUEST");
+  assert.equal((await member.sendInquiry({partnerId,message:"Gostaria de informações sobre os serviços.",consentToShareMessage:true})).received,true);
+  assert.equal((await company.inbox({partnerId})).length,1);
+  assert.equal((await company.inbox({partnerId}))[0].message,"Gostaria de informações sobre os serviços.");
+  assert.equal(Object.keys((await company.inbox({partnerId}))[0]).includes("userId"),false);
+  await assert.rejects(member.inbox({partnerId}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+
+  await sqlConn.query("INSERT INTO portalPartners(slug,displayName,description,verificationState) VALUES (?,?,?,?)",
+    ["qa-second","Segunda organização sintética","Cadastro de QA","verified"]);
+  const [otherRows]=await sqlConn.query("SELECT id FROM portalPartners WHERE slug='qa-second'");
+  const otherId=(otherRows as Array<{id:number}>)[0].id;
+  await sqlConn.query("INSERT INTO portalPartnerStaff(partnerId,userId,role) VALUES (?,?,?)",[otherId,userA,"owner"]);
+  assert.equal((await member.inbox({partnerId:otherId})).length,0);
+  await assert.rejects(company.inbox({partnerId:otherId}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  await company.submitProfileEdit({partnerId,description:"Uma nova descrição institucional revisável, apenas para o teste descartável."});
+  const beforeApproval=await member.publicProfile({slug:"qa-verified"});
+  assert.equal(beforeApproval?.description,"apenas teste");
+  const admin=partnerRouter.createCaller({user:{id:userA,role:"admin"},req} as never);
+  await admin.approveProfileEdit({partnerId,approve:true});
+  assert.match((await member.publicProfile({slug:"qa-verified"}))?.description??"",/revisável/);
+  const inquiries=await member.myInquiries();
+  assert.equal(inquiries.length,1);
+  await member.withdrawInquiry({inquiryId:inquiries[0].id});
+  assert.equal((await company.inbox({partnerId})).length,0);
+  assert.equal((await member.myInquiries())[0].state,"withdrawn");
+  await assert.rejects(member.sendInquiry({partnerId:otherId+999,message:"Quero atendimento da organização inexistente.",consentToShareMessage:true}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="NOT_FOUND");
+  console.log("PASS opt-in business contact: member gate, consent, partner isolation, approval, withdrawal");
   console.log("PASS disposable community MySQL 0009: published public only, no private leak, partner verification, member revocation");
 }finally{await sqlConn.end();}
 process.exit(0);
