@@ -49,3 +49,5 @@ jobs:
       - run: pnpm exec drizzle-kit migrate --config=drizzle.partner-lab.config.ts
       - run: node tests/partner-mysql-lab.mjs
       - run: pnpm exec tsx tests/partner-invite-transaction-lab.ts
+      - run: npm install --prefix /tmp/partner-browser playwright
+      - run: /tmp/partner-browser/node_modules/.bin/playwright install --with-deps chromium
