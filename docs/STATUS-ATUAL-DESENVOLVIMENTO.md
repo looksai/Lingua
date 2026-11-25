@@ -1,9 +1,16 @@
 # Lingua / Naruto / CSLE — STATUS VIVO PARA RETOMAR O DESENVOLVIMENTO
 
-**Atualização:** 24/11/2026, após integração da PR #72, durante Fase 01.  
+**Atualização:** 25/11/2026, após integração da PR #82, durante Fase 01.  
 **Repositório:** [looksai/Lingua](https://github.com/looksai/Lingua)  
 **Fonte de histórico e governança:** [CONTEXTO-MESTRE-LINGUA.md](./CONTEXTO-MESTRE-LINGUA.md).  
 **Regra:** em outra conversa, consultar este arquivo, inspecionar **main, PRs, GitHub Actions e Render novamente**; nunca deduzir que o estado abaixo ainda é o mais recente.
+
+## Checkpoint mais recente — prevalece sobre histórico abaixo
+
+- PR #82 integrada por squash em `5b469102b0f23f12a7bacf0bee275411b42af916`. Head pré-merge `d783aadc3e6f10cc56a433a75ad9690bb84f29e6`, P0 45550970730 e Chromium 45550970731 verdes. CI pós-merge ainda não verificado.
+- Revogação de requisições em trânsito: reply, transcrição e voz neural testados via HTTP sintético; proteção em memória, não consentimento persistente/distribuído. Ver [escopo e limites](./TUTOR-REVOCATION-SCOPE.md).
+- [Convites públicos para lives de parceiros](./PARTNER-LIVE-PUBLIC-INVITES.md): requisito registrado, não implementado. Próxima frente comercial autorizada: contrato de domínio e testes isolados de publicação/visibilidade/revogação de convite; sem provisionar streaming, cobrança ou migração. Manter pendências pedagógicas e de autenticação abaixo.
+- Nenhum deploy novo confirmado; nenhuma mudança no banco ou CSLE.
 
 ## O que está efetivamente integrado
 
@@ -85,7 +92,7 @@ Arquivos de código e documentação da #72:
 
 1. Ler `docs/STATUS-ATUAL-DESENVOLVIMENTO.md` **e** `docs/CONTEXTO-MESTRE-LINGUA.md`.
 2. Conferir HEAD real da `main`, branches, PRs abertas e CIs; consultar Render se houver alteração de staging.
-3. Conferir PR #72 integrada (TutorChat original com tRPC HTTP/JWT/CAL reais, 4 casos novos, 22/22 browser) e PRs #70/#68/#64. Próxima tarefa: avaliar revogação durante requisição em trânsito e fronteiras de autorização no servidor; preservar staging e migrations.
+3. Conferir primeiro PR #82 e o checkpoint mais recente acima; manter como histórico a PR #72 integrada (TutorChat original com tRPC HTTP/JWT/CAL reais, 4 casos novos, 22/22 browser) e PRs #70/#68/#64. Próxima tarefa: avaliar revogação durante requisição em trânsito e fronteiras de autorização no servidor; preservar staging e migrations.
 4. Trabalhar em branch, executar `pnpm check`, `pnpm test`, `pnpm build` no CI, revisar diff e só integrar com gates verdes.
 5. Atualizar **este mesmo documento** ao concluir cada sequência com PRs, commits, testes, deploy, blockers e próxima ação. Atualizar o CONTEXTO-MESTRE resumidamente quando o marco alterar decisões ou arquitetura.
 6. Comunicar ao fundador um balanço sucinto e seguir quando ele escrever `ok`; solicitar opinião apenas em decisões criativas/de produto não resolvidas. Nunca afirmar testes manuais inexistentes.
