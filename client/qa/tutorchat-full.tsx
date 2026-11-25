@@ -11,6 +11,9 @@ function FullTutorChatQa(){
   (window as any).__tutorChatQa={
     account:()=>account,
     calls:()=>qaTutorRpc.calls,
+    holdNextRevocation:()=>qaTutorRpc.holdNextRevocation(),
+    rejectHeldRevocation:()=>qaTutorRpc.rejectHeldRevocation(),
+    revocationPendingCount:()=>qaTutorRpc.revocationPendingCount(),
     holdNextReply:()=>qaTutorRpc.holdNextReply(),
     resolveHeldReply:(value?:string)=>qaTutorRpc.resolveHeldReply(value),
     rejectHeldReply:()=>qaTutorRpc.rejectHeldReply(),
