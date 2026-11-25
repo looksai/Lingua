@@ -6,7 +6,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 
 export type MigrationInventory = {
   tracked: string[];
@@ -80,6 +80,6 @@ async function main(){
   process.stdout.write("Migration repo baseline checked; remote migration remains BLOCKED.\n"+
     JSON.stringify(report,null,2)+"\n");
 }
-if(process.argv[1] && fileURLToPath(import.meta.url)===process.argv[1]){
+if(process.argv[1] && fileURLToPath(import.meta.url)===resolve(process.argv[1])){
   await main();
 }
