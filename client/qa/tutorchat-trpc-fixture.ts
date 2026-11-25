@@ -49,6 +49,7 @@ async function dispatch(name:string,input:unknown):Promise<any>{
     }
     return {...answer};
   }
+  if(name==="revokeCatalogConsent")return {revoked:true};
   if(name==="catalogPendingTask")return null;
   if(name==="catalogRenderAck")return {status:"rejected"};
   if(name==="neuralEnglish")throw Error("synthetic neural service unreachable");
@@ -72,6 +73,7 @@ export const trpc={
     capabilities:{useQuery:()=>capabilities},
     reply:makeMutation("reply"),
     catalogRenderAck:makeMutation("catalogRenderAck"),
+    revokeCatalogConsent:makeMutation("revokeCatalogConsent"),
     catalogPendingTask:makeMutation("catalogPendingTask"),
     memoryList:disabledQuery,
     memorySave:makeMutation("memorySave"),
