@@ -3,6 +3,7 @@ import { onboardingRouter } from "./onboarding-router";
 import { tutorRouter } from "./tutor-router";
 import { placementRouter } from "./placement-router";
 import { communityRouter } from "./community-router";
+import { partnerRouter } from "./partner-router";
 import { issueSession, registerLocalUser, loginLocalUser, rateLimit, checkRequestOrigin, normalizeEmail } from "./auth-local";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -26,6 +27,7 @@ export const appRouter = router({
   tutor: tutorRouter,
   placement: placementRouter,
   community: communityRouter,
+  partners: partnerRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     signUp: publicProcedure.input(z.object({
