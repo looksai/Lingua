@@ -29,6 +29,9 @@ const accountB = "privacy-qa-b@synthetic.invalid";
 const pause=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 
 try {
+  const [versionRows]=await db.query("SELECT VERSION() AS version");
+  assert.match(String((versionRows as Array<{version:string}>)[0]?.version),/^8\.4\./,
+    "Disposable privacy QA must match staging MySQL 8.4");
   await execute("../drizzle/0000_initial_users.sql");
   await execute("../drizzle/0003_local_credentials.sql");
   await execute("../drizzle/0007_learner_memories.sql");
