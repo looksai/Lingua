@@ -57,6 +57,16 @@ gpg --quiet --batch --yes --pinentry-mode loopback \
   --decrypt "$work/synthetic.sql.gz.gpg" \
   | gzip -dc \
   | docker exec -i -e MYSQL_PWD=disposable-only-root "$container" mysql -uroot lingua_restore_qa
+# Compare both row counts AND SHA-256 of canonical SQL row exports.
+# Row hashes protect against same-row-count content drift. SQL goes directly
+# into sha256sum and is never printed, persisted or uploaded as an artifact.
+row_sha256(){
+  local schema="$1" table="$2"
+  docker exec -e MYSQL_PWD=disposable-only-root "$container" \
+    mysqldump -uroot --no-create-info --skip-extended-insert \
+      --compact --no-tablespaces --skip-lock-tables --set-gtid-purged=OFF \
+      "$schema" "$table" | sha256sum | cut -d' ' -f1
+}
 # Counts and structure compared only after complete restore. Do not trust a
 # successful gpg run alone as proof that the database is recoverable.
 for table in learnerPrivacyPreferences portalMembershipGrants portalPartners \
@@ -64,12 +74,25 @@ for table in learnerPrivacyPreferences portalMembershipGrants portalPartners \
   source_count="$("${dbcli[@]}" lingua_portal_qa -e "SELECT COUNT(*) FROM \`$table\`;")"
   restored_count="$("${dbcli[@]}" lingua_restore_qa -e "SELECT COUNT(*) FROM \`$table\`;")"
   if [[ "$source_count" != "$restored_count" ]]; then
-    echo "Restore mismatch for $table" >&2
+    echo "Restore row-count mismatch for $table" >&2
+    exit 1
+  fi
+  if [[ "$(row_sha256 lingua_portal_qa "$table")" != "$(row_sha256 lingua_restore_qa "$table")" ]]; then
+    echo "Restore row-content mismatch for $table" >&2
     exit 1
   fi
 done
 source_tables="$("${dbcli[@]}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='lingua_portal_qa';")"
 restored_tables="$("${dbcli[@]}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='lingua_restore_qa';")"
 [[ "$source_tables" -eq "$restored_tables" ]] || { echo "Restored table-count mismatch" >&2; exit 1; }
-echo "PASS: synthetic SQL -> gzip -> GPG AES256 -> decrypt -> independent MySQL restore; schema and counts match."
+# Negative-control test: a tampered restored row must change the digest
+# even though the table's row count remains identical.
+before_hash="$(row_sha256 lingua_restore_qa portalTopics)"
+topic_rows="$("${dbcli[@]}" lingua_restore_qa -e "SELECT COUNT(*) FROM portalTopics;")"
+[[ "$topic_rows" -gt 0 ]] || { echo "Missing synthetic topic for corruption test" >&2; exit 1; }
+"${dbcli[@]}" lingua_restore_qa -e "UPDATE portalTopics SET title='QA TAMPER DETECTED' ORDER BY id LIMIT 1;"
+after_hash="$(row_sha256 lingua_restore_qa portalTopics)"
+[[ "$before_hash" != "$after_hash" ]] || { echo "Hash failed to detect synthetic tampering" >&2; exit 1; }
+echo "PASS: synthetic SQL -> gzip -> GPG AES256 -> independent restore; schema/count/row SHA-256 match."
+echo "PASS: integrity check detected an altered restored row at unchanged row count."
 echo "IMPORTANT: No Aiven connection, student data, real backup artifact or real backup password was used."
