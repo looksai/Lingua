@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import type { Request } from "express";
 import { getDb } from "./db";
-import { localCredentials, users, type User } from "../drizzle/schema";
+import { localCredentials, learnerPrivacyPreferences, users, type User } from "../drizzle/schema";
 import { COOKIE_NAME } from "../shared/const";
 
 const scrypt = (password: string, salt: string): Promise<Buffer> =>
@@ -73,7 +73,7 @@ export async function authenticateRequest(req: Request): Promise<User | null> {
   const [user] = await db.select().from(users).where(and(eq(users.id, identity.id), eq(users.openId, identity.openId))).limit(1);
   return user?.loginMethod === "local" ? user : null;
 }
-export async function registerLocalUser(email: string, password: string): Promise<User> {
+export async function registerLocalUser(email: string, password: string, personalMemoryEnabled = false): Promise<User> {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Banco indisponível" });
   const normalized = normalizeEmail(email), passwordHash = await hashPassword(password);
@@ -84,6 +84,11 @@ export async function registerLocalUser(email: string, password: string): Promis
       const [user] = await tx.select().from(users).where(eq(users.openId, openId)).limit(1);
       if (!user) throw new Error("User creation failed");
       await tx.insert(localCredentials).values({ userId: user.id, email: normalized, passwordHash });
+      await tx.insert(learnerPrivacyPreferences).values({
+        userId: user.id, policyVersion: 1, serviceAcceptedAt: new Date(),
+        personalMemoryEnabled: personalMemoryEnabled ? 1 : 0,
+        memoryUpdatedAt: new Date(),
+      });
       return user;
     });
   } catch (error) {
