@@ -28,6 +28,7 @@ export function PortalHeader(){
       <nav className="flex flex-wrap items-center gap-4 text-sm font-semibold text-[#14283D]" aria-label="Navegação do portal">
         <Link href="/portal" className="hover:underline">Explorar</Link>
         <Link href="/portal/parceiros" className="hover:underline">Empresas</Link>
+        <Link href="/portal/parceiros/painel" className="hover:underline">Painel parceiro</Link>
         <Link href="/comunidade" className="hover:underline">Minha comunidade</Link>
         <Link href="/login" className="hover:underline">Entrar</Link>
       </nav>
@@ -146,6 +147,7 @@ export function PortalPartners(){
             <h3 className="font-display text-2xl">{partner.displayName}</h3>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#526478]">{partner.description}</p>
             <p className="mt-4 text-xs font-semibold text-[#956A39]">Perfil institucional com verificação administrativa de cadastro. Não constitui recomendação de serviços nem certificação regulatória.</p>
+            <Link href={`/portal/parceiro/${partner.slug}`} className="mt-4 inline-block text-sm font-semibold text-[#956A39] underline">Ver página institucional</Link>
           </article>)}
         </div>
       </section>
