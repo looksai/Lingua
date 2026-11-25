@@ -289,3 +289,12 @@ export const portalPartnerInquiries = mysqlTable("portalPartnerInquiries",{
   state:mysqlEnum("state",["new","closed","withdrawn"]).notNull().default("new"),
   createdAt:timestamp("createdAt").notNull().defaultNow(),
 },table=>({partnerIdx:index("portalPartnerInquiries_partner_state").on(table.partnerId,table.state)}));
+
+export const portalInquiryMessages = mysqlTable("portalInquiryMessages",{
+  id:int("id").autoincrement().primaryKey(),
+  inquiryId:int("inquiryId").notNull().references(()=>portalPartnerInquiries.id,{onDelete:"cascade"}),
+  senderUserId:int("senderUserId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  senderKind:mysqlEnum("senderKind",["member","partner"]).notNull(),
+  body:varchar("body",{length:3000}).notNull(),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+},table=>({roomOrderIdx:index("portalInquiryMessages_room_order").on(table.inquiryId,table.id)}));
