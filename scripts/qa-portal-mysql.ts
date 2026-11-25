@@ -28,6 +28,19 @@ async function migrate(path:string){
     await sqlConn.query(stmt);
 }
 try{
+  // Explicit failure-injection rehearsal. MySQL DDL is not a reliable
+  // transaction rollback boundary; a partially applied migration needs a
+  // forward-recovery plan. Only runs on loopback lingua_portal_qa.
+  await sqlConn.query("CREATE TABLE portal_qa_partial_marker (id INT PRIMARY KEY)");
+  await assert.rejects(sqlConn.query(
+    "CREATE TABLE portal_qa_partial_marker (id INT PRIMARY KEY)"
+  ));
+  const [partial]=await sqlConn.query(
+    "SELECT COUNT(*) AS total FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='portal_qa_partial_marker'"
+  );
+  assert.equal((partial as Array<{total:number}>)[0].total,1,
+    "MySQL DDL remains after a later statement fails; do not assume rollback");
+  await sqlConn.query("DROP TABLE portal_qa_partial_marker");
   await migrate("../drizzle/0000_initial_users.sql");
   await migrate("../drizzle/0003_local_credentials.sql");
   await migrate("../drizzle/0007_learner_memories.sql");
