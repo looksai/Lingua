@@ -73,7 +73,7 @@ CREATE TABLE `portalPartnerInquiries` (
  `userId` int NOT NULL,
  `message` varchar(1500) NOT NULL,
  `consentAt` timestamp NOT NULL,
- `state` enum('new','closed') NOT NULL DEFAULT 'new',
+ `state` enum('new','closed','withdrawn') NOT NULL DEFAULT 'new',
  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
  PRIMARY KEY(`id`),
  KEY `portalPartnerInquiries_partner_state`(`partnerId`,`state`),
