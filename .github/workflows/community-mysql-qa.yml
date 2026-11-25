@@ -11,6 +11,9 @@ on:
       - 'drizzle/schema.ts'
       - 'shared/portal-access.ts'
       - 'scripts/qa-portal-mysql.ts'
+      - 'scripts/qa-migration-ledger.ts'
+      - 'tests/migration-ledger.test.ts'
+      - 'drizzle/meta/_journal.json'
       - '.github/workflows/community-mysql-qa.yml'
   workflow_dispatch:
 permissions:
@@ -52,5 +55,7 @@ jobs:
           package-manager-cache: false
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Verify migration ledger divergence is explicit (never connects to Aiven)
+        run: pnpm exec tsx scripts/qa-migration-ledger.ts
       - name: Run migration and isolation assertions against disposable MySQL
         run: pnpm exec tsx scripts/qa-portal-mysql.ts
