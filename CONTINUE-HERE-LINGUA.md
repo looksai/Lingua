@@ -5,6 +5,14 @@
 
 > **Este arquivo é o ponto oficial de continuidade para uma nova conversa.** Primeiro ler este documento e os links abaixo, conferir o estado ATUAL das PRs no GitHub e prosseguir do último commit verificado. Não assumir que uma execução de CI antiga se aplica a novos commits.
 
+## Ensaio de recuperação criptografada — 2026-11-25
+- **Último commit de código verificado:** `9b369a302a11422a3182fb55cf6666404f0055fd` (verificar novamente o HEAD real da PR #81).
+- `scripts/qa-disposable-backup-restore.sh` foi fortalecido: sem persistir dump SQL em texto claro, gera passphrase sintética aleatória no runner, executa `mysqldump → gzip → GPG AES-256`, comprova falha de descriptografia com senha incorreta, valida gzip, restaura em `lingua_restore_qa` isolado e compara contagens de tabelas e de registros. Senha é descartada no fim.
+- `.github/workflows/community-mysql-qa.yml` executa esse teste após o QA do portal; `docs/STAGING-MIGRATION-PREFLIGHT-v01.md` explica a distinção entre ensaio sintético e backup real.
+- **CI confirmado para o código:** [P0](https://github.com/looksai/Lingua/actions/runs/45542524395) SUCCESS; [Portal/MySQL + GPG/AES256/recovery](https://github.com/looksai/Lingua/actions/runs/45542524451) SUCCESS; [Privacy/MySQL](https://github.com/looksai/Lingua/actions/runs/45542524442) SUCCESS. [Chromium](https://github.com/looksai/Lingua/actions/runs/45542524511): consultar conclusão, estava executando quando este texto foi escrito.
+- **NÃO FOI** testado o artefato criptografado verdadeiro do Aiven, e nem sua senha, restauração, esquema real ou identidade do banco de staging. Esse gate permanece aberto e exige procedimento isolado/autorizado; **nenhum merge, deploy ou SQL remoto foi realizado**.
+- Próximo passo após CI: revisar artefato real e planejar prova de recuperação em ambiente segregado, sem incluir credenciais ou dados privados em logs, além de confirmar inventário remoto de migrações. Não executar `db:push`/migrações genéricas.
+
 ## Auditoria adicional do inspetor — 2026-11-25
 - **PR #81 continua DRAFT**, sem conexão nova ao Aiven, sem deploy, migração ou merge.
 - Revisão de privilégio mínimo detectou que o inspetor de inventário usava o segredo de conexão padrão do staging, potencialmente com capacidade de escrita. Corrigido: usa **somente** `LINGUA_STAGING_READONLY_DATABASE_URL` e `LINGUA_STAGING_READONLY_CA_BASE64`, a serem criados por operador; **sem fallback**. O workflow `.github/workflows/staging-portal-readonly-inventory.yml` foi alinhado a esses segredos.
