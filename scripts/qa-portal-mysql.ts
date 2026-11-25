@@ -63,6 +63,11 @@ try{
   assert.deepEqual(await guest.publicTopics({groupId:privateGroup}),[]);
   assert.deepEqual((await guest.verifiedPartners()).map(p=>p.slug),["qa-verified"]);
   const accountB=communityRouter.createCaller({user:{id:userB,email:"portal-b@synthetic.invalid",role:"user"}} as never);
+  await assert.rejects(accountB.moderationQueue({groupId:privateGroup}), (err:unknown)=>
+    typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  const staffAdmin=communityRouter.createCaller({user:{id:userA,role:"admin",email:"portal-a@synthetic.invalid"}} as never);
+  const queue=await staffAdmin.moderationQueue({groupId:publicGroup});
+  assert.deepEqual(queue.pendingTopics.map(t=>t.title),["Aguardando moderação"]);
   await assert.rejects(accountB.groupTopics({groupId:privateGroup}), (err:unknown)=>
     typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
   await sqlConn.query("INSERT INTO portalMembershipGrants(userId,kind,source,expiresAt) VALUES (?,?,?,DATE_ADD(NOW(),INTERVAL 30 DAY))",
