@@ -63,6 +63,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const generation = useRef(0);
   const scrollAnchor = useRef<HTMLDivElement>(null);
   const capabilities = trpc.tutor.capabilities.useQuery(undefined,{retry:false,refetchOnWindowFocus:false});
+  const privacyPreferences=trpc.tutor.privacyPreferences.useQuery({accountEmail:accountEmail.trim().toLowerCase()},{enabled:Boolean(accountEmail.trim()),retry:false,refetchOnWindowFocus:false});
+  const updatePersonalMemory=trpc.tutor.updatePersonalMemory.useMutation();
   const reply = trpc.tutor.reply.useMutation();
   const catalogRenderAck=trpc.tutor.catalogRenderAck.useMutation();
   const catalogPendingTask=trpc.tutor.catalogPendingTask.useMutation();
@@ -166,6 +168,14 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
       setMessages(previous=>previous.map(m=>({...m,audioBase64:null})));
     }
   },[provider,consentKey,identityScope]);
+
+  // Server-account acceptance supersedes the older per-browser consent prompt.
+  // Keep legacy accounts on their old opt-in flow until migrated deliberately.
+  useEffect(()=>{
+    if(privacyPreferences.data?.serviceAccepted===true){
+      setConsent(true);setPrivacyPrompt(false);
+    }
+  },[privacyPreferences.data?.serviceAccepted,identityScope]);
 
   // Reload recovery uses a protected mutation, avoiding a shared cached query
   // whose result could outlive a login change. No LLM or learner-evidence writes.
@@ -359,7 +369,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         append({role:"assistant",text:res.text,source:res.source,audioBase64:res.audioBase64,voiceStatus:res.voiceStatus,catalogTask:deliveredTask});
         rememberTopic(deliveredTask);
         if(viaASR)setNotice("Texto recebido por transcrição. Ele não mede pronúncia. Se estiver respondendo a um exercício fechado, digite a resposta para que seja avaliada.");
-        if(res.memoryCandidate&&capabilities.data?.memory)
+        if(res.memoryCandidate&&capabilities.data?.memory&&!privacyPreferences.data?.serviceAccepted)
           setPendingMemory({...res.memoryCandidate,sourceMessage:text});
       }
     }catch{
@@ -726,9 +736,25 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         </div>
         <button type="button" onClick={eraseConversation} className="text-sm font-semibold text-red-700 underline">Apagar conversa e marcador neste aparelho</button>
       </div>
+      {privacyPreferences.data?.serviceAccepted&&<div className="border-t border-ink/10 pt-5 space-y-3">
+        <h3 className="font-semibold">Memória pessoal do Naruto</h3>
+        <label className="flex items-start gap-2 text-sm leading-5">
+          <input type="checkbox" checked={privacyPreferences.data.personalMemoryEnabled}
+            disabled={updatePersonalMemory.isPending}
+            onChange={async event=>{
+              try{
+                await updatePersonalMemory.mutateAsync({enabled:event.target.checked});
+                await privacyPreferences.refetch();
+                await savedMemories.refetch();
+              }catch{setNotice("Não foi possível atualizar a preferência. Nada foi alterado.");}
+            }} className="mt-1"/>
+          Lembrar automaticamente meus objetivos, profissão e preferências de estudo.
+        </label>
+        <p className="text-xs text-ink-muted">O Naruto registra somente fatos elegíveis que você informar, sem perguntar a cada conversa. Você pode desligar aqui e apagar os fatos abaixo. Dados sensíveis não devem ser memorizados.</p>
+      </div>}
       {capabilities.data?.memory&&<div className="border-t border-ink/10 pt-5 space-y-3">
-        <h3 className="font-semibold">Memórias pessoais aprovadas</h3>
-        <p className="text-xs leading-5 text-ink-muted">Só guardamos trechos sobre você que você confirmou. São distintos do histórico local e não comprovam diplomas ou domínio de inglês. Use Apagar para retirar um fato da próxima conversa.</p>
+        <h3 className="font-semibold">Memórias pessoais</h3>
+        <p className="text-xs leading-5 text-ink-muted">Em contas novas, estas lembranças seguem sua preferência inicial de memória; em contas antigas, foram confirmadas individualmente. Não comprovam diplomas nem domínio de inglês. Você pode apagar fatos a qualquer momento.</p>
         {savedMemories.isError&&<p role="alert" className="text-xs text-red-700">Memórias indisponíveis. Confirme a atualização do banco.</p>}
         {savedMemories.data?.length===0&&<p className="text-xs text-ink-muted">Nenhuma memória salva.</p>}
         {savedMemories.data?.map(item=><div key={item.id} className="flex items-start justify-between gap-3 rounded-xl bg-paper p-3 text-xs">
@@ -737,12 +763,15 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
         </div>)}
         {!!savedMemories.data?.length&&<button type="button" disabled={clearMemories.isPending} onClick={()=>void forgetAllMemories()} className="text-xs font-semibold text-red-700 underline">Apagar todas as memórias</button>}
       </div>}
-      <div className="border-t border-ink/10 pt-5">
+      {privacyPreferences.data?.serviceAccepted?<div className="border-t border-ink/10 pt-5">
+        <h3 className="font-semibold">Privacidade da conversa</h3>
+        <p className="mt-2 text-xs leading-5 text-ink-muted">O uso do tutor foi confirmado no cadastro desta conta. Mensagens e áudios enviados são processados para responder e ensinar. As preferências de memória ficam acima, sem autorizações repetidas.</p>
+      </div>:      <div className="border-t border-ink/10 pt-5">
         <h3 className="font-semibold">Privacidade da conversa</h3>
         <p className="mt-2 text-xs leading-5 text-ink-muted">Seu chat pode enviar texto e gravações ao {provider==="groq"?"Groq":provider==="openai"?"serviço OpenAI":"provedor externo"} somente após autorização. O aceite é lembrado apenas neste navegador, por conta e provedor, até você revogar ou limpar os dados locais. Não constitui registro de consentimento auditado no servidor.</p>
         {consent?<button type="button" onClick={()=>{updateConsent(false);setNotice("Envio à IA desativado nesta sessão.");}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold">Desativar envio à IA</button>:
           <button type="button" disabled={!enabled} onClick={()=>{setSettingsOpen(false);setPrivacyPrompt(true);}} className="mt-3 rounded-full border border-ink/20 px-4 py-2 text-sm font-semibold disabled:opacity-40">Autorizar envio à IA</button>}
-      </div>
+      </div>}
       {provider==="openai"&&<label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={voice} disabled={!consent||!capabilities.data?.tts||busy} onChange={e=>setVoice(e.target.checked)}/>
         Gerar áudio pelo serviço configurado
@@ -824,7 +853,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
             className="text-left text-xs font-semibold text-teal underline disabled:opacity-40">
             Recomeçar assunto salvo: {getMicrocompetency(topicChoice.bookmark.competencyId)?.titlePt??"assunto"}
           </button>}
-        {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
+        {memoryKeys&&memoryChoice.scope===memoryScope&&!memoryChoice.enabled&&!privacyPreferences.data?.serviceAccepted&&<button type="button" className="text-left text-xs font-semibold text-teal underline" onClick={()=>setMemoryEnabled(true)}>Guardar esta conversa neste navegador (opcional)</button>}
         {memoryKeys&&memoryChoice.scope===memoryScope&&memoryChoice.enabled&&<p className="text-[10px] text-ink-muted">Histórico local ativado · até 30 dias · apagar nas configurações</p>}
         {notice&&<p role="status" className="text-xs leading-4 text-ink-muted">{notice}</p>}
         {transcriptReady&&<p className="text-xs font-semibold text-teal">Confira o texto reconhecido antes de enviar.</p>}
