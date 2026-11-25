@@ -5,6 +5,15 @@
 
 > **Este arquivo é o ponto oficial de continuidade para uma nova conversa.** Primeiro ler este documento e os links abaixo, conferir o estado ATUAL das PRs no GitHub e prosseguir do último commit verificado. Não assumir que uma execução de CI antiga se aplica a novos commits.
 
+## Ensaios MySQL 8.4 para paridade de staging — 2026-11-25
+- A branch da **PR #81** permaneceu DRAFT, sem merge, deploy ou conexão/migração no Aiven.
+- `.github/workflows/community-mysql-qa.yml` e `.github/workflows/privacy-mysql-qa.yml` passaram a usar **MySQL 8.4** (antes 8.0), compatível na versão principal/secundária com o alvo Aiven staging documentado. `scripts/qa-disposable-backup-restore.sh` localiza o contêiner `mysql:8.4` para dump e restauração sintética.
+- `scripts/qa-portal-mysql.ts` e `scripts/qa-privacy-mysql.ts` exigem, antes do DDL, `SELECT VERSION()` com `8.4.`; abortam em versão distinta.
+- `docs/STAGING-MIGRATION-PREFLIGHT-v01.md` foi atualizado para refletir a paridade sintética 8.4, sem confundir com ambiente remoto real.
+- **CI do último commit funcional `7962438cde479f0781cb7502e456a460fe7a8a18`**: [P0](https://github.com/looksai/Lingua/actions/runs/45543519981) SUCCESS; [privacidade MySQL 8.4](https://github.com/looksai/Lingua/actions/runs/45543519945) SUCCESS; [portal MySQL 8.4 + restauração AES256](https://github.com/looksai/Lingua/actions/runs/45543519937) SUCCESS; [Chromium](https://github.com/looksai/Lingua/actions/runs/45543520280) conferir resultado mais recente.
+- **Gate remoto pendente:** o banco Aiven real ainda não teve inventário de migrações/credencial somente-leitura verificados e o backup REAL criptografado ainda não passou por restauração segregada. A paridade de versão do CI não comprova configurações ou recuperabilidade do Aiven.
+- **Ao retomar:** consultar HEAD da PR #81 e CIs atuais; conferir que todos os commits funcionais seguintes estão testados. Não autorizar `db:push`, `db:migrate`, DDL remoto ou flags comerciais por esse resultado.
+
 ## Retomada — integridade do backup restaurado (2026-11-25)
 - **PR #81** permanece DRAFT; nenhuma migração remota, merge ou deploy, e os dados dos alunos continuam fora dos ensaios.
 - `scripts/qa-disposable-backup-restore.sh` foi fortalecido para comparar **SHA-256 do conteúdo lógico das linhas** em tabelas sintéticas, além de contagens de linhas e tabelas. Os dumps usados nos hashes passam diretamente para `sha256sum`, sem persistir SQL em texto claro.
