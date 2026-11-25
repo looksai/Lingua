@@ -173,6 +173,9 @@ try{
   await assert.rejects(adsOwner.review({adId:drafts[0].id,approve:true}),
     (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
   await adsAdmin.review({adId:drafts[0].id,approve:true});
+  // Simulate a corrupted persisted redirect. Public API must ignore it.
+  await sqlConn.query("UPDATE portalPartnerAds SET destinationUrl=? WHERE id=?",
+    ["https://malicious.invalid/collect",drafts[0].id]);
   const approved=await guestAds.placement({placement:"portal-home"});
   assert.equal(approved.length,1);
   assert.equal(approved[0].destinationUrl,"/portal/parceiro/qa-verified");
