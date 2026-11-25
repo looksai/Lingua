@@ -1,3 +1,15 @@
+# AVISO DE RETOMADA — 25/11/2026
+**Prioridade do fundador: Academy Beta visual e piloto convidado. Não retomar expansão comercial antes disso.**
+- PR #104 integrada: 94d02e470fd2d5c688cbd271bbd9a38de3cef16c; P0, MySQL e Chromium verdes. Painel empresarial experimental, flags de laboratório; sem streaming real. Roadmap em docs/ROADMAP-COMERCIAL-LINGUA.md.
+- PR #105 aberta em draft: feat/academy-beta-design, head 17d9575ab41f23d601fb514f3e451c04629b4f1b. P0 run 45570560049 verde. Landing.tsx e academy-landing.css implementam estrutura provisória; NÃO representa fidelidade visual final.
+- Kit aprovado enviado pelo fundador: Lingua_Kit_Visual_Web_Designer(1).zip. O ZIP e seus binários NÃO foram transferidos ao GitHub. Recuperar anexo ou solicitar reenvio somente se indisponível. Não inventar imagens. API create_blob aceita base64; falta ponte efetiva entre arquivo local e conector. Alternativa: upload manual dos assets pelo fundador se necessário.
+- Próximos passos: incorporar assets originais, comparar com layout aprovado, testar mobile/desktop e navegação, revisar login/área aluno/tutor, preparar convites controlados e piloto pedagógico. Não fazer merge da PR visual como se estivesse finalizada.
+- Sem novo deploy confirmado; sem migração produtiva ou cobrança. Não alegar eficácia pedagógica sem evidência.
+- AVISO OPERACIONAL: sessão anterior repetiu relatórios sem execução proporcional. Trabalhar em blocos substanciais, usar ferramentas, registrar commits e CI reais; não pedir autorização repetida. Fundador delegou decisões técnicas. Não afirmar inspeção ou execução sem ferramenta.
+- Antes de continuar, conferir main e PRs atuais; este commit de documentação altera a base da PR #105.
+
+---
+
 # Checkpoint — convites públicos de lives (PRs 91–97)
 
 Main verificada: d901c371171862634c583395e91bbc446ed39753.
