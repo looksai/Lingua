@@ -5,6 +5,7 @@ const labels={draft:"Rascunho",published:"Publicado",live:"Ao vivo",ended:"Encer
 const actions={draft:["published","cancelled"],published:["live","cancelled"],live:["ended","cancelled"],ended:[],cancelled:[]} as const;
 const button="rounded-lg border px-4 py-2 text-sm disabled:opacity-50";
 function InviteControls({partnerId,eventId}:{partnerId:number;eventId:number}){
+ const inventory=trpc.partnerInvites.list.useQuery({partnerId,eventId},{retry:false});
  const issue=trpc.partnerInvites.issue.useMutation();
  const revoke=trpc.partnerInvites.revoke.useMutation();
  const [token,setToken]=useState("");
@@ -12,15 +13,19 @@ function InviteControls({partnerId,eventId}:{partnerId:number;eventId:number}){
  const busy=issue.isPending||revoke.isPending;
  async function generate(){
   setMessage("");
-  try{const result=await issue.mutateAsync({partnerId,eventId,expiresAt:null});setToken(result.token);}catch{setMessage("Não foi possível gerar o convite.");}
+  try{const result=await issue.mutateAsync({partnerId,eventId,expiresAt:null});setToken(result.token);await inventory.refetch();}catch{setMessage("Não foi possível gerar o convite.");}
  }
  async function cancel(){
   setMessage("");
   try{
    const bytes=Uint8Array.from(atob(token.replace(/-/g,"+").replace(/_/g,"/")+"="),c=>c.charCodeAt(0));
    const digest=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),b=>b.toString(16).padStart(2,"0")).join("");
-   await revoke.mutateAsync({partnerId,eventId,digest});setToken("");setMessage("Convite revogado.");
+   await revoke.mutateAsync({partnerId,eventId,digest});setToken("");setMessage("Convite revogado.");await inventory.refetch();
   }catch{setMessage("Não foi possível revogar o convite.");}
+ }
+ async function revokeSaved(digest:string){
+  setMessage("");
+  try{await revoke.mutateAsync({partnerId,eventId,digest});setToken("");await inventory.refetch();setMessage("Convite revogado.");}catch{setMessage("Não foi possível revogar o convite.");}
  }
  const link=token?window.location.origin+"/live#"+token:"";
  return <div className="space-y-2">
@@ -29,6 +34,8 @@ function InviteControls({partnerId,eventId}:{partnerId:number;eventId:number}){
  <div className="flex flex-wrap gap-2"><button className={button} onClick={()=>void navigator.clipboard.writeText(link).then(()=>setMessage("Link copiado."),()=>setMessage("Selecione e copie o link manualmente."))}>Copiar link</button><button className={button} disabled={busy} onClick={()=>void cancel()}>Revogar convite</button></div>
  <p className="text-xs">Guarde o link. Nesta versão experimental, ele não será recuperado após recarregar a página.</p>
  </>}
+ <h4 className="font-semibold">Convites emitidos</h4>
+ {inventory.isPending?<p role="status">Carregando convites...</p>:inventory.error?<p role="alert">Não foi possível consultar os convites. <button className={button} onClick={()=>void inventory.refetch()}>Tentar novamente</button></p>:inventory.data?.length===0?<p>Nenhum convite emitido.</p>:inventory.data?.map(invite=><div key={invite.digest} className="flex flex-wrap items-center gap-2 border-t py-2"><span>Emitido em {new Date(invite.createdAt).toLocaleString("pt-BR")} · {invite.revokedAt?"Revogado":invite.expiresAt&&new Date(invite.expiresAt).getTime()<=Date.now()?"Expirado":"Não revogado"}</span>{!invite.revokedAt&&<button className={button} disabled={busy} onClick={()=>void revokeSaved(invite.digest)}>Revogar convite anterior</button>}</div>)}
  {message&&<p role="status">{message}</p>}
  </div>;
 }
