@@ -1,3 +1,4 @@
+import {readPrivacyPreferences, changePersonalMemoryPreference} from "./privacy-preferences";
 import {safeTutorModality} from "@shared/pedagogy/tutor-input-modality";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
@@ -22,7 +23,7 @@ import { calEnabled, calTutorSessions } from "./cal-integration";
 import {catalogCALRuntimeEnabled,calCatalogTutorSessions} from "./cal-catalog-runtime";
 import {getMicrocompetency} from "../shared/pedagogy/microcompetency-catalog";
 import {
-  memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, loadLearnerMemories,
+  memoryFeatureEnabled, learnerMemoryInput, safeLearnerFact, autoSaveLearnerMemory, loadLearnerMemories,
   listLearnerMemories, saveLearnerMemory, deleteLearnerMemory, clearLearnerMemories,
 } from "./learner-memory";
 
@@ -52,6 +53,24 @@ async function optionalSpeech(text:string, requested:boolean):Promise<AudioResul
   } catch {return {audioBase64:null,voiceStatus:"unavailable"};}
 }
 export const tutorRouter = router({
+  privacyPreferences:protectedProcedure.input(z.object({accountEmail:z.email().max(320)}).optional()).query(async ({ctx,input})=>{
+    // The browser scopes its cache per account; reject a mismatched hint.
+    if(input && ctx.user.email?.trim().toLowerCase()!==input.accountEmail.trim().toLowerCase())
+      throw new TRPCError({code:"FORBIDDEN",message:"Conta de privacidade inválida."});
+    try{return await readPrivacyPreferences(ctx.user.id);}
+    catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Preferências de privacidade temporariamente indisponíveis."});}
+  }),
+  updatePersonalMemory:protectedProcedure.input(z.object({enabled:z.boolean()})).mutation(async ({ctx,input})=>{
+    checkRequestOrigin(ctx.req);
+    try {
+      const result=await changePersonalMemoryPreference(ctx.user.id,input.enabled);
+      if(!result.updated)throw new TRPCError({code:"PRECONDITION_FAILED",message:"Confirme os termos de funcionamento atualizados antes de alterar a memória."});
+      return result;
+    } catch(error) {
+      if(error instanceof TRPCError)throw error;
+      throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível atualizar a preferência de memória."});
+    }
+  }),
   capabilities:protectedProcedure.query(({ctx})=>{
     const openai=paidTutorAllowed(ctx.user.email), groq=freeTutorAllowed(ctx.user.email);
     return {provider:tutorMode(),chat:openai||groq,asr:openai||groq,tts:openai&&speechConfigured(),neuralEnglish:groq,geminiDemo:geminiDemoAllowed(ctx.user.email),memory:memoryFeatureEnabled()};
@@ -153,10 +172,17 @@ export const tutorRouter = router({
     // Never propose or retrieve memory when disabled. No hidden writes.
     let approvedFacts:string[]=[];
     let memoryReady=false;
+    let accountMemoryEnabled=false;
+    let legacyMemoryPrompt=false;
     if(memoryFeatureEnabled()){
       try {
-        approvedFacts=(await loadLearnerMemories(ctx.user.id)).map(item=>item.fato);
-        memoryReady=true;
+        const settings=await readPrivacyPreferences(ctx.user.id);
+        accountMemoryEnabled=settings.personalMemoryEnabled;
+        legacyMemoryPrompt=settings.legacyAccount;
+        if(settings.personalMemoryEnabled || settings.legacyAccount){
+          approvedFacts=(await loadLearnerMemories(ctx.user.id)).map(item=>item.fato);
+          memoryReady=true;
+        }
       } catch {console.warn("[tutor] memory unavailable: feature will fail closed for this turn");}
     }
     return withTutorBudget(ctx.user.id,async()=>{
@@ -189,6 +215,20 @@ export const tutorRouter = router({
             memoryCandidate=null;
         }else text=await adapter.reply(p,input.history,input.message,approvedFacts,pedagogicalDirective);
       } catch(error) { return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null}; }
+      // A late AI reply may have incorporated previously approved personal facts.
+      // If the student disabled memory during generation, do not return that
+      // personalized reply or commit a CAL turn based on it.
+      if(accountMemoryEnabled){
+        try{
+          const latest=await readPrivacyPreferences(ctx.user.id);
+          if(!latest.personalMemoryEnabled)
+            return {text:"A preferência de memória mudou durante a resposta. Envie sua mensagem novamente para continuar.",
+              source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
+        }catch{
+          return {text:"Não foi possível conferir a preferência de memória. Envie sua mensagem novamente.",
+            source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
+        }
+      }
       const checked=guardTutorLearnerClaims(text,input.history,input.message,approvedFacts);
       if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
       const adapted=enforceBeginnerPortuguese(checked.text,input.history,input.message,approvedFacts);
@@ -208,6 +248,16 @@ export const tutorRouter = router({
       const catalogTask=catalogPreview
         ? calCatalogTutorSessions.clientTaskForReply(ctx.user.id,finalText)
         : null;
+      // The initial account choice permits safe facts without extra chat prompts.
+      // Recheck inside a locked DB transaction AFTER generating the model reply.
+      if(memoryCandidate && accountMemoryEnabled){
+        try{await autoSaveLearnerMemory(ctx.user.id,memoryCandidate,input.message);}
+        catch{console.warn("[tutor] memory auto-save failed closed");}
+        memoryCandidate=null;
+      }
+      // Only legacy accounts may still receive individual memory prompts.
+      // For enrolled accounts an opt-out must never re-enable prompts.
+      if(!legacyMemoryPrompt)memoryCandidate=null;
       return {text:finalText,source:"ai" as const,memoryCandidate,catalogTask,
         ...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
     });

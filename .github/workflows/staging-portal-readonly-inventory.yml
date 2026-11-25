@@ -1,0 +1,36 @@
+name: Lingua Aiven staging portal inventory (READ ONLY, manual)
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Digite INVENTARIO_SOMENTE_LEITURA_LINGUA (não aplica SQL)"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: lingua-aiven-staging
+  cancel-in-progress: false
+jobs:
+  inspect-only:
+    if: github.ref == 'refs/heads/main' && inputs.confirmation == 'INVENTARIO_SOMENTE_LEITURA_LINGUA'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - name: Inspect metadata only; pinned Aiven staging and verified TLS
+        env:
+          LINGUA_STAGING_READONLY_DATABASE_URL: ${{ secrets.LINGUA_STAGING_READONLY_DATABASE_URL }}
+          LINGUA_STAGING_READONLY_CA_BASE64: ${{ secrets.LINGUA_STAGING_READONLY_CA_BASE64 }}
+        run: pnpm exec tsx scripts/staging-aiven-readonly-portal-inventory.ts

@@ -1,0 +1,60 @@
+import {describe,it,expect} from "vitest";
+import {makeSafeMetadataReport,assertReadOnlyGrants} from "../scripts/staging-aiven-readonly-portal-inventory";
+const input={
+  version:"8.4.6",sslCipher:"TLS_AES_256_GCM_SHA384",
+  tables:[{tableName:"users"},{tableName:"learnerMemories"},
+    {tableName:"portalGroups"},{tableName:"__drizzle_migrations"}],
+  columns:[{tableName:"portalGroups",columnName:"slug",columnType:"varchar(80)",isNullable:"NO"},
+    {tableName:"users",columnName:"email",columnType:"varchar(320)",isNullable:"YES"}],
+  constraints:[{tableName:"portalGroups",constraintName:"portalGroups_partner_fk",targetTable:"portalPartners"},
+    {tableName:"users",constraintName:"private_email_constraint",targetTable:"other"}],
+  journalColumns:["id","hash","created_at"],journal:[{id:1,createdAt:1788785580464}],journalTotal:1,
+};
+describe("staging metadata report is safe by construction",()=>{
+  it("only exposes allowlisted portal schema metadata and never student fields",()=>{
+    const result=makeSafeMetadataReport(input);
+    expect(result.schema).toBe("defaultdb");
+    expect(result.remoteMigrationApproved).toBe(false);
+    expect(result.absent).toContain("portalPartnerAds");
+    expect(result.columnMetadata).toEqual([{table:"portalGroups",column:"slug",type:"varchar(80)",nullable:false}]);
+    expect(result.foreignKeys).toEqual([{table:"portalGroups",name:"portalGroups_partner_fk",target:"portalPartners"}]);
+    expect(JSON.stringify(result)).not.toContain("email");
+    expect(result.journal.entries).toEqual([{id:1,createdAt:1788785580464}]);
+    expect(result.journal.migrationCount).toBe(1);
+    expect(result.journal.truncated).toBe(false);
+  });
+  it("refuses missing TLS or different server major/minor",()=>{
+    expect(()=>makeSafeMetadataReport({...input,sslCipher:""})).toThrow();
+    expect(()=>makeSafeMetadataReport({...input,version:"8.0.37"})).toThrow();
+  });
+  it("refuses missing account table even when portal tables exist",()=>{
+    expect(()=>makeSafeMetadataReport({...input,tables:[{tableName:"portalGroups"}]})).toThrow();
+  });
+  it("accepts only explicit read-only MySQL privileges",()=>{
+    expect(()=>assertReadOnlyGrants([
+      "GRANT USAGE ON *.* TO \`lingua_readonly\`@\`%\`",
+      "GRANT SELECT ON \`defaultdb\`.* TO \`lingua_readonly\`@\`%\`",
+    ])).not.toThrow();
+    for(const elevated of [
+      "GRANT ALL PRIVILEGES ON *.* TO \`lingua\`@\`%\`",
+      "GRANT SELECT, INSERT ON \`defaultdb\`.* TO \`lingua\`@\`%\`",
+      "GRANT SELECT ON \`defaultdb\`.* TO \`lingua\`@\`%\` WITH GRANT OPTION",
+      "GRANT \`data_writers\`@\`%\` TO \`lingua\`@\`%\`",
+    ])expect(()=>assertReadOnlyGrants([elevated])).toThrow();
+    expect(()=>assertReadOnlyGrants([])).toThrow();
+    expect(()=>assertReadOnlyGrants(["GRANT USAGE ON *.* TO \`only\`@\`%\`"])).toThrow();
+  });
+  it("never reports a sampled ledger as a complete history",()=>{
+    const result=makeSafeMetadataReport({...input,journalTotal:1500});
+    expect(result.journal.migrationCount).toBe(1500);
+    expect(result.journal.truncated).toBe(true);
+    expect(result.journal.entries).toHaveLength(1);
+    expect(result.remoteMigrationApproved).toBe(false);
+  });
+  it("handles absent ledger without inferring migration completion",()=>{
+    const result=makeSafeMetadataReport({...input,tables:[{tableName:"users"}],journal:null,journalColumns:[],journalTotal:null});
+    expect(result.journal.present).toBe(false);
+    expect(result.journal.migrationCount).toBeNull();
+    expect(result.remoteMigrationApproved).toBe(false);
+  });
+});

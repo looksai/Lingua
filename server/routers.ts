@@ -2,6 +2,9 @@ import { COOKIE_NAME } from "@shared/const";
 import { onboardingRouter } from "./onboarding-router";
 import { tutorRouter } from "./tutor-router";
 import { placementRouter } from "./placement-router";
+import { communityRouter } from "./community-router";
+import { partnerRouter } from "./partner-router";
+import {adsRouter} from "./ads-router";
 import { issueSession, registerLocalUser, loginLocalUser, rateLimit, checkRequestOrigin, normalizeEmail } from "./auth-local";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -24,17 +27,22 @@ export const appRouter = router({
   onboarding: onboardingRouter,
   tutor: tutorRouter,
   placement: placementRouter,
+  community: communityRouter,
+  partners: partnerRouter,
+  ads: adsRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     signUp: publicProcedure.input(z.object({
       email: z.email().max(320),
       password: z.string().min(12).max(128),
+      serviceAccepted: z.literal(true),
+      personalMemoryEnabled: z.boolean().default(false),
     })).mutation(async ({ ctx, input }) => {
       checkRequestOrigin(ctx.req);
       rateLimit("signup:" + (ctx.req.ip ?? "unknown") + ":" + normalizeEmail(input.email));
       let user;
       try {
-        user = await registerLocalUser(input.email, input.password);
+        user = await registerLocalUser(input.email, input.password, input.personalMemoryEnabled);
       } catch (error) {
         if (error instanceof TRPCError) throw error;
         // Drizzle error messages can include SQL parameters and password hashes.

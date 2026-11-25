@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
-import { learnerMemories } from "../drizzle/schema";
+import { learnerMemories, learnerPrivacyPreferences } from "../drizzle/schema";
 import { getDb } from "./db";
 
 export const memoryCategory = z.enum(["profissao", "objetivo", "interesse", "preferencia_estudo"]);
@@ -89,9 +89,17 @@ export async function saveLearnerMemory(userId: number, input: z.infer<typeof le
   const db = await memoryDb();
   const fato = input.fato.trim();
   const factKey = memoryKey(fato);
-  await db.insert(learnerMemories).values({
-    userId, fato, factKey, categoria: input.categoria, origem: "aluno_confirmou_no_chat",
-  }).onDuplicateKeyUpdate({ set: { factKey } }); // idempotent retries, no consent inferred
+  await db.transaction(async tx => {
+    // A new account that disabled automatic memory cannot bypass its choice
+    // using the older direct memorySave endpoint. Serializes with toggles.
+    const [choice] = await tx.select().from(learnerPrivacyPreferences)
+      .where(eq(learnerPrivacyPreferences.userId, userId)).for("update").limit(1);
+    if(choice && (choice.policyVersion !== 1 || choice.personalMemoryEnabled !== 1))
+      throw new Error("personal memory disabled for account");
+    await tx.insert(learnerMemories).values({
+      userId, fato, factKey, categoria: input.categoria, origem: "aluno_confirmou_no_chat",
+    }).onDuplicateKeyUpdate({ set: { factKey } });
+  }); // idempotent retries, no consent inferred
   return { saved: true as const };
 }
 export async function deleteLearnerMemory(userId: number, id: number) {
@@ -103,4 +111,27 @@ export async function clearLearnerMemories(userId: number) {
   const db = await memoryDb();
   await db.delete(learnerMemories).where(eq(learnerMemories.userId, userId));
   return { deleted: true as const };
+}
+
+/**
+ * Only the server can save without a per-fact prompt. The row lock is shared
+ * with preference updates; a concurrent disable cannot be overtaken by
+ * a late model response. Absent/legacy/stale choice is an unconditional NO.
+ */
+export async function autoSaveLearnerMemory(userId: number, proposal: MemoryProposal, sourceMessage: string) {
+  if (!safeLearnerFact(proposal.fato, sourceMessage)) return { saved: false as const };
+  const db = await memoryDb();
+  return db.transaction(async tx => {
+    const [choice] = await tx.select().from(learnerPrivacyPreferences)
+      .where(eq(learnerPrivacyPreferences.userId, userId)).for("update").limit(1);
+    if (!choice || choice.policyVersion !== 1 || choice.personalMemoryEnabled !== 1)
+      return { saved: false as const };
+    const fato = proposal.fato.trim();
+    const factKey = memoryKey(fato);
+    await tx.insert(learnerMemories).values({
+      userId, fato, factKey, categoria: proposal.categoria,
+      origem: "preferencia_inicial_memoria_v1",
+    }).onDuplicateKeyUpdate({ set: { factKey } });
+    return { saved: true as const };
+  });
 }
