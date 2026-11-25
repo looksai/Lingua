@@ -26,6 +26,21 @@ export default function CommunityHub(){
   });
   const createTopic=trpc.community.createTopic.useMutation();
   const createReply=trpc.community.createReply.useMutation();
+  const moderateTopic=trpc.community.moderateTopic.useMutation();
+  const moderateReply=trpc.community.moderateReply.useMutation();
+  const moderation=trpc.community.moderationQueue.useQuery({groupId:currentGroupId??0},{
+    enabled:Boolean(current?.canModerate&&currentGroupId),retry:false,
+  });
+  async function review(kind:"topic"|"reply",recordId:number,state:"published"|"hidden"){
+    setNotice("");
+    try{
+      if(kind==="topic")await moderateTopic.mutateAsync({topicId:recordId,state});
+      else await moderateReply.mutateAsync({replyId:recordId,state});
+      await Promise.all([moderation.refetch(),topics.refetch()]);
+      if(activeTopic)await replies.refetch();
+      setNotice(state==="published"?"Conteúdo publicado.":"Conteúdo ocultado.");
+    }catch{setNotice("Não foi possível concluir a moderação.");}
+  }
 
   async function submitTopic(e:FormEvent){
     e.preventDefault();
@@ -81,6 +96,30 @@ export default function CommunityHub(){
             <p className="mt-2 text-sm leading-6 text-[#526478]">{current?.description}</p>
           </div>
           {notice&&<p role="status" className={frame+" text-sm"}>{notice}</p>}
+          {current?.canModerate&&<section className={frame+" space-y-4"} aria-label="Moderação do grupo">
+            <h3 className="font-display text-2xl">Moderação</h3>
+            <p className="text-sm text-[#526478]">Somente responsáveis autorizados podem publicar ou ocultar conteúdo.</p>
+            {moderation.isPending&&<p role="status" className="text-sm">Carregando fila de moderação...</p>}
+            {moderation.isError&&<p role="alert" className="text-sm text-red-700">Fila de moderação indisponível.</p>}
+            {moderation.data?.pendingTopics.length===0&&moderation.data.pendingReplies.length===0&&<p className="text-sm text-[#526478]">Nenhuma publicação pendente.</p>}
+            {moderation.data?.pendingTopics.map(item=><div key={"t"+item.id} className="rounded-xl border border-[#14283D]/10 p-4">
+              <p className="text-xs font-semibold uppercase text-[#956A39]">Discussão pendente</p>
+              <h4 className="mt-2 font-semibold">{item.title}</h4>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm">{item.body}</p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button type="button" className={action} onClick={()=>void review("topic",item.id,"published")}>Publicar</button>
+                <button type="button" className="rounded-full border border-[#14283D]/20 px-5 py-2 text-sm" onClick={()=>void review("topic",item.id,"hidden")}>Ocultar</button>
+              </div>
+            </div>)}
+            {moderation.data?.pendingReplies.map(item=><div key={"r"+item.id} className="rounded-xl border border-[#14283D]/10 p-4">
+              <p className="text-xs font-semibold uppercase text-[#956A39]">Comentário pendente</p>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm">{item.body}</p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button type="button" className={action} onClick={()=>void review("reply",item.id,"published")}>Publicar</button>
+                <button type="button" className="rounded-full border border-[#14283D]/20 px-5 py-2 text-sm" onClick={()=>void review("reply",item.id,"hidden")}>Ocultar</button>
+              </div>
+            </div>)}
+          </section>}
           {current?.canCreate&&<form onSubmit={submitTopic} className={frame+" space-y-3"}>
             <h3 className="font-display text-2xl">Criar discussão</h3>
             <label className="block text-sm font-semibold" htmlFor="portal-subject">Assunto</label>
