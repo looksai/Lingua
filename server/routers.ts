@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { onboardingRouter } from "./onboarding-router";
 import { tutorRouter } from "./tutor-router";
 import { placementRouter } from "./placement-router";
+import { communityRouter } from "./community-router";
 import { issueSession, registerLocalUser, loginLocalUser, rateLimit, checkRequestOrigin, normalizeEmail } from "./auth-local";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -24,6 +25,7 @@ export const appRouter = router({
   onboarding: onboardingRouter,
   tutor: tutorRouter,
   placement: placementRouter,
+  community: communityRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     signUp: publicProcedure.input(z.object({
