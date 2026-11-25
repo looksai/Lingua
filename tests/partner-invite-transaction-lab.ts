@@ -9,7 +9,7 @@ import {resolvePublicPartnerInvite} from "../server/partner-public-invite-resolu
 import assert from "node:assert/strict";
 import mysql from "mysql2/promise";
 import {drizzle} from "drizzle-orm/mysql2";
-import {issuePartnerInvite,revokePartnerInvite} from "../server/partner-invite-transaction";
+import {listPartnerInvites,issuePartnerInvite,revokePartnerInvite} from "../server/partner-invite-transaction";
 import {digestLiveInviteToken} from "../server/partner-live-invite-token";
 import type {ResultSetHeader,RowDataPacket} from "mysql2";
 const pool=mysql.createPool("mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab");
@@ -80,6 +80,13 @@ try{
  assert.equal(await transitionPartnerEvent(db,viewer.insertId,partner,created.id,"published"),false);
  assert.equal(await transitionPartnerEvent(db,user,partner,created.id,"live"),false);
  assert.equal(await transitionPartnerEvent(db,user,partner,created.id,"published"),true);
+ const managedInvite=await issuePartnerInvite(db,user,partner,created.id,null);assert.ok(managedInvite);
+ const inventory=await listPartnerInvites(db,user,partner,created.id);assert.ok(inventory);assert.equal(inventory.length,1);
+ assert.equal("token" in inventory[0],false);
+ assert.equal(await listPartnerInvites(db,viewer.insertId,partner,created.id),null);
+ assert.equal(await listPartnerInvites(db,user+100000,partner,created.id),null);
+ assert.equal(await revokePartnerInvite(db,user,partner,created.id,inventory[0].digest),true);
+ assert.ok((await listPartnerInvites(db,user,partner,created.id))?.[0].revokedAt);
  const concurrent=await Promise.all([transitionPartnerEvent(db,user,partner,created.id,"live"),transitionPartnerEvent(db,user,partner,created.id,"live")]);
  assert.equal(concurrent.filter(Boolean).length,1);
  assert.equal(await transitionPartnerEvent(db,user,partner,created.id,"ended"),true);
