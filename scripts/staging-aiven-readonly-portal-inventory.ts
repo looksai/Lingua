@@ -25,6 +25,27 @@ const DETAIL_TABLES=[
   "portalPartnerAds",
 ] as const;
 
+/**
+ * Require a dedicated account that has only read-level privileges. Any
+ * unrecognized role delegation, GRANT OPTION or administrative privilege fails
+ * closed. The grant text must never be printed in CI logs.
+ */
+export function assertReadOnlyGrants(grants:readonly string[]):void{
+  if(grants.length===0)throw new Error("Read-only credential grants cannot be verified");
+  for(const grant of grants){
+    const normalized=grant.trim().toUpperCase();
+    // Accept a narrow set of MySQL SHOW GRANTS shapes, not arbitrary roles.
+    // USAGE is connection permission only; SELECT is needed for metadata.
+    if(!/^GRANT (?:USAGE|SELECT|SELECT, SHOW VIEW|SHOW VIEW, SELECT|SHOW VIEW) ON /.test(normalized) ||
+       !normalized.includes(" TO ") ||
+       /\bWITH\s+GRANT\s+OPTION\b|\bWITH\s+ADMIN\s+OPTION\b/.test(normalized)){
+      throw new Error("Read-only credential has unsupported or elevated grants");
+    }
+  }
+  if(!grants.some(g=>/\bSELECT\b/i.test(g)))
+    throw new Error("Read-only credential lacks SELECT grant");
+}
+
 export type MetadataReport={
   engine:"mysql";
   mysqlVersionMajorMinor:string;
@@ -81,18 +102,21 @@ export function makeSafeMetadataReport(input:ReporterInput):MetadataReport{
 function safeMessage(error:unknown){
   const message=error instanceof Error?error.message:"";
   const allowed=["Unexpected database version or missing TLS","Missing staging users table",
-    "Staging connection secrets not configured","Workflow must be invoked manually from main",
+    "Read-only staging connection secrets not configured","Workflow must be invoked manually from main",
     "Unexpected Aiven database identity","Staging TLS verification failed",
-    "Unexpected migration history column layout"];
+    "Unexpected migration history column layout",
+    "Read-only credential grants cannot be verified",
+    "Read-only credential has unsupported or elevated grants",
+    "Read-only credential lacks SELECT grant"];
   return allowed.includes(message)?message:"internal database error (details suppressed)";
 }
 async function main(){
   if(process.env.GITHUB_EVENT_NAME!=="workflow_dispatch" ||
      process.env.GITHUB_REF!=="refs/heads/main")
     throw new Error("Workflow must be invoked manually from main");
-  const url=process.env.LINGUA_STAGING_DATABASE_URL;
-  const ca=process.env.LINGUA_STAGING_CA_BASE64;
-  if(!url||!ca)throw new Error("Staging connection secrets not configured");
+  const url=process.env.LINGUA_STAGING_READONLY_DATABASE_URL;
+  const ca=process.env.LINGUA_STAGING_READONLY_CA_BASE64;
+  if(!url||!ca)throw new Error("Read-only staging connection secrets not configured");
   assertStagingTarget(url);
   const connection=await mysql.createConnection({
     ...buildMysqlPoolOptions(url,ca),multipleStatements:false,connectTimeout:15000,
@@ -100,6 +124,10 @@ async function main(){
   try{
     // MySQL will reject DDL/DML in a READ ONLY transaction. All queries
     // below are fixed statements without user-provided identifiers.
+    // Never reuse application/write-capable credentials for the inspector.
+    // Do not log SHOW GRANTS output; it may contain account identifiers.
+    const [grantRows]=await connection.query<RowDataPacket[]>("SHOW GRANTS FOR CURRENT_USER()");
+    assertReadOnlyGrants(grantRows.map(row=>String(Object.values(row)[0]??"")));
     await connection.query("START TRANSACTION READ ONLY");
     const [identity]=await connection.query<RowDataPacket[]>(
       "SELECT DATABASE() AS db, VERSION() AS version");
