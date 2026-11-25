@@ -28,6 +28,9 @@ async function migrate(path:string){
     await sqlConn.query(stmt);
 }
 try{
+  const [versionRows]=await sqlConn.query("SELECT VERSION() AS version");
+  assert.match(String((versionRows as Array<{version:string}>)[0]?.version),/^8\.4\./,
+    "Disposable portal QA must match staging MySQL 8.4");
   // Explicit failure-injection rehearsal. MySQL DDL is not a reliable
   // transaction rollback boundary; a partially applied migration needs a
   // forward-recovery plan. Only runs on loopback lingua_portal_qa.
