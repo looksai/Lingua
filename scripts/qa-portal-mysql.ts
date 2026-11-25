@@ -8,6 +8,8 @@ import mysql from "mysql2/promise";
 import {communityRouter} from "../server/community-router";
 import {partnerRouter} from "../server/partner-router";
 import {adsRouter} from "../server/ads-router";
+import {registerLocalUser} from "../server/auth-local";
+import {readPrivacyPreferences} from "../server/privacy-preferences";
 
 const dbUrl=process.env.DATABASE_URL;
 if(process.env.LINGUA_PORTAL_MYSQL_QA!=="1" || !dbUrl)throw Error("Disposable MySQL QA not authorized");
@@ -26,8 +28,23 @@ async function migrate(path:string){
 }
 try{
   await migrate("../drizzle/0000_initial_users.sql");
+  await migrate("../drizzle/0003_local_credentials.sql");
+  await migrate("../drizzle/0007_learner_memories.sql");
+  await migrate("../drizzle/0008_privacy_preferences_DRAFT.sql");
   await migrate("../drizzle/0009_portal_community_DRAFT.sql");
   await migrate("../drizzle/0010_partner_ads_DRAFT.sql");
+  // Combined auth+portal migration: only consented registration produces
+  // privacy preference records. Community access must NOT follow automatically.
+  const signed=await registerLocalUser("combined-portal@synthetic.invalid",
+    "synthetic-combined-password-2026",false);
+  assert.deepEqual(await readPrivacyPreferences(signed.id),{
+    serviceAccepted:true,personalMemoryEnabled:false,legacyAccount:false,
+  });
+  const signedCaller=partnerRouter.createCaller({user:{id:signed.id,role:"user"},
+    req:{headers:{origin:"http://localhost:3000",host:"localhost:3000"}}} as never);
+  await assert.rejects(signedCaller.sendInquiry({partnerId:1,
+    message:"Ainda não tenho assinatura, apenas cadastro autorizado.",consentToShareMessage:true}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
   await sqlConn.query("INSERT INTO users(openId,email,loginMethod) VALUES (?,?,?)",
     ["qa-portal-a","portal-a@synthetic.invalid","local"]);
   await sqlConn.query("INSERT INTO users(openId,email,loginMethod) VALUES (?,?,?)",
