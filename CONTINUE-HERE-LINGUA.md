@@ -5,6 +5,16 @@
 
 > **Este arquivo é o ponto oficial de continuidade para uma nova conversa.** Primeiro ler este documento e os links abaixo, conferir o estado ATUAL das PRs no GitHub e prosseguir do último commit verificado. Não assumir que uma execução de CI antiga se aplica a novos commits.
 
+## Retomada — integridade do backup restaurado (2026-11-25)
+- **PR #81** permanece DRAFT; nenhuma migração remota, merge ou deploy, e os dados dos alunos continuam fora dos ensaios.
+- `scripts/qa-disposable-backup-restore.sh` foi fortalecido para comparar **SHA-256 do conteúdo lógico das linhas** em tabelas sintéticas, além de contagens de linhas e tabelas. Os dumps usados nos hashes passam diretamente para `sha256sum`, sem persistir SQL em texto claro.
+- Adicionado **controle negativo de corrupção**: depois de comparar o banco original com o restaurado, o teste modifica um título sintético no banco restaurado, preservando a quantidade de registros, e exige que a verificação por hash detecte a alteração.
+- A sequência de backup criptografado (GPG AES-256), senha errada rejeitada e restauração independente continuam sendo testadas. O backup **real** do Aiven não foi aberto, baixado, descriptografado ou restaurado.
+- Documentação: `docs/STAGING-MIGRATION-PREFLIGHT-v01.md`.
+- **CI do commit de código `a4fd8934dd578178514e381013b068ab6664aa67`**: [P0](https://github.com/looksai/Lingua/actions/runs/45542916126) SUCCESS, [privacidade/MySQL](https://github.com/looksai/Lingua/actions/runs/45542916209) SUCCESS, [community/MySQL + restore/hash](https://github.com/looksai/Lingua/actions/runs/45542917039) SUCCESS. [Chromium](https://github.com/looksai/Lingua/actions/runs/45542916307): consultar resultado final.
+- **Próximo gate verdadeiro:** um operador precisa identificar o Aiven staging, preparar credencial somente-leitura, revisar o inspetor e comprovar restauração do backup REAL num ambiente segregado. Não presumir que hashes sintéticos substituem isso.
+- Conferir o HEAD e o estado do CI na retomada: este texto é um commit documental posterior aos testes listados.
+
 ## Ensaio de recuperação criptografada — 2026-11-25
 - **Último commit de código verificado:** `9b369a302a11422a3182fb55cf6666404f0055fd` (verificar novamente o HEAD real da PR #81).
 - `scripts/qa-disposable-backup-restore.sh` foi fortalecido: sem persistir dump SQL em texto claro, gera passphrase sintética aleatória no runner, executa `mysqldump → gzip → GPG AES-256`, comprova falha de descriptografia com senha incorreta, valida gzip, restaura em `lingua_restore_qa` isolado e compara contagens de tabelas e de registros. Senha é descartada no fim.
