@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -90,6 +90,18 @@ export const partnerRouter=router({
     await db.update(portalPartners).set({draftDescription:input.description})
       .where(and(eq(portalPartners.id,input.partnerId),eq(portalPartners.verificationState,"verified")));
     return {submittedForReview:true as const};
+  }),
+  pendingProfileEdits:protectedProcedure.query(async ({ctx})=>{
+    requireEnabled();
+    if(ctx.user.role!=="admin")forbidden();
+    const db=await database();
+    return db.select({
+      id:portalPartners.id,displayName:portalPartners.displayName,
+      draftDescription:portalPartners.draftDescription,
+    }).from(portalPartners).where(and(
+      eq(portalPartners.verificationState,"verified"),
+      isNotNull(portalPartners.draftDescription)
+    )).limit(50);
   }),
   approveProfileEdit:protectedProcedure.input(z.object({partnerId:id,approve:z.boolean()}))
     .mutation(async ({ctx,input})=>{
