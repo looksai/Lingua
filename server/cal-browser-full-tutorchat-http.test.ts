@@ -8,7 +8,7 @@ import {createExpressMiddleware} from "@trpc/server/adapters/express";
 import {parse as parseCookie} from "cookie";
 import {COOKIE_NAME} from "../shared/const";
 
-const spies=vi.hoisted(()=>({model:vi.fn()}));
+const spies=vi.hoisted(()=>({model:vi.fn(),transcribe:vi.fn()}));
 vi.mock("./db",()=>({
   // NO MySQL/Aiven: a single fake profile lookup, no writes.
   getDb:async()=>({
@@ -25,6 +25,7 @@ vi.mock("./tutor-budget",()=>({
 }));
 vi.mock("./tutor-provider-selector",()=>({
   createSelectedTutor:()=>({
+    transcribe:(...args:unknown[])=>spies.transcribe(...args),
     reply:(...args:unknown[])=>spies.model(...args),
     replyWithProposal:(...args:unknown[])=>spies.model(...args),
   }),
@@ -167,6 +168,28 @@ describe.skipIf(!gate)("full TutorChat with REAL React Query/tRPC/HTTP/JWT and s
     vi.stubEnv("CAL_CATALOG_ENABLED","true");
     vi.stubEnv("LINGUA_TUTOR_MEMORY_ENABLED","false");
   });
+
+  it("revocation rejects a delayed transcription over authenticated HTTP",async()=>{
+    const a=await syntheticIdentity("a");
+    const one=await openBrowser(a.token);
+    let finish:((value:string)=>void)|undefined;
+    try{
+      spies.transcribe.mockReset();
+      spies.transcribe.mockImplementationOnce(()=>new Promise<string>(resolve=>{finish=resolve;}));
+      const pending=one.page.evaluate(async()=>{
+        const res=await fetch("/api/trpc/tutor.transcribe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({json:{consent:true,provider:"groq",audio:{base64:"YWJj",mime:"audio/webm"}}})});
+        return res.status;
+      });
+      await vi.waitFor(()=>expect(spies.transcribe).toHaveBeenCalledTimes(1),{timeout:5000});
+      const revoked=await one.page.evaluate(async()=>{
+        const res=await fetch("/api/trpc/tutor.revokeCatalogConsent",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({json:null})});
+        return res.status;
+      });
+      expect(revoked).toBe(200);
+      finish!("late transcript");
+      expect(await pending).toBe(412);
+    }finally{finish?.("cleanup");await closeAll(one);}
+  },45_000);
 
   it("no LLM before consent; actual TutorChat sends HTTP and browser ACK then progresses CAL",async()=>{
     const a=await syntheticIdentity("a");
