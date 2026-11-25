@@ -196,7 +196,10 @@ export const tutorRouter = router({
           if(memoryCandidate&&approvedFacts.some(f=>f.trim().toLocaleLowerCase("pt-BR")===memoryCandidate!.fato.toLocaleLowerCase("pt-BR")))
             memoryCandidate=null;
         }else text=await adapter.reply(p,input.history,input.message,approvedFacts,pedagogicalDirective);
-      } catch(error) { return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null}; }
+      } catch(error) {
+        if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});
+        return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null};
+      }
       if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});
       const checked=guardTutorLearnerClaims(text,input.history,input.message,approvedFacts);
       if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
@@ -217,8 +220,9 @@ export const tutorRouter = router({
       const catalogTask=catalogPreview
         ? calCatalogTutorSessions.clientTaskForReply(ctx.user.id,finalText)
         : null;
-      return {text:finalText,source:"ai" as const,memoryCandidate,catalogTask,
-        ...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
+      const speech=await optionalSpeech(finalText,input.provider==="openai"&&input.voice);
+      if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});
+      return {text:finalText,source:"ai" as const,memoryCandidate,catalogTask,...speech};
     });
     } finally {lease.release();}
   }),
