@@ -95,5 +95,19 @@ CREATE TABLE `portalPartnerStaff` (
  CONSTRAINT `portalPartnerStaff_partner_fk` FOREIGN KEY (`partnerId`) REFERENCES `portalPartners`(`id`) ON DELETE CASCADE,
  CONSTRAINT `portalPartnerStaff_user_fk` FOREIGN KEY (`userId`) REFERENCES `users`(`id`) ON DELETE CASCADE
 );
+-- Room messages are scoped to a single voluntary, still-open inquiry.
+-- There is deliberately no generic member-to-member direct-message endpoint.
+CREATE TABLE `portalInquiryMessages` (
+ `id` int NOT NULL AUTO_INCREMENT,
+ `inquiryId` int NOT NULL,
+ `senderUserId` int NOT NULL,
+ `senderKind` enum('member','partner') NOT NULL,
+ `body` varchar(3000) NOT NULL,
+ `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ PRIMARY KEY(`id`),
+ KEY `portalInquiryMessages_room_order`(`inquiryId`,`id`),
+ CONSTRAINT `portalInquiryMessages_room_fk` FOREIGN KEY (`inquiryId`) REFERENCES `portalPartnerInquiries`(`id`) ON DELETE CASCADE,
+ CONSTRAINT `portalInquiryMessages_author_fk` FOREIGN KEY (`senderUserId`) REFERENCES `users`(`id`) ON DELETE CASCADE
+);
 -- No emails or private learner memories copied into partner accounts.
 -- Rollback must be migration-specific, with explicit preservation of paid grants.
