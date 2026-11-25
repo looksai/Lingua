@@ -31,6 +31,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Inspect metadata only; pinned Aiven staging and verified TLS
         env:
-          LINGUA_STAGING_DATABASE_URL: ${{ secrets.LINGUA_STAGING_DATABASE_URL }}
-          LINGUA_STAGING_CA_BASE64: ${{ secrets.LINGUA_STAGING_CA_BASE64 }}
+          LINGUA_STAGING_READONLY_DATABASE_URL: ${{ secrets.LINGUA_STAGING_READONLY_DATABASE_URL }}
+          LINGUA_STAGING_READONLY_CA_BASE64: ${{ secrets.LINGUA_STAGING_READONLY_CA_BASE64 }}
         run: pnpm exec tsx scripts/staging-aiven-readonly-portal-inventory.ts
