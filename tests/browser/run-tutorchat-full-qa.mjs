@@ -113,6 +113,28 @@ try{
     assert.equal(await callCount(page,"reply"),2);
   });
 
+  await test("pending revocation from A does not block B and failure stays with A",async page=>{
+    await acceptForFirstSend(page);
+    await page.evaluate(()=>window.__tutorChatQa.holdNextRevocation());
+    await page.getByRole("button",{name:"Configurações de conversa e voz"}).click();
+    await page.getByRole("button",{name:"Desativar envio à IA"}).click();
+    await page.waitForFunction(()=>window.__tutorChatQa.revocationPendingCount()===1);
+    await page.getByRole("region",{name:"Preferências da conversa"}).getByRole("button",{name:"Voltar à conversa"}).click();
+    await page.getByTestId("qa-switch").click();
+    await page.getByTestId("qa-account").getByText("qa-b@synthetic.invalid").waitFor();
+    await send(page,"Mensagem B");
+    await page.getByRole("dialog").getByRole("checkbox").check();
+    await page.getByRole("button",{name:"Aceitar e enviar"}).click();
+    await waitCall(page,2);
+    await page.evaluate(()=>window.__tutorChatQa.rejectHeldRevocation());
+    await page.getByTestId("qa-switch").click();
+    await page.getByTestId("qa-account").getByText("qa-a@synthetic.invalid").waitFor();
+    await send(page,"Mensagem A após falha");
+    await page.getByRole("dialog").getByRole("checkbox").check();
+    await page.getByRole("button",{name:"Aceitar e enviar"}).click({force:true});
+    assert.equal(await callCount(page,"reply"),2);
+  });
+
   await test("chat memory and topic bookmark require separate opt-ins; erase clears local chat",async page=>{
     await acceptForFirstSend(page);
     await page.getByRole("button",{name:"Configurações de conversa e voz"}).click();
@@ -138,6 +160,6 @@ try{
     assert.equal(await page.locator("audio").count(),0);
   });
 
-  console.log("Full TutorChat browser QA: "+passed+"/5 passed, real component, fake hooks, no HTTP/DB.");
+  console.log("Full TutorChat browser QA: "+passed+"/6 passed, real component, fake hooks, no HTTP/DB.");
 }catch(e){process.exitCode=1;}
 finally{await browser.close();}

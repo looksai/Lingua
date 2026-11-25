@@ -87,6 +87,22 @@ export type CatalogRuntimePreview=Readonly<{
 }>;
 export class CALCatalogTutorSessions {
   private readonly entries=new Map<number,Entry>();
+  private readonly pending=new Map<number,Set<{revoked:boolean}>>();
+  /** In-process cancellation fence; not durable consent storage. */
+  revoke(userId:number):void {
+    for(const lease of this.pending.get(userId)??[])lease.revoked=true;
+    this.pending.delete(userId);
+    this.entries.delete(userId);
+  }
+  beginTurn(userId:number){
+    const lease={revoked:false};
+    const set=this.pending.get(userId)??new Set<{revoked:boolean}>();
+    set.add(lease);this.pending.set(userId,set);
+    return {active:()=>!lease.revoked,release:()=>{
+      set.delete(lease);
+      if(!set.size&&this.pending.get(userId)===set)this.pending.delete(userId);
+    }};
+  }
   constructor(private readonly now:()=>number=Date.now){}
   private cleanup(time:number){
     for(const [id,entry] of this.entries)
