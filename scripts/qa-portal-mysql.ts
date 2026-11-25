@@ -49,7 +49,7 @@ try{
     ["qa-portal-a","portal-a@synthetic.invalid","local"]);
   await sqlConn.query("INSERT INTO users(openId,email,loginMethod) VALUES (?,?,?)",
     ["qa-portal-b","portal-b@synthetic.invalid","local"]);
-  const [users] = await sqlConn.query("SELECT id FROM users ORDER BY id");
+  const [users] = await sqlConn.query("SELECT id FROM users WHERE email IN (?,?) ORDER BY email",["portal-a@synthetic.invalid","portal-b@synthetic.invalid"]);
   const userA=(users as Array<{id:number}>)[0].id;
   const userB=(users as Array<{id:number}>)[1].id;
   await sqlConn.query("INSERT INTO portalGroups(slug,title,description,visibility,state) VALUES (?,?,?,?,?)",
