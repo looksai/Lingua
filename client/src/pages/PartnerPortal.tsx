@@ -48,7 +48,7 @@ export function PartnerProfile({slug}:{slug:string}){
             <label className="flex items-start gap-3 text-sm leading-6">
               <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}
                 className="mt-1.5 h-4 w-4" required/>
-              <span>Autorizo o envio **apenas desta mensagem** à equipe autorizada desta organização para tratar desta solicitação. Sei que posso retirar uma solicitação ainda aberta, mas isso não desfaz eventuais leituras anteriores.</span>
+              <span>Autorizo o envio <strong>apenas desta mensagem</strong> à equipe autorizada desta organização para tratar desta solicitação. Sei que posso retirar uma solicitação ainda aberta, mas isso não desfaz eventuais leituras anteriores.</span>
             </label>
             <button type="submit" className={btn} disabled={send.isPending||!consent}>Enviar solicitação voluntária</button>
           </form>}
@@ -160,4 +160,43 @@ export function MyPartnerInquiries(){
           onClick={()=>void cancel(item.id)}>Retirar solicitação</button>}
       </div>)}</div>
     </main><PortalFooter/></div>;
+}
+
+export function PartnerReviewPanel(){
+  const identity=trpc.auth.me.useQuery(undefined,{retry:false});
+  const queue=trpc.partners.pendingProfileEdits.useQuery(undefined,{
+    enabled:identity.data?.role==="admin",retry:false,
+  });
+  const decide=trpc.partners.approveProfileEdit.useMutation();
+  const [notice,setNotice]=useState("");
+  async function review(partnerId:number,approve:boolean){
+    setNotice("");
+    try{
+      await decide.mutateAsync({partnerId,approve});
+      await queue.refetch();
+      setNotice(approve?"Alteração publicada.":"Alteração rejeitada.");
+    }catch{setNotice("Não foi possível revisar a alteração.");}
+  }
+  return <div className="min-h-screen bg-[#F4F1EB] text-[#14283D]">
+    <PortalHeader/>
+    <main className="mx-auto min-h-[65vh] max-w-4xl px-5 py-14">
+      <h1 className="font-display text-4xl">Revisão institucional</h1>
+      <p className="mt-3 text-sm text-[#526478]">Mudanças na apresentação pública passam por um administrador antes de serem exibidas.</p>
+      {identity.data?.role!=="admin"&&!identity.isPending&&<p className="mt-6">Esta área é restrita.</p>}
+      {queue.isPending&&identity.data?.role==="admin"&&<p role="status" className="mt-6">Carregando propostas...</p>}
+      {queue.isError&&<p role="alert" className="mt-6">Revisão indisponível.</p>}
+      {notice&&<p role="status" className="mt-5">{notice}</p>}
+      {queue.data?.length===0&&<p className="mt-6">Nenhuma alteração pendente.</p>}
+      <div className="mt-6 space-y-4">
+        {queue.data?.map(item=><article key={item.id} className="rounded-2xl bg-white p-6">
+          <h2 className="font-display text-2xl">{item.displayName}</h2>
+          <p className="mt-4 whitespace-pre-wrap break-words text-sm">{item.draftDescription}</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button type="button" className={btn} disabled={decide.isPending} onClick={()=>void review(item.id,true)}>Aprovar</button>
+            <button type="button" className="rounded-full border px-5 py-3 text-sm font-semibold" disabled={decide.isPending} onClick={()=>void review(item.id,false)}>Rejeitar</button>
+          </div>
+        </article>)}
+      </div>
+    </main><PortalFooter/>
+  </div>;
 }
