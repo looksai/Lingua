@@ -41,6 +41,12 @@
 - O teste continua limitado a `lingua_portal_qa` em loopback, sem credenciais de staging.
 - Em caso de falha parcial real, registrar o último DDL comprovadamente aplicado, inspecionar `information_schema`, comparar com o manifesto esperado, preservar linhas existentes e produzir uma migração corretiva aprovada. **Nunca retomar cegamente o arquivo inteiro nem fazer DROP de tabelas com dados.**
 
+## Ensaio sintético do ciclo criptografado (sem Aiven)
+- `scripts/qa-disposable-backup-restore.sh` agora exercita a sequência **mysqldump → gzip → GPG AES-256 → validação de integridade → restauração em outro banco MySQL temporário**; rejeita senha incorreta e compara contagens de tabelas e registros relevantes.
+- A senha é criada aleatoriamente somente na execução CI; **nunca usa o segredo verdadeiro do backup do fundador**. O arquivo SQL em texto claro não é persistido em disco nem anexado a logs; o arquivo temporário criptografado é removido ao terminar.
+- Esta evidência é de **rotina sintética**, não prova que o arquivo `lingua-pre-0007.sql.gz.gpg` real pode ser descriptografado ou restaurado. Não publicar, baixar nem subir backups reais para GitHub Issues/PRs; a restauração de backup verdadeiro requer ambiente isolado e autorização específica.
+- MySQL 8.0 em CI não é MySQL 8.4 Aiven; conferir compatibilidade de versão e `mysqldump` durante homologação real.
+
 ## Fase C — decisão formal de liberar staging
 - Aprovação independente da PR e do script de migração.
 - Recurso de backup restaurável e plano de resposta a falhas.
