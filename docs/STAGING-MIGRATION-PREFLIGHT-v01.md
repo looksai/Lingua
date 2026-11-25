@@ -8,6 +8,13 @@
 - 0008, 0009 e 0010 são **DRAFT** e nunca foram aplicadas por esta branch ao Aiven.
 - Preços, pagamentos e emissão de grants não foram definidos. Qualquer grant real concedido por SQL fora de fluxo auditável seria um defeito.
 
+## Inspetor automatizado de metadados (NOVO, ainda não executado remotamente)
+- `scripts/staging-aiven-readonly-portal-inventory.ts`: usa a proteção de **host/porta/schema exatos** do Aiven já existente, CA/TLS verificado e transação `READ ONLY`; executa apenas `SELECT` em `information_schema`, `SHOW STATUS` e leitura restrita de `id/created_at` do ledger técnico `__drizzle_migrations` quando existir.
+- Mostra **somente nomes de tabelas, colunas, tipos, FKs, quantidade de migrações e IDs/timestamps do ledger**. Nenhuma consulta a linhas de usuários, mensagens, histórico de aprendizagem, memória pessoal ou credenciais.
+- `.github/workflows/staging-portal-readonly-inventory.yml`: `workflow_dispatch` **somente na `main`**, confirmação manual `INVENTARIO_SOMENTE_LEITURA_LINGUA`, GitHub Secrets existentes; **não está ativado nesta PR draft nem foi executado contra o Aiven**.
+- `tests/staging-readonly-inventory.test.ts`: garante sanitização e falha fechada sem banco remoto.
+- Não utilizar o workflow no staging real antes de revisar a PR #81, confirmar novamente o host e o escopo da credencial. O relatório é **inventário, não autorização para migrações**.
+
 ## Fase A — pré-condições em modo estritamente leitura
 1. Identificar, fora de logs públicos, **qual banco de staging** será usado. Não confiar somente no nome do serviço Render; o alvo real vem da credencial de banco.
 2. Designar usuário MySQL **somente SELECT no information_schema** (ou escopo equivalente de metadados), sem DDL nem leitura de linhas de alunos.
