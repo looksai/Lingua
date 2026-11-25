@@ -15,7 +15,7 @@ fi
 for program in docker gpg openssl; do
   command -v "$program" >/dev/null || { echo "Missing required QA program: $program" >&2; exit 1; }
 done
-container="$(docker ps --filter 'ancestor=mysql:8.0' --format '{{.ID}}' | head -n 1)"
+container="$(docker ps --filter 'ancestor=mysql:8.4' --format '{{.ID}}' | head -n 1)"
 if [[ -z "$container" ]]; then
   echo "Disposable MySQL container not found" >&2
   exit 1
