@@ -26,6 +26,12 @@
 6. Testar falha parcial **sem assumir DDL transacional**: em MySQL, CREATE/ALTER podem efetivar mesmo que um script subsequente falhe. Não usar rollback com DROP TABLE contendo dados de membros.
 7. Criar plano de correção **forward-only** e plano para desligar flags/reverter código, preservando registros e consentimentos em caso de incidente.
 
+## Fase B.1 — validação de falha parcial e invariantes (CI)
+- O ensaio em `scripts/qa-portal-mysql.ts` agora cria uma tabela sintética temporária, injeta uma segunda instrução DDL inválida e comprova que a primeira criação continua presente. Em seguida, limpa **apenas essa tabela sintética no banco descartável local**. Isso demonstra por que não se pode assumir rollback transacional de uma sequência de DDL no Aiven.
+- `scripts/qa-portal-schema-invariants.ts` confere chaves estrangeiras, unicidade dos slugs públicos, defaults de moderação (`pending`), anúncios com status inicial `pending` e ausência de organizações/grants/publicidade criadas automaticamente.
+- O teste continua limitado a `lingua_portal_qa` em loopback, sem credenciais de staging.
+- Em caso de falha parcial real, registrar o último DDL comprovadamente aplicado, inspecionar `information_schema`, comparar com o manifesto esperado, preservar linhas existentes e produzir uma migração corretiva aprovada. **Nunca retomar cegamente o arquivo inteiro nem fazer DROP de tabelas com dados.**
+
 ## Fase C — decisão formal de liberar staging
 - Aprovação independente da PR e do script de migração.
 - Recurso de backup restaurável e plano de resposta a falhas.
