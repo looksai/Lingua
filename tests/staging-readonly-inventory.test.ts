@@ -1,5 +1,5 @@
 import {describe,it,expect} from "vitest";
-import {makeSafeMetadataReport} from "../scripts/staging-aiven-readonly-portal-inventory";
+import {makeSafeMetadataReport,assertReadOnlyGrants} from "../scripts/staging-aiven-readonly-portal-inventory";
 const input={
   version:"8.4.6",sslCipher:"TLS_AES_256_GCM_SHA384",
   tables:[{tableName:"users"},{tableName:"learnerMemories"},
@@ -27,6 +27,20 @@ describe("staging metadata report is safe by construction",()=>{
   });
   it("refuses missing account table even when portal tables exist",()=>{
     expect(()=>makeSafeMetadataReport({...input,tables:[{tableName:"portalGroups"}]})).toThrow();
+  });
+  it("accepts only explicit read-only MySQL privileges",()=>{
+    expect(()=>assertReadOnlyGrants([
+      "GRANT USAGE ON *.* TO \`lingua_readonly\`@\`%\`",
+      "GRANT SELECT ON \`defaultdb\`.* TO \`lingua_readonly\`@\`%\`",
+    ])).not.toThrow();
+    for(const elevated of [
+      "GRANT ALL PRIVILEGES ON *.* TO \`lingua\`@\`%\`",
+      "GRANT SELECT, INSERT ON \`defaultdb\`.* TO \`lingua\`@\`%\`",
+      "GRANT SELECT ON \`defaultdb\`.* TO \`lingua\`@\`%\` WITH GRANT OPTION",
+      "GRANT \`data_writers\`@\`%\` TO \`lingua\`@\`%\`",
+    ])expect(()=>assertReadOnlyGrants([elevated])).toThrow();
+    expect(()=>assertReadOnlyGrants([])).toThrow();
+    expect(()=>assertReadOnlyGrants(["GRANT USAGE ON *.* TO \`only\`@\`%\`"])).toThrow();
   });
   it("handles absent ledger without inferring migration completion",()=>{
     const result=makeSafeMetadataReport({...input,tables:[{tableName:"users"}],journal:null,journalColumns:[]});
