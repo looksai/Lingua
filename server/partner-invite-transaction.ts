@@ -33,3 +33,16 @@ export async function revokePartnerInvite(db:MySql2Database,userId:number,partne
   return true;
  });
 }
+
+export async function listPartnerInvites(db:MySql2Database,userId:number,partnerId:number,eventId:number){
+ if(![userId,partnerId,eventId].every(valid))return null;
+ return db.transaction(async tx=>{
+  const [partner]=await tx.select().from(partners).where(eq(partners.id,partnerId)).for("update");
+  const [member]=await tx.select().from(members).where(and(eq(members.partnerId,partnerId),eq(members.userId,userId))).for("update");
+  const membership=deriveLiveMembership(userId,partner??null,member??null);
+  if(!membership||membership.role==="viewer")return null;
+  const [event]=await tx.select().from(events).where(and(eq(events.partnerId,partnerId),eq(events.id,eventId))).for("update");
+  if(!event)return null;
+  return tx.select({digest:invites.digest,createdAt:invites.createdAt,expiresAt:invites.expiresAt,revokedAt:invites.revokedAt}).from(invites).where(and(eq(invites.partnerId,partnerId),eq(invites.eventId,eventId))).orderBy(invites.id).limit(100);
+ });
+}

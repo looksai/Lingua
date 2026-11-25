@@ -3,7 +3,7 @@ import {TRPCError} from "@trpc/server";
 import type {MySql2Database} from "drizzle-orm/mysql2";
 import {router,publicProcedure,protectedProcedure} from "./_core/trpc";
 import {checkRequestOrigin} from "./auth-local";
-import {issuePartnerInvite,revokePartnerInvite} from "./partner-invite-transaction";
+import {listPartnerInvites,issuePartnerInvite,revokePartnerInvite} from "./partner-invite-transaction";
 import {resolvePublicPartnerInvite} from "./partner-public-invite-resolution";
 const id=z.number().int().positive().max(2147483647);
 const scope=z.object({partnerId:id,eventId:id});
@@ -18,9 +18,15 @@ export function createPartnerInviteRouter(deps:Dependencies){
   return db;
  }
  return router({
+  list:protectedProcedure.input(scope).query(async({ctx,input})=>{
+   ctx.res.setHeader("Cache-Control","no-store");
+   const result=await listPartnerInvites(await dbFor("member:"+ctx.user.id),ctx.user.id,input.partnerId,input.eventId);
+   if(!result)throw new TRPCError({code:"NOT_FOUND"});return result;
+  }),
   issue:protectedProcedure.input(scope.extend({expiresAt:z.number().int().positive().max(2147483647000).nullable()})).mutation(async({ctx,input})=>{
    checkRequestOrigin(ctx.req);
    const db=await dbFor("member:"+ctx.user.id);
+   ctx.res.setHeader("Cache-Control","no-store");
    const result=await issuePartnerInvite(db,ctx.user.id,input.partnerId,input.eventId,input.expiresAt);
    if(!result)throw new TRPCError({code:"FORBIDDEN"});
    return result;
