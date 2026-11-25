@@ -1,0 +1,27 @@
+name: Public live browser laboratory
+on:
+  pull_request:
+    paths:
+      - 'client/src/App.tsx'
+      - 'client/src/pages/PublicLive*'
+      - 'client/src/pages/public-live-*'
+      - '.github/workflows/public-live-browser.yml'
+      - 'tests/public-live-browser.mjs'
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: npm install --prefix /tmp/live-browser playwright
+      - run: /tmp/live-browser/node_modules/.bin/playwright install --with-deps chromium
+      - run: |
+          VITE_PUBLIC_LIVES_ENABLED=true pnpm exec vite --host 127.0.0.1 --port 4173 --strictPort > /tmp/live-vite.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:4173/ >/dev/null && break; sleep 1; done
+          cp tests/public-live-browser.mjs /tmp/live-browser/test.mjs
+          node /tmp/live-browser/test.mjs
