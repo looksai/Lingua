@@ -285,6 +285,6 @@ export const portalPartnerInquiries = mysqlTable("portalPartnerInquiries",{
   userId:int("userId").notNull().references(()=>users.id,{onDelete:"cascade"}),
   message:varchar("message",{length:1500}).notNull(),
   consentAt:timestamp("consentAt").notNull(),
-  state:mysqlEnum("state",["new","closed"]).notNull().default("new"),
+  state:mysqlEnum("state",["new","closed","withdrawn"]).notNull().default("new"),
   createdAt:timestamp("createdAt").notNull().defaultNow(),
 },table=>({partnerIdx:index("portalPartnerInquiries_partner_state").on(table.partnerId,table.state)}));
