@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Link, Route, Switch } from "wouter";
@@ -5,6 +6,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import Home from "./pages/Home";
+import PublicLiveController from "./pages/PublicLiveController";
+import {lookupPublicLive} from "./pages/public-live-lookup";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -52,10 +55,22 @@ function DemoPage() {
   </>;
 }
 
+function subscribeToInviteHash(onChange:()=>void) {
+  window.addEventListener("hashchange",onChange);
+  window.addEventListener("popstate",onChange);
+  return ()=>{window.removeEventListener("hashchange",onChange);window.removeEventListener("popstate",onChange);};
+}
+function readInviteHash(){return window.location.hash.slice(1);}
+function PublicLivePage() {
+  const token=useSyncExternalStore(subscribeToInviteHash,readInviteHash,()=>"");
+  return <PublicLiveController key={token} token={token} lookup={lookupPublicLive}/>;
+}
+
 function Router() {
   return <Switch>
     <Route path="/" component={RootPage} />
     <Route path="/demo" component={DemoPage} />
+    {import.meta.env.VITE_PUBLIC_LIVES_ENABLED === "true" && <Route path="/live" component={PublicLivePage} />}
     <Route path="/login" component={Login} />
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
