@@ -11,8 +11,10 @@
 ## Inspetor automatizado de metadados (NOVO, ainda não executado remotamente)
 - `scripts/staging-aiven-readonly-portal-inventory.ts`: usa a proteção de **host/porta/schema exatos** do Aiven já existente, CA/TLS verificado e transação `READ ONLY`; executa apenas `SELECT` em `information_schema`, `SHOW STATUS` e leitura restrita de `id/created_at` do ledger técnico `__drizzle_migrations` quando existir.
 - Mostra **somente nomes de tabelas, colunas, tipos, FKs, quantidade de migrações e IDs/timestamps do ledger**. Nenhuma consulta a linhas de usuários, mensagens, histórico de aprendizagem, memória pessoal ou credenciais.
-- `.github/workflows/staging-portal-readonly-inventory.yml`: `workflow_dispatch` **somente na `main`**, confirmação manual `INVENTARIO_SOMENTE_LEITURA_LINGUA`, GitHub Secrets existentes; **não está ativado nesta PR draft nem foi executado contra o Aiven**.
+- `.github/workflows/staging-portal-readonly-inventory.yml`: `workflow_dispatch` **somente na `main`**, confirmação manual `INVENTARIO_SOMENTE_LEITURA_LINGUA` e **credenciais exclusivas de inspeção** `LINGUA_STAGING_READONLY_DATABASE_URL` / `LINGUA_STAGING_READONLY_CA_BASE64` (devem ser provisionadas pelo operador; não há fallback para a credencial da aplicação). **Não está ativado nesta PR draft nem foi executado contra o Aiven**.
 - `tests/staging-readonly-inventory.test.ts`: garante sanitização e falha fechada sem banco remoto.
+- **Least privilege**: a conta precisa ser dedicada e ter somente `USAGE`/`SELECT` (ou `SHOW VIEW` auxiliar) sem `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `ALTER`, `DROP`, `GRANT OPTION` ou roles delegadas. O script usa `SHOW GRANTS FOR CURRENT_USER()` sem registrar sua saída e aborta se detectar privilégios não permitidos; isto não substitui auditoria DBA de contas/roles.
+- O inventário do ledger registra o total real via `COUNT(*)` e marca `truncated=true` se a amostra de até 1000 linhas não for completa; nunca confundir amostra com histórico integral.
 - Não utilizar o workflow no staging real antes de revisar a PR #81, confirmar novamente o host e o escopo da credencial. O relatório é **inventário, não autorização para migrações**.
 
 ## Fase A — pré-condições em modo estritamente leitura
