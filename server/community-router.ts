@@ -67,6 +67,10 @@ export const communityRouter=router({
     const db=await database();
     const rows=await db.select().from(portalGroups).where(eq(portalGroups.state,"active")).limit(100);
     const access=await grantsFor(ctx.user.id,false);
+    const assigned=ctx.user.role==="admin" ? [] :
+      await db.select({groupId:portalGroupModerators.groupId}).from(portalGroupModerators)
+        .where(eq(portalGroupModerators.userId,ctx.user.id));
+    const moderateIds=new Set(assigned.map(record=>record.groupId));
     return rows.filter(group=>group.visibility==="public" ||
       canUsePortal({...access,academyGroupAllowed:group.academyAllowed===1},"read-private"))
       .map(group=>({
@@ -74,6 +78,8 @@ export const communityRouter=router({
         description:group.description,visibility:group.visibility,
         canCreate:canUsePortal(access,"create-private-topic"),
         canReply:canUsePortal({...access,academyGroupAllowed:group.academyAllowed===1},"reply-in-private"),
+        canModerate:ctx.user.role==="admin" ||
+          (moderateIds.has(group.id)&&canUsePortal(access,"manage-group")),
       }));
   }),
   groupTopics:protectedProcedure.input(z.object({groupId:id})).query(async ({ctx,input})=>{
@@ -133,6 +139,27 @@ export const communityRouter=router({
     return db.select({id:portalReplies.id,body:portalReplies.body,createdAt:portalReplies.createdAt})
       .from(portalReplies).where(and(eq(portalReplies.topicId,topic.id),eq(portalReplies.state,"published")))
       .orderBy(portalReplies.createdAt,portalReplies.id).limit(80);
+  }),
+  moderationQueue:protectedProcedure.input(z.object({groupId:id})).query(async ({ctx,input})=>{
+    requireEnabled();
+    const db=await database();
+    const [group]=await db.select().from(portalGroups).where(and(
+      eq(portalGroups.id,input.groupId),eq(portalGroups.state,"active"))).limit(1);
+    if(!group)throw new TRPCError({code:"NOT_FOUND",message:"Grupo indisponível."});
+    if(ctx.user.role!=="admin"){
+      const [assignment]=await db.select().from(portalGroupModerators).where(and(
+        eq(portalGroupModerators.userId,ctx.user.id),
+        eq(portalGroupModerators.groupId,group.id))).limit(1);
+      if(!assignment || !canUsePortal(await grantsFor(ctx.user.id,false),"manage-group"))forbidden();
+    }
+    const pendingTopics=await db.select({id:portalTopics.id,title:portalTopics.title,body:portalTopics.body})
+      .from(portalTopics).where(and(eq(portalTopics.groupId,group.id),eq(portalTopics.state,"pending")))
+      .orderBy(desc(portalTopics.createdAt),desc(portalTopics.id)).limit(40);
+    const pendingReplies=await db.select({id:portalReplies.id,topicId:portalReplies.topicId,body:portalReplies.body})
+      .from(portalReplies).innerJoin(portalTopics,eq(portalReplies.topicId,portalTopics.id))
+      .where(and(eq(portalTopics.groupId,group.id),eq(portalReplies.state,"pending")))
+      .orderBy(desc(portalReplies.createdAt),desc(portalReplies.id)).limit(40);
+    return {pendingTopics,pendingReplies};
   }),
   moderateTopic:protectedProcedure.input(z.object({
     topicId:id,state:z.enum(["published","hidden"]),
