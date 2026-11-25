@@ -246,6 +246,31 @@ describe.skipIf(!gate)("full TutorChat with REAL React Query/tRPC/HTTP/JWT and s
     }finally{await closeAll(one);}
   },40_000);
 
+  it("revocation during delayed HTTP reply prevents CAL commit",async()=>{
+    const a=await syntheticIdentity("a");
+    const one=await openBrowser(a.token);
+    let finish:((value:string)=>void)|undefined;
+    try{
+      await firstConsent(one.page);
+      let entered!:()=>void;
+      const started=new Promise<void>(resolve=>{entered=resolve;});
+      spies.model.mockImplementationOnce(()=>new Promise<string>(resolve=>{finish=resolve;entered();}));
+      await one.page.getByRole("textbox",{name:"Sua mensagem"}).fill("Olá");
+      const delayed=response(one.page,"reply");
+      await one.page.getByRole("button",{name:"Enviar mensagem"}).click();
+      await started;
+      const result=await one.page.evaluate(async()=>{
+        const res=await fetch("/api/trpc/tutor.revokeCatalogConsent",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({json:null})});
+        return res.status;
+      });
+      expect(result).toBe(200);
+      expect(calCatalogTutorSessions.inspectForTest(a.user.id)).toBeNull();
+      finish!("Resposta atrasada");
+      await delayed;
+      expect(calCatalogTutorSessions.inspectForTest(a.user.id)).toBeNull();
+    }finally{finish?.("cleanup");await closeAll(one);}
+  },45_000);
+
   it("late real HTTP reply is not rendered after synthetic account/cookie change",async()=>{
     const a=await syntheticIdentity("a"),b=await syntheticIdentity("b");
     const one=await openBrowser(a.token);
