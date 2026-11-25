@@ -58,21 +58,31 @@ export const tutorRouter = router({
   }),
   welcomeAudio:protectedProcedure.input(z.object({consent,provider})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
+    const lease=calCatalogTutorSessions.beginTurn(ctx.user.id);
+    const ensureActive=()=>{if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});};
+    try {
     if (input.provider!=="openai" || !input.consent || !paidTutorAllowed(ctx.user.email) || !speechConfigured())
       return {audioBase64:null,voiceStatus:"unavailable" as const,text:null};
     const profile=await profileFor(ctx.user.id);
     const text=greeting(profile);
-    return withTutorBudget(ctx.user.id,async()=>({text,...await optionalSpeech(text,true)}));
+    const result=await withTutorBudget(ctx.user.id,async()=>{ensureActive();return {text,...await optionalSpeech(text,true)};});
+    ensureActive();
+    return result;
+    } catch(error) {ensureActive();throw error;} finally {lease.release();}
   }),
   transcribe:protectedProcedure.input(z.object({consent,provider,audio:audioSchema})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
+    const lease=calCatalogTutorSessions.beginTurn(ctx.user.id);
+    const ensureActive=()=>{if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});};
+    try {
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
       throw new TRPCError({code:"PRECONDITION_FAILED",message:"Transcrição indisponível. Autorize a IA e use uma conta de teste habilitada."});
     await profileFor(ctx.user.id);
     const bytes=Buffer.from(input.audio.base64,"base64");
     if (!bytes.length||bytes.length>TUTOR_MAX_AUDIO_BYTES||bytes.toString("base64")!==input.audio.base64)
       throw new TRPCError({code:"BAD_REQUEST",message:"Gravação inválida ou grande demais."});
-    return withTutorBudget(ctx.user.id,async()=>{
+    const result=await withTutorBudget(ctx.user.id,async()=>{
+      ensureActive();
       try{
         const adapter=createSelectedTutor(input.provider!);
         return {text:await adapter.transcribe(bytes,input.audio.mime)};
@@ -81,6 +91,9 @@ export const tutorRouter = router({
         throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível transcrever. Tente novamente ou digite a mensagem."});
       }
     });
+    ensureActive();
+    return result;
+    } catch(error) {ensureActive();throw error;} finally {lease.release();}
   }),
   neuralEnglish:protectedProcedure.input(z.object({
     consent:z.literal(true),provider:z.literal("groq"),
@@ -88,10 +101,14 @@ export const tutorRouter = router({
     voice:z.enum(GROQ_ENGLISH_VOICES),
   })).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
+    const lease=calCatalogTutorSessions.beginTurn(ctx.user.id);
+    const ensureActive=()=>{if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});};
+    try {
     if(!freeTutorAllowed(ctx.user.email)||tutorMode()!=="groq")
       throw new TRPCError({code:"PRECONDITION_FAILED",message:"Voz neural de inglês indisponível."});
     await profileFor(ctx.user.id);
-    return withTutorBudget(ctx.user.id,async()=>{
+    const result=await withTutorBudget(ctx.user.id,async()=>{
+      ensureActive();
       try{return await createVoiceProvider("groq").synthesize({text:input.text,voice:input.voice,language:"en-US",format:"wav"});}
       catch(error){
         if(isGroqRateLimitError(error))throw new TRPCError({code:"TOO_MANY_REQUESTS",message:GROQ_RATE_LIMIT_MESSAGE});
@@ -106,13 +123,23 @@ export const tutorRouter = router({
         throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar a voz neural. Não houve troca automática de provedor."});
       }
     });
+    ensureActive();
+    return result;
+    } catch(error) {ensureActive();throw error;} finally {lease.release();}
   }),
   geminiDemo:protectedProcedure.input(z.object({consent:z.literal(true),phraseIndex:z.number().int().min(0).max(GEMINI_TEST_PHRASES.length-1)})).mutation(async ({ctx,input})=>{
     checkRequestOrigin(ctx.req);
+    const lease=calCatalogTutorSessions.beginTurn(ctx.user.id);
+    const ensureActive=()=>{if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});};
+    try {
     if(!geminiDemoAllowed(ctx.user.email))throw new TRPCError({code:"PRECONDITION_FAILED",message:"Demonstração de voz indisponível."});
-    return withTutorBudget(ctx.user.id,async()=>{
+    const result=await withTutorBudget(ctx.user.id,async()=>{
+      ensureActive();
       try{return await geminiTestSpeech(input.phraseIndex);}catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar o áudio de teste."});}
     });
+    ensureActive();
+    return result;
+    } catch(error) {ensureActive();throw error;} finally {lease.release();}
   }),
   revokeCatalogConsent:protectedProcedure.mutation(({ctx})=>{
     checkRequestOrigin(ctx.req);
