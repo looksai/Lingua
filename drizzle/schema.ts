@@ -212,3 +212,108 @@ export const learnerPlacementPlans=mysqlTable("learnerPlacementPlans",{
   createdAt:timestamp("createdAt").notNull().defaultNow(),
   updatedAt:timestamp("updatedAt").notNull().defaultNow().onUpdateNow(),
 });
+
+/**
+ * Draft community / institutional schemas: NOT enabled until 0009 reviewed
+ * and explicitly applied in staging. Grants are not inferred from login.
+ */
+export const portalMembershipGrants = mysqlTable("portalMembershipGrants", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  kind: mysqlEnum("kind",["academy","club"]).notNull(),
+  source: mysqlEnum("source",["subscription","purchase","loyalty","staff"]).notNull(),
+  state: mysqlEnum("state",["active","revoked","expired"]).notNull().default("active"),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").notNull().defaultNow(),
+}, table=>({userStateIdx:index("portalMembershipGrants_user_state").on(table.userId,table.state)}));
+
+export const portalGroups = mysqlTable("portalGroups", {
+  id:int("id").autoincrement().primaryKey(),
+  slug:varchar("slug",{length:80}).notNull().unique(),
+  title:varchar("title",{length:140}).notNull(),
+  description:varchar("description",{length:500}).notNull(),
+  partnerId:int("partnerId").references(()=>portalPartners.id,{onDelete:"set null"}),
+  visibility:mysqlEnum("visibility",["public","private"]).notNull().default("private"),
+  academyAllowed:int("academyAllowed").notNull().default(0),
+  state:mysqlEnum("state",["draft","active","hidden"]).notNull().default("draft"),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+});
+
+export const portalGroupModerators = mysqlTable("portalGroupModerators",{
+  groupId:int("groupId").notNull().references(()=>portalGroups.id,{onDelete:"cascade"}),
+  userId:int("userId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+},table=>({pk:unique("portalGroupModerators_group_user_unique").on(table.groupId,table.userId)}));
+
+export const portalTopics = mysqlTable("portalTopics",{
+  id:int("id").autoincrement().primaryKey(),
+  groupId:int("groupId").notNull().references(()=>portalGroups.id,{onDelete:"cascade"}),
+  authorUserId:int("authorUserId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  title:varchar("title",{length:160}).notNull(),
+  body:text("body").notNull(),
+  state:mysqlEnum("state",["pending","published","hidden"]).notNull().default("pending"),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+},table=>({groupIdx:index("portalTopics_group_state_created").on(table.groupId,table.state,table.createdAt)}));
+
+export const portalReplies = mysqlTable("portalReplies",{
+  id:int("id").autoincrement().primaryKey(),
+  topicId:int("topicId").notNull().references(()=>portalTopics.id,{onDelete:"cascade"}),
+  authorUserId:int("authorUserId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  body:text("body").notNull(),
+  state:mysqlEnum("state",["pending","published","hidden"]).notNull().default("pending"),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+},table=>({topicIdx:index("portalReplies_topic_state_created").on(table.topicId,table.state,table.createdAt)}));
+
+export const portalPartners = mysqlTable("portalPartners",{
+  id:int("id").autoincrement().primaryKey(),
+  slug:varchar("slug",{length:80}).notNull().unique(),
+  displayName:varchar("displayName",{length:160}).notNull(),
+  description:text("description").notNull(),
+  draftDescription:text("draftDescription"),
+  verificationState:mysqlEnum("verificationState",["pending","verified","suspended"]).notNull().default("pending"),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+});
+
+export const portalPartnerStaff = mysqlTable("portalPartnerStaff",{
+  partnerId:int("partnerId").notNull().references(()=>portalPartners.id,{onDelete:"cascade"}),
+  userId:int("userId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  role:mysqlEnum("role",["owner","editor"]).notNull(),
+  state:mysqlEnum("state",["active","revoked"]).notNull().default("active"),
+},table=>({pk:unique("portalPartnerStaff_partner_user_unique").on(table.partnerId,table.userId)}));
+
+export const portalPartnerInquiries = mysqlTable("portalPartnerInquiries",{
+  id:int("id").autoincrement().primaryKey(),
+  partnerId:int("partnerId").notNull().references(()=>portalPartners.id,{onDelete:"cascade"}),
+  userId:int("userId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  message:varchar("message",{length:1500}).notNull(),
+  consentAt:timestamp("consentAt").notNull(),
+  state:mysqlEnum("state",["new","closed","withdrawn"]).notNull().default("new"),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+},table=>({partnerIdx:index("portalPartnerInquiries_partner_state").on(table.partnerId,table.state)}));
+
+export const portalInquiryMessages = mysqlTable("portalInquiryMessages",{
+  id:int("id").autoincrement().primaryKey(),
+  inquiryId:int("inquiryId").notNull().references(()=>portalPartnerInquiries.id,{onDelete:"cascade"}),
+  senderUserId:int("senderUserId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  senderKind:mysqlEnum("senderKind",["member","partner"]).notNull(),
+  body:varchar("body",{length:3000}).notNull(),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+},table=>({roomOrderIdx:index("portalInquiryMessages_room_order").on(table.inquiryId,table.id)}));
+
+/** Draft native sponsored placements, independent of academic recommendations. */
+export const portalPartnerAds = mysqlTable("portalPartnerAds", {
+  id:int("id").autoincrement().primaryKey(),
+  partnerId:int("partnerId").notNull().references(()=>portalPartners.id,{onDelete:"cascade"}),
+  createdByUserId:int("createdByUserId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  placement:mysqlEnum("placement",["portal-home","portal-partners"]).notNull(),
+  title:varchar("title",{length:120}).notNull(),
+  body:varchar("body",{length:600}).notNull(),
+  destinationUrl:varchar("destinationUrl",{length:1000}).notNull(),
+  state:mysqlEnum("state",["pending","approved","rejected","paused"]).notNull().default("pending"),
+  startsAt:timestamp("startsAt"),
+  endsAt:timestamp("endsAt"),
+  reviewedByUserId:int("reviewedByUserId").references(()=>users.id,{onDelete:"set null"}),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+},table=>({
+  placementIdx:index("portalPartnerAds_placement_state_window").on(table.placement,table.state,table.startsAt,table.endsAt),
+  ownerIdx:index("portalPartnerAds_partner_created").on(table.partnerId,table.createdAt),
+}));

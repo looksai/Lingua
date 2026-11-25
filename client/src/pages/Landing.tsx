@@ -6,9 +6,12 @@ export default function Landing() {
     <main className="min-h-screen bg-paper text-ink">
       <header className="mx-auto flex max-w-6xl items-center justify-between border-b border-ink/10 px-6 py-5">
         <span className="font-display text-3xl tracking-tight">lingua<span className="text-teal">/</span></span>
+        <div className="flex flex-wrap items-center gap-3">
+        <Link href="/portal" className="text-sm font-semibold text-ink hover:underline">Explorar o portal</Link>
         <Link href="/login" className="rounded-full border border-ink/15 px-5 py-2 text-sm font-semibold hover:bg-white">
           Entrar
         </Link>
+        </div>
       </header>
       <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 lg:grid-cols-[1.2fr_0.8fr] lg:py-28">
         <div>
@@ -24,6 +27,9 @@ export default function Landing() {
             </Link>
             <Link href="/demo" className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-7 py-4 font-semibold">
               Ver demonstração
+            </Link>
+            <Link href="/portal" className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-7 py-4 font-semibold">
+              Conhecer a comunidade
             </Link>
           </div>
           <p className="mt-5 text-xs text-ink-faint">A demonstração é fictícia e não representa resultados de alunos reais.</p>
