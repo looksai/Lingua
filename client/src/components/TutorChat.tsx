@@ -66,8 +66,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const reply = trpc.tutor.reply.useMutation();
   const catalogRenderAck=trpc.tutor.catalogRenderAck.useMutation();
   const revokeCatalogConsent=trpc.tutor.revokeCatalogConsent.useMutation();
-  const [revocationPending,setRevocationPending]=useState(false);
-  const [revocationFailed,setRevocationFailed]=useState(false);
+  const [revocations,setRevocations]=useState<Record<string,"pending"|"failed">>({});
+  const revocationSequence=useRef(0);
+  const revocationTokens=useRef<Record<string,number>>({});
   const catalogPendingTask=trpc.tutor.catalogPendingTask.useMutation();
   const [recoveredCatalogTask,setRecoveredCatalogTask]=useState<CatalogClientTask|null>(null);
   const catalogRecoverySequence=useRef(0);
@@ -129,6 +130,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const previousIdentityScope=useRef<string|null>(null);
   const consentVersion=capabilities.data?.memory?2:1;
   const identityScope=`${accountEmail.trim().toLowerCase()}:${provider??"pending"}`;
+  const revocationScope=accountEmail.trim().toLowerCase();
+  const revocationPending=revocations[revocationScope]==="pending";
+  const revocationFailed=revocations[revocationScope]==="failed";
   const consentKey=provider&&provider!=="off"?`lingua:provider-consent:v${consentVersion}:${accountEmail.trim().toLowerCase()}:${provider}`:null;
   const localVoice=selectLocalVoice(localVoices,selectedVoiceURI);
   const englishLocalVoice=selectEnglishLocalVoice(localVoices,selectedVoiceURI);
@@ -620,13 +624,21 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   function minimize(){stopCapture(false);stopAudioPlayers();stopSpeech();setSettingsOpen(false);setPrivacyPrompt(false);setOpen(false);}
   async function confirmRevocation(){
     const epoch=conversationVersion.current;
-    setRevocationPending(true);setRevocationFailed(false);
+    if(revocationPending)return;
+    const scope=revocationScope;
+    const token=++revocationSequence.current;
+    revocationTokens.current[scope]=token;
+    setRevocations(previous=>({...previous,[scope]:"pending"}));
     try{
       await revokeCatalogConsent.mutateAsync();
+      if(revocationTokens.current[scope]!==token)return;
+      setRevocations(previous=>{const next={...previous};delete next[scope];return next;});
       if(isCurrent(epoch))setNotice("Envio à IA desativado; cancelamento confirmado pelo servidor.");
     }catch{
-      if(isCurrent(epoch)){setRevocationFailed(true);setNotice("Envio local desativado, mas o servidor não confirmou o cancelamento. Tente novamente.");}
-    }finally{setRevocationPending(false);}
+      if(revocationTokens.current[scope]!==token)return;
+      setRevocations(previous=>({...previous,[scope]:"failed"}));
+      if(isCurrent(epoch))setNotice("Envio local desativado, mas o servidor não confirmou o cancelamento. Tente novamente.");
+    }
   }
   function updateConsent(next:boolean){
     if(!next){if(consentKey)try{window.localStorage.removeItem(consentKey);}catch{/* no local storage */}
