@@ -1,0 +1,48 @@
+name: Partner MySQL laboratory
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'drizzle/partner-foundation-draft.ts'
+      - 'drizzle/schema.ts'
+      - 'drizzle.partner-lab.config.ts'
+      - 'tests/partner-mysql-lab.mjs'
+      - '.github/workflows/partner-mysql-lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mysql-lab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: lab_root_only
+          MYSQL_DATABASE: partner_lab
+          MYSQL_USER: partner_lab
+          MYSQL_PASSWORD: partner_lab
+        ports:
+          - 33316:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec drizzle-kit generate --config=drizzle.partner-lab.config.ts
+      - run: pnpm exec drizzle-kit migrate --config=drizzle.partner-lab.config.ts
+      - run: node tests/partner-mysql-lab.mjs
