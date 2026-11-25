@@ -1,6 +1,7 @@
 import { ArrowRight, BookOpen, BriefcaseBusiness, Building2, Globe2, LockKeyhole, ShieldCheck, Users } from "lucide-react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import PortalSponsored from "@/components/PortalSponsored";
 
 /** Product structure only. No fictitious partners, offers, migration advice or fake activity. */
 export const portalSections = [
@@ -59,6 +60,7 @@ export default function PublicPortal(){
           <p className="mt-5 text-xs text-white/65">A comunidade com participação privada e as páginas comerciais estão em preparação. Nenhum parceiro ou vaga é anunciado como existente.</p>
         </div>
       </section>
+      <PortalSponsored placement="portal-home"/>
       <section id="comunidades" className="mx-auto max-w-6xl px-5 py-16">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#956A39]">Descubra seus interesses</p>
         <h2 className="mt-2 font-display text-4xl tracking-tight">Um mundo de conversas para construir</h2>
@@ -137,6 +139,7 @@ export function PortalPartners(){
           {Icon:BriefcaseBusiness,title:"Contato voluntário",copy:"O interessado solicita atendimento; dados não são entregues automaticamente aos parceiros."},
         ].map(({Icon,title,copy})=><article key={title} className="rounded-2xl bg-white p-6"><Icon className="text-[#956A39]"/><h2 className="mt-4 font-display text-2xl">{title}</h2><p className="mt-3 text-sm leading-6 text-[#526478]">{copy}</p></article>)}
       </div>
+      <PortalSponsored placement="portal-partners"/>
       <section className="mt-10" aria-label="Organizações verificadas">
         <h2 className="font-display text-3xl">Organizações no diretório</h2>
         {partners.isPending&&<p role="status" className="mt-3 text-sm text-[#526478]">Consultando o diretório...</p>}
