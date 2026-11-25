@@ -64,6 +64,7 @@ export default function PartnerDashboard(){
   const organizations=trpc.partners.myOrganizations.useQuery(undefined,{retry:false,enabled:Boolean(identity.data)});
   const [selected,setSelected]=useState<number|null>(null);
   const [draft,setDraft]=useState("");
+  const [openRoom,setOpenRoom]=useState<number|null>(null);
   const [notice,setNotice]=useState("");
   const current=organizations.data?.find(item=>item.id===selected)??organizations.data?.[0];
   const inbox=trpc.partners.inbox.useQuery({partnerId:current?.id??0},
@@ -123,14 +124,61 @@ export default function PartnerDashboard(){
           <div className="mt-5 space-y-4">
             {inbox.data?.map(item=><article key={item.id} className="rounded-xl border border-[#14283D]/10 p-4">
               <p className="whitespace-pre-wrap break-words text-sm">{item.message}</p>
-              <button className="mt-4 text-sm font-semibold text-[#956A39] underline" type="button"
-                onClick={()=>void closeItem(item.id)} disabled={close.isPending}>Encerrar solicitação</button>
+              <div className="mt-4 flex flex-wrap gap-4">
+                <button className="text-sm font-semibold text-[#956A39] underline" type="button" onClick={()=>setOpenRoom(item.id)}>Abrir sala</button>
+                <button className="text-sm font-semibold text-[#956A39] underline" type="button"
+                  onClick={()=>void closeItem(item.id)} disabled={close.isPending}>Encerrar solicitação</button>
+              </div>
             </article>)}
           </div>
         </section>
+        {openRoom!==null&&<PartnerRoom key={openRoom} inquiryId={openRoom} onBack={()=>setOpenRoom(null)}/>}
       </div>}
     </main><PortalFooter/>
   </div>;
+}
+
+/**
+ * Private room, never displays account identifiers or company staff contacts.
+ * User decides when to refresh; no background polling or tracking.
+ */
+export function PartnerRoom({inquiryId,onBack}:{inquiryId:number;onBack:()=>void}){
+  const room=trpc.partners.roomMessages.useQuery({inquiryId},{retry:false});
+  const send=trpc.partners.sendRoomMessage.useMutation();
+  const [body,setBody]=useState("");
+  const [notice,setNotice]=useState("");
+  async function submit(e:FormEvent){
+    e.preventDefault();
+    setNotice("");
+    try{
+      await send.mutateAsync({inquiryId,body:body.trim()});
+      setBody("");
+      await room.refetch();
+      setNotice("Mensagem enviada.");
+    }catch{setNotice("Não foi possível enviar. A solicitação pode ter sido encerrada ou seu acesso alterado.");}
+  }
+  return <section aria-label="Sala privada de atendimento" className="mt-6 rounded-2xl bg-white p-6">
+    <button type="button" onClick={onBack} className="text-sm font-semibold text-[#956A39] underline">← Voltar às solicitações</button>
+    <h2 className="mt-4 font-display text-3xl">Sala privada de atendimento</h2>
+    <p className="mt-2 text-xs leading-5 text-[#526478]">Somente o membro e a equipe autorizada desta organização podem visualizar mensagens enquanto a solicitação estiver aberta. Não envie documentos pessoais, senhas ou dados sensíveis. Este canal não fornece orientação jurídica do Lingua.</p>
+    <button type="button" onClick={()=>void room.refetch()} className="mt-4 text-sm font-semibold underline">Atualizar mensagens</button>
+    {room.isPending&&<p role="status" className="mt-4 text-sm">Carregando mensagens...</p>}
+    {room.isError&&<p role="alert" className="mt-4 text-sm text-red-700">Esta sala não está acessível. Ela pode ter sido encerrada ou seu acesso pode ter mudado.</p>}
+    {room.data&&<div className="mt-5 space-y-3">
+      {room.data.messages.length===0&&<p className="text-sm text-[#526478]">Nenhuma resposta foi enviada nesta sala.</p>}
+      {room.data.messages.map(item=><div key={item.id} className="rounded-xl border border-[#14283D]/10 p-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#956A39]">{item.senderKind==="member"?"Membro":"Equipe institucional"}</p>
+        <p className="mt-2 whitespace-pre-wrap break-words text-sm">{item.body}</p>
+      </div>)}
+      <form className="space-y-3 pt-4" onSubmit={submit}>
+        <label htmlFor={"room-message-"+inquiryId} className="block text-sm font-semibold">Escrever mensagem</label>
+        <textarea id={"room-message-"+inquiryId} className={field} rows={4} required minLength={2} maxLength={3000}
+          value={body} onChange={e=>setBody(e.target.value)}/>
+        <button type="submit" className={btn} disabled={send.isPending}>Enviar mensagem</button>
+      </form>
+    </div>}
+    {notice&&<p role="status" className="mt-4 text-sm">{notice}</p>}
+  </section>;
 }
 
 export function MyPartnerInquiries(){
@@ -138,6 +186,7 @@ export function MyPartnerInquiries(){
   const list=trpc.partners.myInquiries.useQuery(undefined,{retry:false,enabled:Boolean(identity.data)});
   const withdraw=trpc.partners.withdrawInquiry.useMutation();
   const [notice,setNotice]=useState("");
+  const [openRoom,setOpenRoom]=useState<number|null>(null);
   async function cancel(inquiryId:number){
     try{
       await withdraw.mutateAsync({inquiryId});await list.refetch();
@@ -156,9 +205,13 @@ export function MyPartnerInquiries(){
       <div className="mt-6 space-y-3">{list.data?.map(item=><div className="rounded-xl bg-white p-5" key={item.id}>
         <p className="whitespace-pre-wrap break-words text-sm">{item.message}</p>
         <p className="mt-2 text-xs text-[#526478]">Situação: {item.state==="new"?"Aberta":item.state==="closed"?"Encerrada":"Retirada"}</p>
-        {item.state==="new"&&<button type="button" disabled={withdraw.isPending} className="mt-4 text-sm font-semibold text-[#956A39] underline"
-          onClick={()=>void cancel(item.id)}>Retirar solicitação</button>}
+        {item.state==="new"&&<div className="mt-4 flex flex-wrap gap-4">
+          <button type="button" className="text-sm font-semibold text-[#956A39] underline" onClick={()=>setOpenRoom(item.id)}>Abrir sala</button>
+          <button type="button" disabled={withdraw.isPending} className="text-sm font-semibold text-[#956A39] underline"
+          onClick={()=>void cancel(item.id)}>Retirar solicitação</button>
+        </div>}
       </div>)}</div>
+      {openRoom!==null&&<PartnerRoom key={openRoom} inquiryId={openRoom} onBack={()=>setOpenRoom(null)}/>}
     </main><PortalFooter/></div>;
 }
 
