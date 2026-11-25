@@ -108,10 +108,43 @@ try{
   const admin=partnerRouter.createCaller({user:{id:userA,role:"admin"},req} as never);
   await admin.approveProfileEdit({partnerId,approve:true});
   assert.match((await member.publicProfile({slug:"qa-verified"}))?.description??"",/revisável/);
+  const live=await member.myInquiries();
+  assert.equal(live.length,1);
+  const roomId=live[0].id;
+  assert.deepEqual((await member.roomMessages({inquiryId:roomId})).messages,[]);
+  assert.equal((await member.sendRoomMessage({inquiryId:roomId,body:"Olá, gostaria de conversar sobre os requisitos."})).sent,true);
+  assert.equal((await company.sendRoomMessage({inquiryId:roomId,body:"Recebemos sua mensagem e podemos conversar por aqui."})).sent,true);
+  const exchange=(await member.roomMessages({inquiryId:roomId})).messages;
+  assert.deepEqual(exchange.map(m=>m.senderKind),["member","partner"]);
+  assert.equal(exchange[1].body,"Recebemos sua mensagem e podemos conversar por aqui.");
+  assert.equal(Object.keys(exchange[0]).includes("senderUserId"),false);
+  await assert.rejects(member.sendRoomMessage({inquiryId:roomId,body:"x"}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="BAD_REQUEST");
+  await assert.rejects(member.sendRoomMessage({inquiryId:roomId+99999,body:"Sem autorização"}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+
+  // A staff account for a different company cannot read or send to this room.
+  const outsider=partnerRouter.createCaller({user:{id:userA,role:"user"},req} as never);
+  // Member A is entitled to this room, but cannot access a separate member's inquiry:
+  await sqlConn.query("INSERT INTO portalPartnerInquiries(partnerId,userId,message,consentAt) VALUES (?,?,?,NOW())",
+    [partnerId,userB,"Solicitação independente com autorização para teste"]);
+  const [otherRoomRows]=await sqlConn.query(
+    "SELECT id FROM portalPartnerInquiries WHERE userId=? ORDER BY id DESC LIMIT 1",[userB]);
+  const otherRoomId=(otherRoomRows as Array<{id:number}>)[0].id;
+  const otherStaff=partnerRouter.createCaller({user:{id:userB,role:"user"},req} as never);
+  const unauthorizedPartnerStaff=partnerRouter.createCaller({user:{id:userA,role:"user"},req} as never);
+  await assert.rejects(unauthorizedPartnerStaff.roomMessages({inquiryId:otherRoomId}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  assert.equal((await otherStaff.roomMessages({inquiryId:otherRoomId})).messages.length,0);
+
   const inquiries=await member.myInquiries();
   assert.equal(inquiries.length,1);
   await member.withdrawInquiry({inquiryId:inquiries[0].id});
-  assert.equal((await company.inbox({partnerId})).length,0);
+  assert.equal((await company.inbox({partnerId})).length,1,"other still-open inquiry remains");
+  await assert.rejects(company.roomMessages({inquiryId:roomId}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  await assert.rejects(member.sendRoomMessage({inquiryId:roomId,body:"Não pode ser enviado após retirada."}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
   assert.equal((await member.myInquiries())[0].state,"withdrawn");
   await assert.rejects(member.sendInquiry({partnerId:otherId+999,message:"Quero atendimento da organização inexistente.",consentToShareMessage:true}),
     (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="NOT_FOUND");
