@@ -17,7 +17,9 @@ const sqlConn=await mysql.createConnection({host:url.hostname,port:Number(url.po
   database:"lingua_portal_qa",multipleStatements:false});
 async function migrate(path:string){
   const source=await readFile(new URL(path,import.meta.url),"utf8");
-  for(const stmt of source.split(";").map(v=>v.split("\n").filter(x=>!x.trim().startsWith("--")).join("\n").trim()).filter(Boolean))
+  const statements=source.split("\n").filter(line=>!line.trim().startsWith("--")).join("\n")
+    .split(";").map(statement=>statement.trim()).filter(Boolean);
+  for(const stmt of statements)
     await sqlConn.query(stmt);
 }
 try{
