@@ -10,6 +10,7 @@ import {partnerRouter} from "../server/partner-router";
 import {adsRouter} from "../server/ads-router";
 import {registerLocalUser} from "../server/auth-local";
 import {readPrivacyPreferences} from "../server/privacy-preferences";
+import {verifyPortalSchema} from "./qa-portal-schema-invariants";
 
 const dbUrl=process.env.DATABASE_URL;
 if(process.env.LINGUA_PORTAL_MYSQL_QA!=="1" || !dbUrl)throw Error("Disposable MySQL QA not authorized");
@@ -33,6 +34,7 @@ try{
   await migrate("../drizzle/0008_privacy_preferences_DRAFT.sql");
   await migrate("../drizzle/0009_portal_community_DRAFT.sql");
   await migrate("../drizzle/0010_partner_ads_DRAFT.sql");
+  await verifyPortalSchema(sqlConn);
   // Combined auth+portal migration: only consented registration produces
   // privacy preference records. Community access must NOT follow automatically.
   const signed=await registerLocalUser("combined-portal@synthetic.invalid",
