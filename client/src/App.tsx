@@ -5,6 +5,8 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
 import Home from "./pages/Home";
+import PublicLiveController from "./pages/PublicLiveController";
+import {lookupPublicLive} from "./pages/public-live-lookup";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
@@ -52,10 +54,16 @@ function DemoPage() {
   </>;
 }
 
+function PublicLivePage() {
+  const token=window.location.hash.slice(1);
+  return <PublicLiveController token={token} lookup={lookupPublicLive}/>;
+}
+
 function Router() {
   return <Switch>
     <Route path="/" component={RootPage} />
     <Route path="/demo" component={DemoPage} />
+    {import.meta.env.VITE_PUBLIC_LIVES_ENABLED === "true" && <Route path="/live" component={PublicLivePage} />}
     <Route path="/login" component={Login} />
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
