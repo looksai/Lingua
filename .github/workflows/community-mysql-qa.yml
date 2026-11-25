@@ -5,6 +5,8 @@ on:
     paths:
       - 'server/community-router.ts'
       - 'server/partner-router.ts'
+      - 'server/ads-router.ts'
+      - 'drizzle/0010_partner_ads_DRAFT.sql'
       - 'drizzle/0009_portal_community_DRAFT.sql'
       - 'drizzle/schema.ts'
       - 'shared/portal-access.ts'
@@ -34,6 +36,7 @@ jobs:
       LINGUA_PORTAL_MYSQL_QA: '1'
       LINGUA_PORTAL_COMMUNITY_ENABLED: 'true'
       LINGUA_PORTAL_PARTNER_CONTACT_ENABLED: 'true'
+      LINGUA_PORTAL_ADS_ENABLED: 'true'
       DATABASE_URL: mysql://lingua_qa:disposable-only-pass@127.0.0.1:3306/lingua_portal_qa
     steps:
       - uses: actions/checkout@v5
