@@ -114,6 +114,11 @@ export const tutorRouter = router({
       try{return await geminiTestSpeech(input.phraseIndex);}catch{throw new TRPCError({code:"PRECONDITION_FAILED",message:"Não foi possível gerar o áudio de teste."});}
     });
   }),
+  revokeCatalogConsent:protectedProcedure.mutation(({ctx})=>{
+    checkRequestOrigin(ctx.req);
+    calCatalogTutorSessions.revoke(ctx.user.id);
+    return {revoked:true as const};
+  }),
   catalogPendingTask:protectedProcedure.mutation(({ctx})=>{
     checkRequestOrigin(ctx.req);
     if(!catalogCALRuntimeEnabled()||
@@ -146,6 +151,8 @@ export const tutorRouter = router({
       if(!catalogCALRuntimeEnabled())
         throw new TRPCError({code:"PRECONDITION_FAILED",message:"O catálogo de atividades não está disponível."});
     }
+    const lease=calCatalogTutorSessions.beginTurn(ctx.user.id);
+    try {
     const p=await profileFor(ctx.user.id);
     if(!input.consent||input.provider!==tutorMode()||!(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email)))
       return {text:localReply(input.message),source:"local" as const,audioBase64:null,voiceStatus:input.voice?"unavailable" as const:"off" as const,memoryCandidate:null};
@@ -159,7 +166,8 @@ export const tutorRouter = router({
         memoryReady=true;
       } catch {console.warn("[tutor] memory unavailable: feature will fail closed for this turn");}
     }
-    return withTutorBudget(ctx.user.id,async()=>{
+    return await withTutorBudget(ctx.user.id,async()=>{
+      if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});
       // CAL is OFF by default. In the pilot, it is restricted by the same
       // existing authenticated tester allowlist as the external tutor.
       // No DB writes, memory mutations, SRS or CSLE calls.
@@ -189,6 +197,7 @@ export const tutorRouter = router({
             memoryCandidate=null;
         }else text=await adapter.reply(p,input.history,input.message,approvedFacts,pedagogicalDirective);
       } catch(error) { return {...tutorFailureReply(error,input.message,input.voice),memoryCandidate:null}; }
+      if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});
       const checked=guardTutorLearnerClaims(text,input.history,input.message,approvedFacts);
       if(checked.blocked)return {text:checked.text,source:"local" as const,audioBase64:null,voiceStatus:"off" as const,memoryCandidate:null};
       const adapted=enforceBeginnerPortuguese(checked.text,input.history,input.message,approvedFacts);
@@ -211,6 +220,7 @@ export const tutorRouter = router({
       return {text:finalText,source:"ai" as const,memoryCandidate,catalogTask,
         ...await optionalSpeech(finalText,input.provider==="openai"&&input.voice)};
     });
+    } finally {lease.release();}
   }),
   // All memory operations are owned by the authenticated user. Optional
   // and entirely separate from transcript, curriculum and official evidence.
