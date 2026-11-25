@@ -5,6 +5,15 @@
 
 > **Este arquivo é o ponto oficial de continuidade para uma nova conversa.** Primeiro ler este documento e os links abaixo, conferir o estado ATUAL das PRs no GitHub e prosseguir do último commit verificado. Não assumir que uma execução de CI antiga se aplica a novos commits.
 
+## Auditoria adicional do inspetor — 2026-11-25
+- **PR #81 continua DRAFT**, sem conexão nova ao Aiven, sem deploy, migração ou merge.
+- Revisão de privilégio mínimo detectou que o inspetor de inventário usava o segredo de conexão padrão do staging, potencialmente com capacidade de escrita. Corrigido: usa **somente** `LINGUA_STAGING_READONLY_DATABASE_URL` e `LINGUA_STAGING_READONLY_CA_BASE64`, a serem criados por operador; **sem fallback**. O workflow `.github/workflows/staging-portal-readonly-inventory.yml` foi alinhado a esses segredos.
+- Antes da transação `READ ONLY`, o script confere **SHOW GRANTS FOR CURRENT_USER() sem imprimir os grants** e aborta com permissões de escrita, delegação de roles, `GRANT OPTION` ou formatos desconhecidos. Testes `tests/staging-readonly-inventory.test.ts` cobrem negação de credencial elevada.
+- O relatório agora faz `COUNT(*)` no ledger técnico de migrações para dar contagem precisa e usa `truncated=true` caso a amostra de até 1000 registros não seja completa. **Nunca tratar uma amostra como histórico integral.**
+- Documentação atualizada em `docs/STAGING-MIGRATION-PREFLIGHT-v01.md`.
+- **Pendência material:** nenhum operador provisionou nem confirmou aqui a conta SELECT-only real; inventário remoto e restauração de backup criptografado real ainda NÃO ocorreram. A nova proteção evita executar com segredo da aplicação.
+- CI do último commit de código `493622a0ce06da194dcb506d5e16129f12849569` deve ser conferido no GitHub; não confundir execuções de commits anteriores com HEAD documental. Prosseguir por QA e revisão independente, sem execução remota.
+
 ## Retomada seguinte — inspetor de staging somente leitura (2026-11-25)
 - PR integradora #81 ainda **DRAFT**, branch `integration/privacy-portal-safe-combined-v01`. Não houve merge, deploy ou operação no Aiven neste ciclo.
 - Adicionado `scripts/staging-aiven-readonly-portal-inventory.ts` com **host/porta/schema Aiven fixados**, TLS CA verificado, guarda `workflow_dispatch` em `main`, transação SQL `READ ONLY`, consultas a `information_schema` e aos **IDs/timestamps técnicos** do ledger Drizzle (se existir). **Sem SELECT de dados de alunos**, mensagens, senhas, memórias ou solicitações comerciais. Sempre retorna `remoteMigrationApproved:false`.
