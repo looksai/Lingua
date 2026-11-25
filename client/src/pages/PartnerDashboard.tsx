@@ -4,6 +4,34 @@ import {trpc} from "@/lib/trpc";
 const labels={draft:"Rascunho",published:"Publicado",live:"Ao vivo",ended:"Encerrado",cancelled:"Cancelado"} as const;
 const actions={draft:["published","cancelled"],published:["live","cancelled"],live:["ended","cancelled"],ended:[],cancelled:[]} as const;
 const button="rounded-lg border px-4 py-2 text-sm disabled:opacity-50";
+function InviteControls({partnerId,eventId}:{partnerId:number;eventId:number}){
+ const issue=trpc.partnerInvites.issue.useMutation();
+ const revoke=trpc.partnerInvites.revoke.useMutation();
+ const [token,setToken]=useState("");
+ const [message,setMessage]=useState("");
+ const busy=issue.isPending||revoke.isPending;
+ async function generate(){
+  setMessage("");
+  try{const result=await issue.mutateAsync({partnerId,eventId,expiresAt:null});setToken(result.token);}catch{setMessage("Não foi possível gerar o convite.");}
+ }
+ async function cancel(){
+  setMessage("");
+  try{
+   const bytes=Uint8Array.from(atob(token.replace(/-/g,"+").replace(/_/g,"/")+"="),c=>c.charCodeAt(0));
+   const digest=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",bytes)),b=>b.toString(16).padStart(2,"0")).join("");
+   await revoke.mutateAsync({partnerId,eventId,digest});setToken("");setMessage("Convite revogado.");
+  }catch{setMessage("Não foi possível revogar o convite.");}
+ }
+ const link=token?window.location.origin+"/live#"+token:"";
+ return <div className="space-y-2">
+ {!token?<button className={button} disabled={busy} onClick={()=>void generate()}>Gerar convite público</button>:<>
+ <label>Link público<input readOnly className="block w-full rounded border p-2" value={link} onFocus={e=>e.target.select()}/></label>
+ <div className="flex flex-wrap gap-2"><button className={button} onClick={()=>void navigator.clipboard.writeText(link).then(()=>setMessage("Link copiado."),()=>setMessage("Selecione e copie o link manualmente."))}>Copiar link</button><button className={button} disabled={busy} onClick={()=>void cancel()}>Revogar convite</button></div>
+ <p className="text-xs">Guarde o link. Nesta versão experimental, ele não será recuperado após recarregar a página.</p>
+ </>}
+ {message&&<p role="status">{message}</p>}
+ </div>;
+}
 function Events({partnerId,role}:{partnerId:number;role:string}){
  const events=trpc.partnerEvents.list.useQuery({partnerId},{retry:false});
  const create=trpc.partnerEvents.create.useMutation();
@@ -36,6 +64,7 @@ function Events({partnerId,role}:{partnerId:number;role:string}){
  {events.isPending?<p role="status">Carregando eventos...</p>:events.error?<p role="alert">Não foi possível carregar os eventos. <button className={button} onClick={()=>void events.refetch()}>Tentar novamente</button></p>:events.data?.length===0?<p>Nenhum evento cadastrado.</p>:events.data?.map(event=><article key={event.id} className="space-y-2 rounded-xl border p-4">
  <h3 className="break-words font-semibold">{event.title}</h3><p>{labels[event.status]} · {new Date(event.scheduledAt).toLocaleString("pt-BR")}</p>
  {manage&&<div className="flex flex-wrap gap-2">{actions[event.status].map(to=><button key={to} className={button} disabled={busy} onClick={()=>void change(event.id,to)}>{labels[to]}</button>)}</div>}
+ {manage&&event.visibility==="public"&&(event.status==="published"||event.status==="live")&&<InviteControls partnerId={partnerId} eventId={event.id}/>}
  </article>)}
  </section>;
 }
