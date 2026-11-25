@@ -1,3 +1,9 @@
+import express from "express";
+import {createExpressMiddleware} from "@trpc/server/adapters/express";
+import {createPartnerInviteRouter} from "../server/partner-invite-router";
+import {createPartnerInviteLimiter} from "../server/partner-invite-rate-limit";
+import type {User} from "../drizzle/schema";
+import type {AddressInfo} from "node:net";
 import {resolvePublicPartnerInvite} from "../server/partner-public-invite-resolution";
 import assert from "node:assert/strict";
 import mysql from "mysql2/promise";
@@ -33,5 +39,34 @@ try{
  await pool.execute("UPDATE partners SET status='suspended' WHERE id=?",[partner]);
  assert.equal(await issuePartnerInvite(db,user,partner,event,null),null);
  assert.equal(await resolvePublicPartnerInvite(db,second.token),null);
- console.log("Transactional invite laboratory passed");
+ await pool.execute("UPDATE partners SET status='active' WHERE id=?",[partner]);
+ const app=express();
+ const fixture:User={id:user,openId:"local:lab",name:null,email:null,loginMethod:null,role:"user",createdAt:new Date(),updatedAt:new Date(),lastSignedIn:new Date()};
+ const api=createPartnerInviteRouter({enabled:()=>true,database:async()=>db,allowRequest:createPartnerInviteLimiter()});
+ app.use("/api",createExpressMiddleware({router:api,createContext:({req,res})=>({req,res,user:req.headers["x-lab-user"]==="owner"?fixture:req.headers["x-lab-user"]==="outsider"?{...fixture,id:user+100000}:null})}));
+ const server=app.listen(0,"127.0.0.1");
+ try{
+  await new Promise<void>(resolve=>server.once("listening",resolve));
+  const origin="http://127.0.0.1:"+(server.address() as AddressInfo).port;
+  const post=(route:string,json:unknown,who?:string)=>fetch(origin+"/api/"+route,{method:"POST",headers:{"content-type":"application/json",origin,...(who?{"x-lab-user":who}:{})},body:JSON.stringify({json})});
+  const scope={partnerId:partner,eventId:event,expiresAt:null};
+  assert.equal((await post("issue",scope,"outsider")).status,403);
+  const response=await post("issue",scope,"owner");
+  assert.equal(response.status,200);
+  const payload=await response.json() as {result:{data:{json:{token:string}}}};
+  const token=payload.result.data.json.token;
+  const digest=digestLiveInviteToken(token);assert.ok(digest);
+  const publicResponse=await post("resolve",{token});
+  assert.equal(publicResponse.status,200);
+  assert.equal(publicResponse.headers.get("cache-control"),"no-store");
+  const publicData=await publicResponse.json() as {result:{data:{json:{canWatch:boolean}}}};
+  assert.equal(publicData.result.data.json.canWatch,true);
+  assert.equal((await post("revoke",{partnerId:partner,eventId:event,digest},"outsider")).status,404);
+  assert.equal((await post("revoke",{partnerId:partner,eventId:event,digest},"owner")).status,200);
+  const revoked=await post("resolve",{token});
+  assert.equal(revoked.status,200);
+  const revokedData=await revoked.json() as {result:{data:{json:unknown}}};
+  assert.equal(revokedData.result.data.json,null);
+ }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
+ console.log("Transactional and HTTP invitation laboratory passed");
 }finally{await pool.end();}
