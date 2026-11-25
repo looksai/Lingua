@@ -232,6 +232,7 @@ export const portalGroups = mysqlTable("portalGroups", {
   slug:varchar("slug",{length:80}).notNull().unique(),
   title:varchar("title",{length:140}).notNull(),
   description:varchar("description",{length:500}).notNull(),
+  partnerId:int("partnerId").references(()=>portalPartners.id,{onDelete:"set null"}),
   visibility:mysqlEnum("visibility",["public","private"]).notNull().default("private"),
   academyAllowed:int("academyAllowed").notNull().default(0),
   state:mysqlEnum("state",["draft","active","hidden"]).notNull().default("draft"),
@@ -270,6 +271,13 @@ export const portalPartners = mysqlTable("portalPartners",{
   verificationState:mysqlEnum("verificationState",["pending","verified","suspended"]).notNull().default("pending"),
   createdAt:timestamp("createdAt").notNull().defaultNow(),
 });
+
+export const portalPartnerStaff = mysqlTable("portalPartnerStaff",{
+  partnerId:int("partnerId").notNull().references(()=>portalPartners.id,{onDelete:"cascade"}),
+  userId:int("userId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  role:mysqlEnum("role",["owner","editor"]).notNull(),
+  state:mysqlEnum("state",["active","revoked"]).notNull().default("active"),
+},table=>({pk:unique("portalPartnerStaff_partner_user_unique").on(table.partnerId,table.userId)}));
 
 export const portalPartnerInquiries = mysqlTable("portalPartnerInquiries",{
   id:int("id").autoincrement().primaryKey(),
