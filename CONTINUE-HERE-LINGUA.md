@@ -5,6 +5,15 @@
 
 > **Este arquivo é o ponto oficial de continuidade para uma nova conversa.** Primeiro ler este documento e os links abaixo, conferir o estado ATUAL das PRs no GitHub e prosseguir do último commit verificado. Não assumir que uma execução de CI antiga se aplica a novos commits.
 
+## Retomada seguinte — inspetor de staging somente leitura (2026-11-25)
+- PR integradora #81 ainda **DRAFT**, branch `integration/privacy-portal-safe-combined-v01`. Não houve merge, deploy ou operação no Aiven neste ciclo.
+- Adicionado `scripts/staging-aiven-readonly-portal-inventory.ts` com **host/porta/schema Aiven fixados**, TLS CA verificado, guarda `workflow_dispatch` em `main`, transação SQL `READ ONLY`, consultas a `information_schema` e aos **IDs/timestamps técnicos** do ledger Drizzle (se existir). **Sem SELECT de dados de alunos**, mensagens, senhas, memórias ou solicitações comerciais. Sempre retorna `remoteMigrationApproved:false`.
+- Novo workflow `.github/workflows/staging-portal-readonly-inventory.yml`: manual em `main`, exige confirmação `INVENTARIO_SOMENTE_LEITURA_LINGUA`; adicionado **apenas nesta PR draft**, portanto não foi executado. Revisar o script e o alvo antes de considerar executá-lo.
+- Novos testes `tests/staging-readonly-inventory.test.ts` verificam sanitização do relatório e negação de versão/TLS inválidos. O procedimento foi adicionado a `docs/STAGING-MIGRATION-PREFLIGHT-v01.md`.
+- CI do commit de código `5f11541a43ad6c74616153a61e1a3ec7dc497b47`: [P0](https://github.com/looksai/Lingua/actions/runs/45541450416) **SUCCESS**, [privacidade MySQL](https://github.com/looksai/Lingua/actions/runs/45541450820) **SUCCESS**, [comunidade MySQL](https://github.com/looksai/Lingua/actions/runs/45541450472) **SUCCESS**, [Chromium](https://github.com/looksai/Lingua/actions/runs/45541450520) — consultar estado atual; estava em andamento na preparação do checkpoint.
+- **Gates reais ainda abertos:** não existe inventário remoto obtido nesta etapa nem prova de restauração do backup **verdadeiro** criptografado do Aiven. Restauração anterior foi exclusivamente sintética. Nenhuma alteração remota automática autorizada; migrations 0008–0010 continuam DRAFT.
+- **Próxima ação recomendada:** conferir HEAD e CI, revisar segurança do inspetor, identificar se staging Render aponta para a mesma instância Aiven fixada (sem expor conexão), escolher credencial read-only/operador autorizado; executar inventário só após procedimento aprovado. Não fazer merge/deploy para contornar o gate.
+
 ## Atualização técnica posterior ao checkpoint inicial — 2026-11-25
 - **Escopo da continuidade:** auditoria de divergência entre journal Drizzle e scripts SQL e ensaio de backup/restauração **apenas em MySQL descartável**. Nenhum acesso novo ao Aiven/Render nem merge/deploy.
 - **Novo utilitário** `scripts/qa-migration-ledger.ts` e testes em `tests/migration-ledger.test.ts`: classifica o histórico conhecido em 0000–0002 (journal), 0003/0005/0006/0007 (scripts manuais) e 0008/0009/0010 (DRAFT). Migração remota fica explicitamente **não aprovada**. Mudanças no inventário conhecido devem falhar no CI até revisão.
