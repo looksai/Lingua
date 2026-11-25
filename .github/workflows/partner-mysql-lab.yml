@@ -9,6 +9,12 @@ on:
       - 'tests/partner-mysql-lab.mjs'
       - 'tests/partner-invite-transaction-lab.ts'
       - 'server/partner-*.ts'
+      - 'server/routers.ts'
+      - 'server/_core/**'
+      - 'client/src/App.tsx'
+      - 'client/src/pages/PublicLive*'
+      - 'client/src/pages/public-live-*'
+      - 'tests/public-live-full-stack*'
       - '.github/workflows/partner-mysql-lab.yml'
   workflow_dispatch:
 permissions:
@@ -49,3 +55,23 @@ jobs:
       - run: pnpm exec drizzle-kit migrate --config=drizzle.partner-lab.config.ts
       - run: node tests/partner-mysql-lab.mjs
       - run: pnpm exec tsx tests/partner-invite-transaction-lab.ts
+      - run: npm install --prefix /tmp/partner-browser playwright
+      - run: /tmp/partner-browser/node_modules/.bin/playwright install --with-deps chromium
+      - name: Full-stack public invite
+        env:
+          DATABASE_URL: mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab
+          NODE_ENV: development
+          PARTNER_INVITES_ENABLED: 'true'
+          VITE_PUBLIC_LIVES_ENABLED: 'true'
+          PORT: '4173'
+        run: |
+          set -euo pipefail
+          export LAB_INVITE_TOKEN="$(pnpm exec tsx tests/public-live-full-stack-seed.ts)"
+          echo "::add-mask::$LAB_INVITE_TOKEN"
+          pnpm exec tsx server/_core/index.ts > /tmp/partner-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:4173/api/health >/dev/null && break; sleep 1; done
+          curl -fsS http://127.0.0.1:4173/api/health >/dev/null
+          cp tests/public-live-full-stack.mjs /tmp/partner-browser/test.mjs
+          node /tmp/partner-browser/test.mjs
