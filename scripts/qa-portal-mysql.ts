@@ -7,6 +7,7 @@ import {readFile} from "node:fs/promises";
 import mysql from "mysql2/promise";
 import {communityRouter} from "../server/community-router";
 import {partnerRouter} from "../server/partner-router";
+import {adsRouter} from "../server/ads-router";
 
 const dbUrl=process.env.DATABASE_URL;
 if(process.env.LINGUA_PORTAL_MYSQL_QA!=="1" || !dbUrl)throw Error("Disposable MySQL QA not authorized");
@@ -26,6 +27,7 @@ async function migrate(path:string){
 try{
   await migrate("../drizzle/0000_initial_users.sql");
   await migrate("../drizzle/0009_portal_community_DRAFT.sql");
+  await migrate("../drizzle/0010_partner_ads_DRAFT.sql");
   await sqlConn.query("INSERT INTO users(openId,email,loginMethod) VALUES (?,?,?)",
     ["qa-portal-a","portal-a@synthetic.invalid","local"]);
   await sqlConn.query("INSERT INTO users(openId,email,loginMethod) VALUES (?,?,?)",
@@ -150,6 +152,35 @@ try{
   assert.equal((await member.myInquiries())[0].state,"withdrawn");
   await assert.rejects(member.sendInquiry({partnerId:otherId+999,message:"Quero atendimento da organização inexistente.",consentToShareMessage:true}),
     (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="NOT_FOUND");
+  // Sponsored placement is contextual and approved only after administrative review.
+  const guestAds=adsRouter.createCaller({user:null} as never);
+  assert.deepEqual(await guestAds.placement({placement:"portal-home"}),[]);
+  const adsOwner=adsRouter.createCaller({user:{id:userB,role:"user"},req} as never);
+  const adsOther=adsRouter.createCaller({user:{id:userA,role:"user"},req} as never);
+  const adsAdmin=adsRouter.createCaller({user:{id:userA,role:"admin"},req} as never);
+  await assert.rejects(adsOther.create({
+    partnerId,placement:"portal-home",title:"Informação institucional",
+    body:"Informações e atendimento da empresa, sob solicitação do interessado.",
+  }), (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  assert.equal((await adsOwner.create({
+    partnerId,placement:"portal-home",title:"Informação institucional",
+    body:"Informações e atendimento da empresa, sob solicitação do interessado.",
+  })).pendingReview,true);
+  assert.deepEqual(await guestAds.placement({placement:"portal-home"}),[]);
+  const drafts=await adsAdmin.pending();
+  assert.equal(drafts.length,1);
+  assert.equal(drafts[0].company,"Parceiro sintético aprovado");
+  await assert.rejects(adsOwner.review({adId:drafts[0].id,approve:true}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  await adsAdmin.review({adId:drafts[0].id,approve:true});
+  const approved=await guestAds.placement({placement:"portal-home"});
+  assert.equal(approved.length,1);
+  assert.equal(approved[0].destinationUrl,"/portal/parceiro/qa-verified");
+  assert.equal(Object.keys(approved[0]).includes("createdByUserId"),false);
+  assert.equal((await guestAds.placement({placement:"portal-partners"})).length,0);
+  await adsOwner.pause({partnerId,adId:drafts[0].id});
+  assert.deepEqual(await guestAds.placement({placement:"portal-home"}),[]);
+  console.log("PASS sponsored contextual placement: no draft leakage, approval, owner scope, no external redirects, pause");
   console.log("PASS opt-in business contact: member gate, consent, partner isolation, approval, withdrawal");
   console.log("PASS disposable community MySQL 0009: published public only, no private leak, partner verification, member revocation");
 }finally{await sqlConn.end();}
