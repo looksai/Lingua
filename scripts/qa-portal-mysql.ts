@@ -49,6 +49,14 @@ try{
     ["qa-verified","Parceiro sintético aprovado","apenas teste","verified"]);
   await sqlConn.query("INSERT INTO portalPartners(slug,displayName,description) VALUES (?,?,?)",
     ["qa-pending","Parceiro pendente","não público"]);
+  const [linked] = await sqlConn.query("SELECT id FROM portalPartners WHERE slug='qa-verified'");
+  const partnerId=(linked as Array<{id:number}>)[0].id;
+  await sqlConn.query("UPDATE portalGroups SET partnerId=? WHERE id=?",[partnerId,privateGroup]);
+  await sqlConn.query("INSERT INTO portalPartnerStaff(partnerId,userId,role) VALUES (?,?,?)",
+    [partnerId,userB,"owner"]);
+  const [partnerGroup] = await sqlConn.query("SELECT partnerId FROM portalGroups WHERE id=?",[privateGroup]);
+  assert.equal((partnerGroup as Array<{partnerId:number}>)[0].partnerId,partnerId);
+  // A partner-staff assignment NEVER creates personal Club access.
   const guest=communityRouter.createCaller({user:null} as never);
   assert.deepEqual((await guest.publicGroups()).map(g=>g.slug),["qa-public"]);
   assert.deepEqual((await guest.publicTopics({groupId:publicGroup})).map(t=>t.title),["Discussão aprovada"]);
