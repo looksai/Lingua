@@ -97,7 +97,7 @@ try{
     ["qa-portal-moderator","portal-mod@synthetic.invalid","local"]);
   const [modRows]=await sqlConn.query("SELECT id FROM users WHERE openId=?",["qa-portal-moderator"]);
   const moderatorId=(modRows as Array<{id:number}>)[0].id;
-  const moderator=communityRouter.createCaller({user:{id:moderatorId,role:"user"}} as never);
+  const moderator=communityRouter.createCaller({user:{id:moderatorId,role:"user"},req:{headers:{origin:"http://localhost:3000",host:"localhost:3000"}}} as never);
   await sqlConn.query("INSERT INTO portalGroupModerators(groupId,userId) VALUES (?,?)",[publicGroup,moderatorId]);
   await assert.rejects(moderator.moderationQueue({groupId:publicGroup}), (err:unknown)=>
     typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
