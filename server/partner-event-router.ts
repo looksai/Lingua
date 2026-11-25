@@ -3,7 +3,7 @@ import {TRPCError} from "@trpc/server";
 import type {MySql2Database} from "drizzle-orm/mysql2";
 import {router,protectedProcedure} from "./_core/trpc";
 import {checkRequestOrigin} from "./auth-local";
-import {listPartnerEvents,createPartnerEvent,transitionPartnerEvent} from "./partner-event-repository";
+import {listMyPartners,listPartnerEvents,createPartnerEvent,transitionPartnerEvent} from "./partner-event-repository";
 const id=z.number().int().positive().max(2147483647);
 const scope=z.object({partnerId:id});
 type Deps={enabled:()=>boolean;database:()=>Promise<MySql2Database|null>;allowRequest:(key:string)=>boolean};
@@ -14,6 +14,10 @@ export function createPartnerEventRouter(deps:Deps){
   const db=await deps.database();if(!db)throw new TRPCError({code:"SERVICE_UNAVAILABLE"});return db;
  }
  return router({
+  mine:protectedProcedure.query(async({ctx})=>{
+   ctx.res.setHeader("Cache-Control","no-store");
+   return listMyPartners(await dbFor(ctx.user.id),ctx.user.id);
+  }),
   list:protectedProcedure.input(scope).query(async({ctx,input})=>{
    ctx.res.setHeader("Cache-Control","no-store");
    const result=await listPartnerEvents(await dbFor(ctx.user.id),ctx.user.id,input.partnerId);
