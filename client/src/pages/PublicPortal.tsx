@@ -1,5 +1,6 @@
 import { ArrowRight, BookOpen, BriefcaseBusiness, Building2, Globe2, LockKeyhole, ShieldCheck, Users } from "lucide-react";
 import { Link } from "wouter";
+import { trpc } from "@/lib/trpc";
 
 /** Product structure only. No fictitious partners, offers, migration advice or fake activity. */
 export const portalSections = [
@@ -27,6 +28,7 @@ export function PortalHeader(){
       <nav className="flex flex-wrap items-center gap-4 text-sm font-semibold text-[#14283D]" aria-label="Navegação do portal">
         <Link href="/portal" className="hover:underline">Explorar</Link>
         <Link href="/portal/parceiros" className="hover:underline">Empresas</Link>
+        <Link href="/comunidade" className="hover:underline">Minha comunidade</Link>
         <Link href="/login" className="hover:underline">Entrar</Link>
       </nav>
     </div>
@@ -121,6 +123,7 @@ export function PortalTopic({ slug }: {slug:string}){
 }
 
 export function PortalPartners(){
+  const partners=trpc.community.verifiedPartners.useQuery(undefined,{retry:false});
   return <div className="min-h-screen bg-[#F4F1EB] text-[#14283D]"><PortalHeader/>
     <main className="mx-auto min-h-[65vh] max-w-5xl px-5 py-16">
       <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#956A39]">Para empresas e profissionais</p>
@@ -133,6 +136,19 @@ export function PortalPartners(){
           {Icon:BriefcaseBusiness,title:"Contato voluntário",copy:"O interessado solicita atendimento; dados não são entregues automaticamente aos parceiros."},
         ].map(({Icon,title,copy})=><article key={title} className="rounded-2xl bg-white p-6"><Icon className="text-[#956A39]"/><h2 className="mt-4 font-display text-2xl">{title}</h2><p className="mt-3 text-sm leading-6 text-[#526478]">{copy}</p></article>)}
       </div>
+      <section className="mt-10" aria-label="Organizações verificadas">
+        <h2 className="font-display text-3xl">Organizações no diretório</h2>
+        {partners.isPending&&<p role="status" className="mt-3 text-sm text-[#526478]">Consultando o diretório...</p>}
+        {partners.isError&&<p role="status" className="mt-3 text-sm text-[#526478]">Diretório temporariamente indisponível.</p>}
+        {partners.data?.length===0&&<p className="mt-3 text-sm text-[#526478]">Ainda não há organizações verificadas disponíveis para exibição.</p>}
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {partners.data?.map(partner=><article key={partner.slug} className="rounded-2xl border border-[#14283D]/10 bg-white p-5">
+            <h3 className="font-display text-2xl">{partner.displayName}</h3>
+            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-[#526478]">{partner.description}</p>
+            <p className="mt-4 text-xs font-semibold text-[#956A39]">Perfil institucional com verificação administrativa de cadastro. Não constitui recomendação de serviços nem certificação regulatória.</p>
+          </article>)}
+        </div>
+      </section>
       <div className="mt-10 rounded-2xl border border-[#14283D]/15 bg-white p-6">
         <h2 className="font-display text-2xl">Programa em estruturação</h2>
         <p className="mt-3 text-sm leading-7 text-[#526478]">Ainda não há inscrições institucionais ou pagamentos habilitados nesta página. As condições comerciais, a verificação de credenciais e os contratos serão publicados antes da abertura.</p>
