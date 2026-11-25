@@ -215,11 +215,41 @@ export const partnerRouter=router({
     const {room,senderKind}=await authorizedRoom(ctx.user.id,input.inquiryId);
     const db=await database();
     await db.transaction(async tx=>{
-      // Lock the room state to serialize against close and withdrawal.
-      const [current]=await tx.select({state:portalPartnerInquiries.state})
-        .from(portalPartnerInquiries).where(eq(portalPartnerInquiries.id,room.id))
+      // Recheck all permissions INSIDE the write transaction. Locking only
+      // the room would allow a race with membership/staff revocation.
+      const [current]=await tx.select({
+        state:portalPartnerInquiries.state,
+        partnerId:portalPartnerInquiries.partnerId,
+        userId:portalPartnerInquiries.userId,
+      }).from(portalPartnerInquiries).where(eq(portalPartnerInquiries.id,room.id))
         .for("update").limit(1);
-      if(!current || current.state!=="new")forbidden();
+      if(!current || current.state!=="new" || current.partnerId!==room.partnerId)forbidden();
+      const [partner]=await tx.select({state:portalPartners.verificationState})
+        .from(portalPartners).where(eq(portalPartners.id,room.partnerId))
+        .for("update").limit(1);
+      if(partner?.state!=="verified")forbidden();
+      if(senderKind==="member"){
+        if(current.userId!==ctx.user.id)forbidden();
+        const rows=await tx.select().from(portalMembershipGrants)
+          .where(eq(portalMembershipGrants.userId,ctx.user.id))
+          .for("update");
+        const access:PortalAccessInput={
+          authenticated:true,nowMs:Date.now(),
+          grants:rows.map(row=>({
+            kind:row.kind,state:row.state,source:row.source,
+            expiresAtMs:row.expiresAt?.getTime()??null,
+          } satisfies PortalGrant)),
+        };
+        if(!hasPortalGrant(access,"academy")&&!hasPortalGrant(access,"club"))forbidden();
+      }else{
+        if(current.userId===ctx.user.id)forbidden();
+        const [staff]=await tx.select({state:portalPartnerStaff.state})
+          .from(portalPartnerStaff).where(and(
+            eq(portalPartnerStaff.partnerId,room.partnerId),
+            eq(portalPartnerStaff.userId,ctx.user.id),
+          )).for("update").limit(1);
+        if(staff?.state!=="active")forbidden();
+      }
       await tx.insert(portalInquiryMessages).values({
         inquiryId:room.id,senderUserId:ctx.user.id,senderKind,body:input.body,
       });
