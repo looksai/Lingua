@@ -31,10 +31,25 @@ try{
   await migrate("../drizzle/0000_initial_users.sql");
   await migrate("../drizzle/0003_local_credentials.sql");
   await migrate("../drizzle/0007_learner_memories.sql");
+  // Seed a preexisting learner before introducing privacy and portal objects.
+  // The migration must not silently accept terms, enable memory, enroll in
+  // Club or create institutional leads for a legacy account.
+  await sqlConn.query("INSERT INTO users(openId,email,loginMethod) VALUES (?,?,?)",
+    ["qa-legacy-before-portal","legacy-before-portal@synthetic.invalid","local"]);
+  const [legacyIds]=await sqlConn.query("SELECT id FROM users WHERE openId=?",["qa-legacy-before-portal"]);
+  const legacyUserId=(legacyIds as Array<{id:number}>)[0].id;
   await migrate("../drizzle/0008_privacy_preferences_DRAFT.sql");
   await migrate("../drizzle/0009_portal_community_DRAFT.sql");
   await migrate("../drizzle/0010_partner_ads_DRAFT.sql");
   await verifyPortalSchema(sqlConn);
+  assert.deepEqual(await readPrivacyPreferences(legacyUserId),{
+    serviceAccepted:false,personalMemoryEnabled:false,legacyAccount:true,
+  });
+  const [legacyGrants]=await sqlConn.query(
+    "SELECT COUNT(*) AS total FROM portalMembershipGrants WHERE userId=?",[legacyUserId]);
+  assert.equal((legacyGrants as Array<{total:number}>)[0].total,0);
+  const [legacyUser]=await sqlConn.query("SELECT openId,email FROM users WHERE id=?",[legacyUserId]);
+  assert.equal((legacyUser as Array<{openId:string,email:string}>)[0].openId,"qa-legacy-before-portal");
   // Combined auth+portal migration: only consented registration produces
   // privacy preference records. Community access must NOT follow automatically.
   const signed=await registerLocalUser("combined-portal@synthetic.invalid",
