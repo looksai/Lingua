@@ -1,3 +1,4 @@
+import {partnerInviteLabEnabled} from "./partner-invite-gate";
 import {createPartnerInviteRouter} from "./partner-invite-router";
 import {createPartnerInviteLimiter} from "./partner-invite-rate-limit";
 import {getDb} from "./db";
@@ -25,7 +26,7 @@ export const appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   partnerInvites: createPartnerInviteRouter({
-    enabled:()=>process.env.NODE_ENV!=="production" && process.env.PARTNER_INVITES_ENABLED==="true" && process.env.DATABASE_URL==="mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab",
+    enabled:()=>partnerInviteLabEnabled(process.env),
     database:getDb,
     allowRequest:createPartnerInviteLimiter(),
   }),
