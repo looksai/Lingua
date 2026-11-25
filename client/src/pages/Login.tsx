@@ -6,6 +6,8 @@ export default function Login() {
   const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [serviceAccepted, setServiceAccepted] = useState(false);
+  const [personalMemoryEnabled, setPersonalMemoryEnabled] = useState(false);
   const utils = trpc.useUtils();
   const signIn = trpc.auth.signIn.useMutation();
   const signUp = trpc.auth.signUp.useMutation();
@@ -13,9 +15,10 @@ export default function Login() {
   const error = signIn.error ?? signUp.error;
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (mode === "signUp" && !serviceAccepted) return;
     try {
       if (mode === "signIn") await signIn.mutateAsync({ email, password });
-      else await signUp.mutateAsync({ email, password });
+      else await signUp.mutateAsync({ email, password, serviceAccepted: true, personalMemoryEnabled });
       await utils.auth.me.invalidate();
       window.location.assign("/");
     } catch { /* error displayed below */ }
@@ -27,9 +30,20 @@ export default function Login() {
       <h2 className="text-xl font-semibold">{mode === "signIn" ? "Entrar" : "Criar conta"}</h2>
       <label className="block text-sm">Email<input type="email" autoComplete="email" required maxLength={320} value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full border p-3"/></label>
       <label className="block text-sm">Senha<input type="password" autoComplete={mode === "signIn" ? "current-password" : "new-password"} required minLength={mode === "signUp" ? 12 : 1} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} className="mt-1 w-full border p-3"/></label>
-      {mode === "signUp" && <p className="text-xs text-ink-muted">Use pelo menos 12 caracteres.</p>}
+      {mode === "signUp" && <>
+        <p className="text-xs text-ink-muted">Use pelo menos 12 caracteres.</p>
+        <label className="flex items-start gap-3 text-sm leading-6">
+          <input type="checkbox" required checked={serviceAccepted} onChange={event => setServiceAccepted(event.target.checked)} className="mt-1.5" />
+          <span>Entendo e aceito que, para usar o tutor, mensagens e gravações que eu enviar poderão ser processadas por provedores de IA, e que dados de estudo necessários serão registrados para dar continuidade às aulas.</span>
+        </label>
+        <label className="flex items-start gap-3 text-sm leading-6">
+          <input type="checkbox" checked={personalMemoryEnabled} onChange={event => setPersonalMemoryEnabled(event.target.checked)} className="mt-1.5" />
+          <span>Permitir que Naruto lembre fatos não sensíveis sobre meus objetivos, profissão e preferências de estudo, sem pedir confirmação para cada detalhe. Opcional: posso mudar essa escolha e apagar memórias nas configurações.</span>
+        </label>
+        <p className="text-xs text-ink-muted">Esta escolha não autoriza reutilizar seus dados para treinar modelos de IA.</p>
+      </>}
       {error && <p role="alert" className="text-red-700 text-sm">{error.message}</p>}
-      <button disabled={pending} className="w-full bg-ink text-white p-3 disabled:opacity-50">{pending ? "Aguarde..." : mode === "signIn" ? "Entrar" : "Cadastrar"}</button>
+      <button disabled={pending || (mode === "signUp" && !serviceAccepted)} className="w-full bg-ink text-white p-3 disabled:opacity-50">{pending ? "Aguarde..." : mode === "signIn" ? "Entrar" : "Cadastrar"}</button>
       <button type="button" onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); signIn.reset(); signUp.reset(); }} className="text-sm text-teal">{mode === "signIn" ? "Criar uma conta" : "Já tenho conta"}</button>
     </form>
   </main>;
