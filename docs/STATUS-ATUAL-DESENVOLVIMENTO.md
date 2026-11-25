@@ -7,6 +7,11 @@
 
 ## Checkpoint mais recente — prevalece sobre histórico abaixo
 
+### Lives de parceiros — núcleo experimental (25/11/2026)
+
+PRs #84–#89 integradas com P0 pré-merge verde: acesso público (#84), tokens aleatórios 256 bits e digest SHA-256 (#85), autorização empresarial (#86), serviço de domínio (#87), armazenamento limitado em memória (#88), integração síncrona e testes (#89). Último merge `a7c8cb5288a5d95fc50b16987fa4f21eeea93b6b`. Não há API, autenticação empresarial real, persistência, player, chat ou captação de leads implementados por estas PRs. CI pós-merge e Render não verificados. Próxima ação: inspecionar schema, routers e UI existentes; definir contrato transacional e autorização confiável antes de expor rotas. Não executar migração nem contratar streaming. O histórico de #82 abaixo continua válido.
+
+
 - PR #82 integrada por squash em `5b469102b0f23f12a7bacf0bee275411b42af916`. Head pré-merge `d783aadc3e6f10cc56a433a75ad9690bb84f29e6`, P0 45550970730 e Chromium 45550970731 verdes. CI pós-merge ainda não verificado.
 - Revogação de requisições em trânsito: reply, transcrição e voz neural testados via HTTP sintético; proteção em memória, não consentimento persistente/distribuído. Ver [escopo e limites](./TUTOR-REVOCATION-SCOPE.md).
 - [Convites públicos para lives de parceiros](./PARTNER-LIVE-PUBLIC-INVITES.md): requisito registrado, não implementado. Próxima frente comercial autorizada: contrato de domínio e testes isolados de publicação/visibilidade/revogação de convite; sem provisionar streaming, cobrança ou migração. Manter pendências pedagógicas e de autenticação abaixo.
