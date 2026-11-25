@@ -1,3 +1,4 @@
+import {createPartnerEventRouter} from "./partner-event-router";
 import {partnerInviteLabEnabled} from "./partner-invite-gate";
 import {createPartnerInviteRouter} from "./partner-invite-router";
 import {createPartnerInviteLimiter} from "./partner-invite-rate-limit";
@@ -25,6 +26,11 @@ import {
 export const appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
+  partnerEvents: createPartnerEventRouter({
+    enabled:()=>partnerInviteLabEnabled(process.env),
+    database:getDb,
+    allowRequest:createPartnerInviteLimiter(),
+  }),
   partnerInvites: createPartnerInviteRouter({
     enabled:()=>partnerInviteLabEnabled(process.env),
     database:getDb,
