@@ -59,7 +59,7 @@ export const partnerRouter=router({
     if(!enabled())return null;
     const db=await database();
     const [partner]=await db.select({
-      slug:portalPartners.slug,displayName:portalPartners.displayName,
+      id:portalPartners.id,slug:portalPartners.slug,displayName:portalPartners.displayName,
       description:portalPartners.description,
     }).from(portalPartners).where(and(
       eq(portalPartners.slug,input.slug),eq(portalPartners.verificationState,"verified")
