@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Link, Route, Switch } from "wouter";
@@ -54,9 +55,15 @@ function DemoPage() {
   </>;
 }
 
+function subscribeToInviteHash(onChange:()=>void) {
+  window.addEventListener("hashchange",onChange);
+  window.addEventListener("popstate",onChange);
+  return ()=>{window.removeEventListener("hashchange",onChange);window.removeEventListener("popstate",onChange);};
+}
+function readInviteHash(){return window.location.hash.slice(1);}
 function PublicLivePage() {
-  const token=window.location.hash.slice(1);
-  return <PublicLiveController token={token} lookup={lookupPublicLive}/>;
+  const token=useSyncExternalStore(subscribeToInviteHash,readInviteHash,()=>"");
+  return <PublicLiveController key={token} token={token} lookup={lookupPublicLive}/>;
 }
 
 function Router() {
