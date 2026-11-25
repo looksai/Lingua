@@ -7,6 +7,8 @@
  * Deliberately does not SELECT student, learner-memory or institutional rows.
  */
 import mysql, {type RowDataPacket} from "mysql2/promise";
+import {fileURLToPath} from "node:url";
+import {resolve} from "node:path";
 import {buildMysqlPoolOptions} from "../server/mysql-pool-options";
 import {assertStagingTarget,STAGING_SCHEMA} from "./staging-aiven-guard";
 
@@ -155,7 +157,9 @@ async function main(){
     throw error;
   }finally{await connection.end();}
 }
-main().catch(error=>{
-  console.error("Staging read-only inspection aborted:",safeMessage(error));
-  process.exitCode=1;
-});
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
+  main().catch(error=>{
+    console.error("Staging read-only inspection aborted:",safeMessage(error));
+    process.exitCode=1;
+  });
+}
