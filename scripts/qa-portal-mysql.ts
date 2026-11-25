@@ -88,6 +88,31 @@ try{
   const staffAdmin=communityRouter.createCaller({user:{id:userA,role:"admin",email:"portal-a@synthetic.invalid"}} as never);
   const queue=await staffAdmin.moderationQueue({groupId:publicGroup});
   assert.deepEqual(queue.pendingTopics.map(t=>t.title),["Aguardando moderação"]);
+  // Moderator authority requires BOTH explicit group assignment and active Club.
+  await sqlConn.query("INSERT INTO users(openId,email,loginMethod) VALUES (?,?,?)",
+    ["qa-portal-moderator","portal-mod@synthetic.invalid","local"]);
+  const [modRows]=await sqlConn.query("SELECT id FROM users WHERE openId=?",["qa-portal-moderator"]);
+  const moderatorId=(modRows as Array<{id:number}>)[0].id;
+  const moderator=communityRouter.createCaller({user:{id:moderatorId,role:"user"}} as never);
+  await sqlConn.query("INSERT INTO portalGroupModerators(groupId,userId) VALUES (?,?)",[publicGroup,moderatorId]);
+  await assert.rejects(moderator.moderationQueue({groupId:publicGroup}), (err:unknown)=>
+    typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  await sqlConn.query("INSERT INTO portalMembershipGrants(userId,kind,source) VALUES (?,?,?)",
+    [moderatorId,"club","purchase"]);
+  const moderatedGroup=(await moderator.myGroups()).find(g=>g.id===publicGroup);
+  assert.equal(moderatedGroup?.canModerate,true);
+  assert.equal((await moderator.moderationQueue({groupId:publicGroup})).pendingTopics.length,1);
+  await assert.rejects(moderator.moderationQueue({groupId:privateGroup}), (err:unknown)=>
+    typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  const [pendingRows]=await sqlConn.query(
+    "SELECT id FROM portalTopics WHERE groupId=? AND state='pending'",[publicGroup]);
+  const pendingId=(pendingRows as Array<{id:number}>)[0].id;
+  assert.equal((await moderator.moderateTopic({topicId:pendingId,state:"published"})).updated,true);
+  assert.equal((await guest.publicTopics({groupId:publicGroup})).length,2);
+  await sqlConn.query("UPDATE portalMembershipGrants SET state='revoked' WHERE userId=?",[moderatorId]);
+  await assert.rejects(moderator.moderateTopic({topicId:pendingId,state:"hidden"}), (err:unknown)=>
+    typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+
   await assert.rejects(accountB.groupTopics({groupId:privateGroup}), (err:unknown)=>
     typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
   await sqlConn.query("INSERT INTO portalMembershipGrants(userId,kind,source,expiresAt) VALUES (?,?,?,DATE_ADD(NOW(),INTERVAL 30 DAY))",
