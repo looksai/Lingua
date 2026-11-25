@@ -79,7 +79,7 @@ export const communityRouter=router({
         canCreate:canUsePortal(access,"create-private-topic"),
         canReply:canUsePortal({...access,academyGroupAllowed:group.academyAllowed===1},"reply-in-private"),
         canModerate:ctx.user.role==="admin" ||
-          (moderateIds.has(group.id)&&canUsePortal(access,"manage-group")),
+          (moderateIds.has(group.id)&&canUsePortal({...access,communityRole:"moderator"},"manage-group")),
       }));
   }),
   groupTopics:protectedProcedure.input(z.object({groupId:id})).query(async ({ctx,input})=>{
@@ -150,7 +150,7 @@ export const communityRouter=router({
       const [assignment]=await db.select().from(portalGroupModerators).where(and(
         eq(portalGroupModerators.userId,ctx.user.id),
         eq(portalGroupModerators.groupId,group.id))).limit(1);
-      if(!assignment || !canUsePortal(await grantsFor(ctx.user.id,false),"manage-group"))forbidden();
+      if(!assignment || !canUsePortal({...await grantsFor(ctx.user.id,false),communityRole:"moderator"},"manage-group"))forbidden();
     }
     const pendingTopics=await db.select({id:portalTopics.id,title:portalTopics.title,body:portalTopics.body})
       .from(portalTopics).where(and(eq(portalTopics.groupId,group.id),eq(portalTopics.state,"pending")))
@@ -172,7 +172,7 @@ export const communityRouter=router({
       const [m]=await db.select().from(portalGroupModerators).where(and(
         eq(portalGroupModerators.groupId,topic.groupId),
         eq(portalGroupModerators.userId,ctx.user.id))).limit(1);
-      if(!m || !canUsePortal(await grantsFor(ctx.user.id,false),"manage-group"))forbidden();
+      if(!m || !canUsePortal({...await grantsFor(ctx.user.id,false),communityRole:"moderator"},"manage-group"))forbidden();
     }
     await db.update(portalTopics).set({state:input.state}).where(eq(portalTopics.id,topic.id));
     return {updated:true as const};
@@ -190,7 +190,7 @@ export const communityRouter=router({
       const [m]=await db.select().from(portalGroupModerators).where(and(
         eq(portalGroupModerators.groupId,topic.groupId),
         eq(portalGroupModerators.userId,ctx.user.id))).limit(1);
-      if(!m || !canUsePortal(await grantsFor(ctx.user.id,false),"manage-group"))forbidden();
+      if(!m || !canUsePortal({...await grantsFor(ctx.user.id,false),communityRole:"moderator"},"manage-group"))forbidden();
     }
     await db.update(portalReplies).set({state:input.state}).where(eq(portalReplies.id,reply.id));
     return {updated:true as const};
