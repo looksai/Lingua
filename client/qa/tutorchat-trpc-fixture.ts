@@ -12,9 +12,14 @@ const answer={
 };
 const calls:RpcCall[]=[];
 let holdNext=false;
+let holdRevocation=false;
+let pendingRevocation:PendingReply|null=null;
 let pending:PendingReply|null=null;
 export const qaTutorRpc={
   calls,
+  holdNextRevocation(){holdRevocation=true;},
+  rejectHeldRevocation(){const p=pendingRevocation;if(!p)throw Error("no pending revocation");pendingRevocation=null;p.reject(Error("synthetic revocation failure"));},
+  revocationPendingCount(){return Number(Boolean(pendingRevocation));},
   holdNextReply(){
     if(pending)throw Error("already holding a reply");
     holdNext=true;
@@ -49,7 +54,10 @@ async function dispatch(name:string,input:unknown):Promise<any>{
     }
     return {...answer};
   }
-  if(name==="revokeCatalogConsent")return {revoked:true};
+  if(name==="revokeCatalogConsent"){
+    if(holdRevocation){holdRevocation=false;return await new Promise((resolve,reject)=>{pendingRevocation={resolve,reject};});}
+    return {revoked:true};
+  }
   if(name==="catalogPendingTask")return null;
   if(name==="catalogRenderAck")return {status:"rejected"};
   if(name==="neuralEnglish")throw Error("synthetic neural service unreachable");
