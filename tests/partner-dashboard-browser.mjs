@@ -39,7 +39,8 @@ try{
  assert.equal(await page.getByLabel("Link público").inputValue(),"http://127.0.0.1:4173/live#"+token);
  await page.reload();
  await page.getByRole("button",{name:"Revogar convite anterior"}).click();
- await page.getByText("Revogado",{exact:false}).first().waitFor();
+ await page.getByRole("status").filter({hasText:"Convite revogado."}).waitFor();
+ await page.getByRole("button",{name:"Revogar convite anterior"}).waitFor({state:"detached"});
  assert.ok(revoked);
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
  console.log("Partner dashboard mobile fixture lifecycle passed");
