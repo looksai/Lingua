@@ -37,3 +37,8 @@ export async function transitionPartnerEvent(db:MySql2Database,userId:number,par
   return true;
  });
 }
+
+export async function listMyPartners(db:MySql2Database,userId:number){
+ if(!valid(userId))return [];
+ return db.select({id:partners.id,name:partners.name,role:members.role}).from(members).innerJoin(partners,eq(partners.id,members.partnerId)).where(and(eq(members.userId,userId),eq(members.status,"active"),eq(partners.status,"active"))).orderBy(partners.id).limit(100);
+}
