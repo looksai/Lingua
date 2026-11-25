@@ -7,6 +7,8 @@ on:
       - 'drizzle/schema.ts'
       - 'drizzle.partner-lab.config.ts'
       - 'tests/partner-mysql-lab.mjs'
+      - 'tests/partner-invite-transaction-lab.ts'
+      - 'server/partner-*.ts'
       - '.github/workflows/partner-mysql-lab.yml'
   workflow_dispatch:
 permissions:
@@ -46,3 +48,4 @@ jobs:
       - run: pnpm exec drizzle-kit generate --config=drizzle.partner-lab.config.ts
       - run: pnpm exec drizzle-kit migrate --config=drizzle.partner-lab.config.ts
       - run: node tests/partner-mysql-lab.mjs
+      - run: pnpm exec tsx tests/partner-invite-transaction-lab.ts
