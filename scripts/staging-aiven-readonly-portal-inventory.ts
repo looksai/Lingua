@@ -58,6 +58,7 @@ export type MetadataReport={
     present:boolean;
     columns:string[];
     migrationCount:number|null;
+    truncated:boolean;
     // Ledger IDs/timestamps are technical metadata; never include user rows.
     entries:Array<{id:number,createdAt:number|null}>;
   };
@@ -72,6 +73,7 @@ type JournalRow={id:number;createdAt:number|null};
 type ReporterInput={
   version:string,sslCipher:string,tables:TableRow[],columns:ColumnRow[],
   constraints:ConstraintRow[],journalColumns:string[],journal:JournalRow[]|null,
+  journalTotal:number|null,
 };
 export function makeSafeMetadataReport(input:ReporterInput):MetadataReport{
   if(!/^8\.4\./.test(input.version)||!input.sslCipher)
@@ -88,7 +90,8 @@ export function makeSafeMetadataReport(input:ReporterInput):MetadataReport{
     journal:{
       present:existing.has("__drizzle_migrations"),
       columns:input.journalColumns.filter(c=>["id","hash","created_at"].includes(c)),
-      migrationCount:input.journal===null?null:input.journal.length,
+      migrationCount:input.journalTotal,
+      truncated:input.journalTotal!==null && input.journalTotal>(input.journal?.length??0),
       entries:input.journal??[],
     },
     columnMetadata:input.columns.filter(c=>allowed.has(c.tableName))
@@ -105,6 +108,7 @@ function safeMessage(error:unknown){
     "Read-only staging connection secrets not configured","Workflow must be invoked manually from main",
     "Unexpected Aiven database identity","Staging TLS verification failed",
     "Unexpected migration history column layout",
+    "Unexpected migration history count",
     "Read-only credential grants cannot be verified",
     "Read-only credential has unsupported or elevated grants",
     "Read-only credential lacks SELECT grant"];
@@ -157,6 +161,7 @@ async function main(){
     const journalPresent=tables.some(row=>row.tableName==="__drizzle_migrations");
     let journalColumns:string[]=[];
     let journal:JournalRow[]|null=null;
+    let journalTotal:number|null=null;
     if(journalPresent){
       const [cols]=await connection.query<RowDataPacket[]>(
         "SELECT COLUMN_NAME AS name FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='__drizzle_migrations'");
@@ -164,6 +169,11 @@ async function main(){
       const names=new Set(journalColumns);
       if(!names.has("id")||!names.has("created_at"))
         throw new Error("Unexpected migration history column layout");
+      const [totalRows]=await connection.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM __drizzle_migrations");
+      journalTotal=Number(totalRows[0]?.total);
+      if(!Number.isSafeInteger(journalTotal)||journalTotal<0)
+        throw new Error("Unexpected migration history count");
       const [items]=await connection.query<RowDataPacket[]>(
         "SELECT id,created_at AS createdAt FROM __drizzle_migrations ORDER BY id LIMIT 1000");
       journal=items.map(item=>({
@@ -174,7 +184,7 @@ async function main(){
       version:String(identity[0]?.version??""),sslCipher:String(cipher[0].Value),
       tables:tables as TableRow[],columns:columns as ColumnRow[],
       constraints:constraints as ConstraintRow[],
-      journalColumns,journal,
+      journalColumns,journal,journalTotal,
     });
     await connection.query("COMMIT");
     console.log("READ-ONLY staging schema inventory (no student records):");
