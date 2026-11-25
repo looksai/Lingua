@@ -62,6 +62,7 @@ CREATE TABLE `portalPartners` (
  `slug` varchar(80) NOT NULL,
  `displayName` varchar(160) NOT NULL,
  `description` text NOT NULL,
+ `draftDescription` text NULL,
  `verificationState` enum('pending','verified','suspended') NOT NULL DEFAULT 'pending',
  `createdAt` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
  PRIMARY KEY(`id`),
