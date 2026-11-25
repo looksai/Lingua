@@ -162,6 +162,20 @@ try{
   assert.deepEqual((await member.roomMessages({inquiryId:roomId})).messages,[]);
   assert.equal((await member.sendRoomMessage({inquiryId:roomId,body:"Olá, gostaria de conversar sobre os requisitos."})).sent,true);
   assert.equal((await company.sendRoomMessage({inquiryId:roomId,body:"Recebemos sua mensagem e podemos conversar por aqui."})).sent,true);
+  // Reject writes after loss of institutional staff authority, then restore
+  // synthetic account for the remaining cross-company tests.
+  await sqlConn.query("UPDATE portalPartnerStaff SET state='revoked' WHERE userId=? AND partnerId=?",
+    [userB,partnerId]);
+  await assert.rejects(company.sendRoomMessage({inquiryId:roomId,body:"Não enviar após desligamento."}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  await sqlConn.query("UPDATE portalPartnerStaff SET state='active' WHERE userId=? AND partnerId=?",
+    [userB,partnerId]);
+  await sqlConn.query("UPDATE portalMembershipGrants SET state='revoked' WHERE userId=? AND kind='club'",
+    [userA]);
+  await assert.rejects(member.sendRoomMessage({inquiryId:roomId,body:"Não enviar após expiração da associação."}),
+    (err:unknown)=>typeof err==="object"&&err!==null&&"code" in err&&err.code==="FORBIDDEN");
+  await sqlConn.query("UPDATE portalMembershipGrants SET state='active' WHERE userId=? AND kind='club'",
+    [userA]);
   const exchange=(await member.roomMessages({inquiryId:roomId})).messages;
   assert.deepEqual(exchange.map(m=>m.senderKind),["member","partner"]);
   assert.equal(exchange[1].body,"Recebemos sua mensagem e podemos conversar por aqui.");
