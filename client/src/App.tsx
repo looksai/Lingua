@@ -10,6 +10,9 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import StudentHome from "./pages/StudentHome";
+import PublicPortal, { PortalPartners, PortalTopic } from "./pages/PublicPortal";
+import CommunityHub from "./pages/CommunityHub";
+import PartnerDashboard, {PartnerProfile, MyPartnerInquiries, PartnerReviewPanel} from "./pages/PartnerPortal";
 
 function Loading({ text }: { text: string }) {
   return <main className="flex min-h-screen items-center justify-center bg-paper px-6 text-ink" role="status">{text}</main>;
@@ -56,6 +59,14 @@ function Router() {
   return <Switch>
     <Route path="/" component={RootPage} />
     <Route path="/demo" component={DemoPage} />
+    <Route path="/portal" component={PublicPortal} />
+    <Route path="/comunidade" component={CommunityHub} />
+    <Route path="/portal/parceiros/painel" component={PartnerDashboard} />
+    <Route path="/portal/parceiros/revisao" component={PartnerReviewPanel} />
+    <Route path="/portal/parceiros/minhas-solicitacoes" component={MyPartnerInquiries} />
+    <Route path="/portal/parceiro/:slug">{params => <PartnerProfile slug={params.slug}/>}</Route>
+    <Route path="/portal/parceiros" component={PortalPartners} />
+    <Route path="/portal/tema/:slug">{params => <PortalTopic slug={params.slug}/>}</Route>
     <Route path="/login" component={Login} />
     <Route path="/404" component={NotFound} />
     <Route component={NotFound} />
