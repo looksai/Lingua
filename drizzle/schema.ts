@@ -298,3 +298,22 @@ export const portalInquiryMessages = mysqlTable("portalInquiryMessages",{
   body:varchar("body",{length:3000}).notNull(),
   createdAt:timestamp("createdAt").notNull().defaultNow(),
 },table=>({roomOrderIdx:index("portalInquiryMessages_room_order").on(table.inquiryId,table.id)}));
+
+/** Draft native sponsored placements, independent of academic recommendations. */
+export const portalPartnerAds = mysqlTable("portalPartnerAds", {
+  id:int("id").autoincrement().primaryKey(),
+  partnerId:int("partnerId").notNull().references(()=>portalPartners.id,{onDelete:"cascade"}),
+  createdByUserId:int("createdByUserId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+  placement:mysqlEnum("placement",["portal-home","portal-partners"]).notNull(),
+  title:varchar("title",{length:120}).notNull(),
+  body:varchar("body",{length:600}).notNull(),
+  destinationUrl:varchar("destinationUrl",{length:1000}).notNull(),
+  state:mysqlEnum("state",["pending","approved","rejected","paused"]).notNull().default("pending"),
+  startsAt:timestamp("startsAt"),
+  endsAt:timestamp("endsAt"),
+  reviewedByUserId:int("reviewedByUserId").references(()=>users.id,{onDelete:"set null"}),
+  createdAt:timestamp("createdAt").notNull().defaultNow(),
+},table=>({
+  placementIdx:index("portalPartnerAds_placement_state_window").on(table.placement,table.state,table.startsAt,table.endsAt),
+  ownerIdx:index("portalPartnerAds_partner_created").on(table.partnerId,table.createdAt),
+}));
