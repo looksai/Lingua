@@ -5,6 +5,15 @@
 
 > **Este arquivo é o ponto oficial de continuidade para uma nova conversa.** Primeiro ler este documento e os links abaixo, conferir o estado ATUAL das PRs no GitHub e prosseguir do último commit verificado. Não assumir que uma execução de CI antiga se aplica a novos commits.
 
+## Atualização técnica posterior ao checkpoint inicial — 2026-11-25
+- **Escopo da continuidade:** auditoria de divergência entre journal Drizzle e scripts SQL e ensaio de backup/restauração **apenas em MySQL descartável**. Nenhum acesso novo ao Aiven/Render nem merge/deploy.
+- **Novo utilitário** `scripts/qa-migration-ledger.ts` e testes em `tests/migration-ledger.test.ts`: classifica o histórico conhecido em 0000–0002 (journal), 0003/0005/0006/0007 (scripts manuais) e 0008/0009/0010 (DRAFT). Migração remota fica explicitamente **não aprovada**. Mudanças no inventário conhecido devem falhar no CI até revisão.
+- **Novo ensaio sintético** `scripts/qa-disposable-backup-restore.sh`: após teste de migrações/grupos/anúncios, executa dump do banco temporário de QA, restaura em um **segundo banco temporário** e compara quantitativos de tabelas e dados. Não toca backup criptografado real, credenciais nem host Aiven.
+- **Workflow** `.github/workflows/community-mysql-qa.yml` executa auditoria do ledger, QA SQL e restauração sintética.
+- **CI da revisão de código**: [P0](https://github.com/looksai/Lingua/actions/runs/45541007914) verde; [privacidade/MySQL](https://github.com/looksai/Lingua/actions/runs/45541007873) verde; [community/MySQL + auditoria do ledger + restore sintético](https://github.com/looksai/Lingua/actions/runs/45541007840) verde, todos no commit `a6f3841c2654e521c20c70efcc495a8f3c760879`. [Chromium](https://github.com/looksai/Lingua/actions/runs/45541007831): consultar estado, pois ainda estava em andamento quando este registro foi preparado.
+- **Bloqueio ainda aberto e prioritário:** ler o **estado real** de tabelas e ledger do banco *staging* identificado por credencial read-only, conferir uma **restauração real** do backup criptografado em ambiente segregado e planejar migrações forward-only auditadas. O teste sintético NÃO cumpre esse gate.
+- **Se retomar depois:** conferir HEAD da PR #81 e o CI desse HEAD; atualizar este parágrafo se houver novas execuções, antes de qualquer outro trabalho. Os links de CI acima pertencem ao commit `a6f3841c`, não automaticamente ao commit documental subsequente.
+
 ## 1. Onde paramos, exatamente
 
 - **PR integradora:** [#81](https://github.com/looksai/Lingua/pull/81), **DRAFT**, head branch `integration/privacy-portal-safe-combined-v01`, base `main`.
