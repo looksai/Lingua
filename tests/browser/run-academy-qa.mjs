@@ -15,7 +15,7 @@ const screenshotDir=path.resolve("qa-artifacts/academy");
 await mkdir(screenshotDir,{recursive:true});
 const browser=await chromium.launch({headless:true});
 let passed=0;
-async function test(name,width,mode,body){
+async function test(name,width,mode,body,fixture="public"){
   const context=await browser.newContext({viewport:{width,height:900}});
   const page=await context.newPage();
   const errors=[],calls=[],broken=[];
@@ -28,7 +28,14 @@ async function test(name,width,mode,body){
     const names=url.pathname.slice("/api/trpc/".length).split(",");
     calls.push(...names);
     const reply=names.map(name=>{
-      if(name==="auth.me")return {result:{data:{json:null}}};
+      if(name==="auth.me")return {result:{data:{json:fixture==="public"?null:{id:9001,email:"qa-visual@synthetic.invalid",name:"Aluno de teste"}}}};
+      if(fixture!=="public"){
+        const profile={userId:9001,tutorName:"Alex",tutorPersona:"welcoming",interest:"work",allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:fixture==="diagnostic"?"started":"deferred"};
+        const plan={title:"Apresentações e perguntas",objective:"Praticar mensagens curtas em inglês.",context:"comunicação profissional",reason:"Ponto de partida exploratório.",limits:"Não certifica proficiência."};
+        const nextTask={id:"introduce-yourself-v1",skill:"writing",message:"Como você se apresentaria em inglês?",purpose:"Apresentação"};
+        const fixtures={"onboarding.me":{profile:fixture==="onboarding"?null:profile,responses:[],nextTask:fixture==="diagnostic"?nextTask:null,plan:fixture==="onboarding"?null:plan},"learning.listItems":[],"learning.history":[],"placement.me":{answers:[],plan:null,source:null,nextTask:null,status:"in_progress",skills:{writing:"sampled",reading:"not_assessed",listening:"not_assessed",speaking:"not_assessed"}},"tutor.capabilities":{provider:"off",chat:false,asr:false,tts:false,neuralEnglish:false,geminiDemo:false,memory:false}};
+        if(Object.hasOwn(fixtures,name))return {result:{data:{json:fixtures[name]}}};
+      }
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
       throw Error("Unexpected API call in public Academy fixture: "+name);
     });
@@ -116,5 +123,25 @@ try{
     await page.getByRole("link",{name:"Ver como funciona"}).click();
     await page.getByText(/DEMONSTRAÇÃO FICTÍCIA/).waitFor();
   });
-  console.log("Academy Chromium: "+passed+"/10");
+  for(const width of [375,1440]){
+    await test("branded demo "+width,width,"closed",async page=>{
+      await page.goto(base+"/demo");await page.getByText(/DEMONSTRAÇÃO FICTÍCIA/).waitFor();await page.locator(".academy-demo-main").waitFor();await fit(page);
+      await page.screenshot({path:path.join(screenshotDir,`demo-${width}.png`),fullPage:true,animations:"disabled"});
+    });
+    for(const fixture of ["onboarding","diagnostic","student"]){
+      await test("synthetic "+fixture+" "+width,width,"closed",async page=>{
+        await page.goto(base);
+        await page.locator(fixture==="student"?".academy-welcome":".academy-onboarding-card").waitFor();
+        await fit(page);
+        await page.screenshot({path:path.join(screenshotDir,`${fixture}-${width}.png`),fullPage:true,animations:"disabled"});
+        if(fixture==="student"){
+          for(const [label,file] of [["Ler e praticar","reading"],["Revisar","review"],["Meu tutor","settings"]]){
+            await page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:label}).click();
+            await fit(page);await page.screenshot({path:path.join(screenshotDir,`${file}-${width}.png`),fullPage:true,animations:"disabled"});
+          }
+        }
+      },fixture);
+    }
+  }
+  console.log("Academy Chromium: "+passed+"/18");
 }finally{await browser.close();}
