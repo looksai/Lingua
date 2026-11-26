@@ -39,6 +39,7 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
+      if(name==="campus.sponsors")return {result:{data:{json:fixture==="sponsor"?[{id:"synthetic-campaign",sponsor:"Empresa sintética de QA",title:"Campanha sintética",description:"Apenas teste isolado.",url:"https://example.com/"}]:[]}}};
       if(name==="auth.trialStatus")return {result:{data:{json:fixture==="expired"?{kind:"expired",expiresAtMs:1700000000000,remainingDays:0}:{kind:"active",expiresAtMs:1900000000000,remainingDays:15}}}};
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
       throw Error("Unexpected API call in public Academy fixture: "+name);
@@ -146,6 +147,13 @@ try{
         await page.locator(fixture==="student"?".academy-welcome":".academy-onboarding-card").waitFor();
         if(fixture==="student"){
           await page.locator(".academy-dashboard-v3").waitFor();
+          await page.getByText("Nenhum destaque patrocinado publicado.").waitFor();
+          await page.getByRole("button",{name:"Dispensar saudação"}).click();
+          assert.equal(await page.locator(".academy-campus-areas button").count(),5);
+          await page.getByRole("searchbox").count();
+          const search=page.getByRole("textbox",{name:"Buscar áreas do Lingua"});
+          await search.fill("Imigração");assert.equal(await page.locator(".academy-campus-areas button").count(),1);await search.fill("");
+          await page.locator(".academy-campus-areas .area-imigracao").click();await page.getByRole("status").filter({hasText:"área em preparação"}).waitFor();await page.getByRole("button",{name:"Fechar aviso"}).click();
           assert.equal(await page.locator(".academy-tutor-window").count(),0);
           const geometry=await page.evaluate(()=>{
             const nav=document.querySelector(".academy-premium-nav"),main=document.querySelector(".academy-premium-main");
@@ -199,6 +207,11 @@ try{
       },fixture);
     }
   }
+  await test("approved sponsor placement clearly identified",1440,"closed",async(page)=>{
+    await page.goto(base);const slot=page.getByRole("region",{name:"Destaques patrocinados"});
+    await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
+    const link=slot.getByRole("link",{name:"Conhecer o parceiro"});assert.equal(await link.getAttribute("href"),"https://example.com/");assert.ok((await link.getAttribute("rel")).includes("sponsored"));await fit(page);
+  },"sponsor");
   await test("expired trial does not load learner profile",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("heading",{name:"Seus 15 dias gratuitos terminaram."}).waitFor();
     assert.ok(!calls.includes("onboarding.me"));await fit(page);
@@ -221,5 +234,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?23:19));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?24:20));
 }finally{await browser.close();}
