@@ -1,5 +1,11 @@
 # Academy Beta — retomada visual PR #105
 
+## Estúdios premium validados, navegação mobile refinada
+
+Head f639fff: P0 45743570950, MySQL 45743570795, lives 45743570839 e Chromium 45743570775 success. Artefato 15082780529: 30 PNG, conferidos mosaicos de dez interfaces desktop/mobile. Deploy dep-dc3pt2uq1p3s73bvj740 iniciado para f639fff no preview isolado, não para main. A leitura mobile permanece longa (captura 375x5445), então bd15121/30a77ec acrescentam atalhos reais com foco acessível para texto, vocabulário, revisão, fala e compreensão. 3f57768 retira a palavra "ready" pré-semeada indevidamente na lista do aluno; conta nova inicia vazia, preservando itens realmente recuperados do servidor. 6de345d testa atalhos e lista vazia. Correções posteriores ao SHA publicado ainda precisam de CI. Recuperação de senha e ativação de trial/billing seguem pendentes; nenhum cadastro, banco ou cobrança foi liberado.
+
+---
+
 ## Revisão de regressão dos estúdios e primeiro acesso
 
 Head 1d122bd: P0 45742086587, MySQL 45742086592, lives 45742086629 success; Chromium 45742086574 failure. Log: 13 cenários Academy passaram, navegação de aluno autenticado em 375px não encontrou .academy-review-studio porque classe faltava no retorno autenticado (existia apenas no retorno anônimo). 3e7968c corrige o root e impede indicadores vazios/zero durante verificação de proprietário. a9306fe adiciona captura diagnóstica em falhas e verifica estado vazio confirmado da revisão. 3858c75/9c71b2f refinam primeiro acesso e triagem: etapas visuais reais de perfil/conversa, progresso acessível, painel de idioma e pergunta destacada. Mantém fluxo, consentimento e dados existentes. CI dessas correções ainda não confirmado; inspecionar capturas e só então atualizar preview. Deploy ativo d9439bb. Nenhum cadastro liberado, sem alteração de produção. Recuperação de senha obrigatória antes de abertura pública.
