@@ -4,6 +4,9 @@ on:
     branches: [main]
     paths:
       - 'drizzle/partner-foundation-draft.ts'
+      - 'drizzle/academy-budget-draft.ts'
+      - 'server/academy-budget-repository.ts'
+      - 'tests/academy-budget-mysql-lab.ts'
       - 'drizzle/schema.ts'
       - 'drizzle.partner-lab.config.ts'
       - 'tests/partner-mysql-lab.mjs'
@@ -59,6 +62,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec drizzle-kit generate --config=drizzle.partner-lab.config.ts
       - run: pnpm exec drizzle-kit migrate --config=drizzle.partner-lab.config.ts
+      - name: Durable Academy quota (disposable MySQL)
+        env:
+          ACADEMY_MYSQL_LAB: '1'
+          DATABASE_URL: mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab
+          NODE_ENV: development
+        run: pnpm exec tsx tests/academy-budget-mysql-lab.ts
       - run: node tests/partner-mysql-lab.mjs
       - run: pnpm exec tsx tests/partner-invite-transaction-lab.ts
       - name: Academy learner admission and isolation (disposable MySQL)
