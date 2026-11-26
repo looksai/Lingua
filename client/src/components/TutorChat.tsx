@@ -651,7 +651,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   }
 
   if(!open)return <button type="button" onClick={()=>setOpen(true)} aria-label={"Conversar com "+profile.tutorName}
-    className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink px-5 py-4 text-white shadow-lg">
+    className="academy-tutor-trigger fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink px-5 py-4 text-white shadow-lg">
     <MessageCircle size={21}/><Mic size={15}/><span className="max-w-40 truncate text-sm font-semibold">{profile.tutorName}</span>
   </button>;
 
@@ -662,8 +662,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const recoveryWithoutMessage=Boolean(recoveredCatalogTask&&recoveredMessageId===undefined&&
     !messages.some(m=>m.catalogTask?.deliveryId===recoveredCatalogTask.deliveryId));
   return <aside ref={audioRoot} aria-label={"Chat com "+profile.tutorName}
-    className="fixed inset-0 z-40 flex h-[100dvh] w-screen flex-col overflow-hidden bg-white text-ink shadow-2xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100dvh-40px))] sm:w-[min(620px,calc(100vw-40px))] sm:rounded-2xl sm:border sm:border-ink/15">
-    <header className="flex shrink-0 items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
+    className="academy-tutor-window fixed inset-0 z-40 flex h-[100dvh] w-screen flex-col overflow-hidden bg-white text-ink shadow-2xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100dvh-40px))] sm:w-[min(620px,calc(100vw-40px))] sm:rounded-2xl sm:border sm:border-ink/15">
+    <header className="academy-tutor-header flex shrink-0 items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
       <div className="min-w-0"><p className="truncate font-semibold">{profile.tutorName}</p><p className="text-xs text-white/75">Converse e pratique inglês</p></div>
       <div className="flex items-center gap-1">
         <button type="button" onClick={()=>{stopSpeech();setPrivacyPrompt(false);setSettingsOpen(p=>!p);}}
