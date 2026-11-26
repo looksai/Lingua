@@ -162,6 +162,12 @@ try{
               await word.click();
               await page.locator(".academy-word-panel .academy-word-enter").waitFor();
               await page.getByRole("button",{name:"Recomeçar leitura"}).click();
+              await page.getByText("Salve uma palavra durante a leitura para abrir a primeira revisão.").waitFor();
+              await page.getByRole("navigation",{name:"Atalhos do estúdio"}).getByRole("button",{name:"Vocabulário"}).click();
+              assert.equal(await page.evaluate(()=>document.activeElement?.id),"academy-reading-word");
+              await page.getByRole("navigation",{name:"Atalhos do estúdio"}).getByRole("button",{name:"Compreensão"}).click();
+              assert.equal(await page.evaluate(()=>document.activeElement?.id),"academy-reading-check");
+              await page.evaluate(()=>window.scrollTo(0,0));
               assert.equal(await page.getByRole("button",{name:"Registrar e seguir"}).count(),0);
             }
             if(file==="review"){
