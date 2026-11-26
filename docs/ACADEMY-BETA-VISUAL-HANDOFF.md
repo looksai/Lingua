@@ -1,5 +1,34 @@
 # Academy Beta — retomada visual PR #105
 
+## Checkpoint atual — 25/11/2026 — PR #105 (draft)
+
+CI confirmado no commit b50d1caac7cca83309c10205f81358d28c86c1ad: P0 45729717776 e laboratório MySQL de parceiros 45729717792 aprovados. O laboratório de parceiros não prova admissão do aluno em banco real.
+
+Novo bloco:
+- 68396df: orçamento do tutor configurável com tetos conservadores (100 unidades/dia global, 30 por aluno, 2 simultâneas); valores explícitos inválidos fecham o limite; 0 permite interromper chamadas; reserva prévia, falhas contam e retrocesso de relógio não reinicia cota.
+- e5a8d35: resposta OpenAI com voz externa reserva duas unidades, conservadoramente. Não equivale a valor monetário nem contagem exata de chamadas/retries.
+- 247a107 / 4c91a29: transcrição legada Manus da leitura bloqueada no servidor nos modos invite/closed e refletida na UI. Gravação local e tutor autorizado preservados. Modo open legado permanece fora desse bloqueio, não deve ser usado no piloto.
+- 7fb4d58 / 072af80 / c23d213: 5 testes de orçamento e 5 de boundary tRPC de cadastro, com persistência simulada; rejeições e caminho válido antes de banco/fornecedor.
+- e68471a / 3636cac: suíte Chromium pública já existente ganha capturas de landing e login em 320/375/768/1440; artefatos sintéticos retidos por sete dias. Não representa comparação visual humana.
+- CI do novo bloco não confirmado; PR estava mergeable em 4c91a29. Não houve merge ou deploy.
+
+## Configuração proposta para staging controlado
+- ACADEMY_ADMISSION_MODE=closed inicialmente; depois invite somente após homologação; nunca open.
+- LINGUA_TUTOR_DAILY_GLOBAL, LINGUA_TUTOR_DAILY_PER_USER, LINGUA_TUTOR_MAX_CONCURRENT podem reduzir os limites padrão. Exemplo inicial de teste: 100/10/2, ainda sujeito a orçamento real do provedor.
+- LINGUA_TUTOR_ALLOWED_EMAILS permanece lista explícita, independente da admissão; cadastrar e habilitar IA são decisões diferentes.
+- Quota é por processo, reinicia em restart, não é limite financeiro durável. Usar uma instância no piloto, teto/alerta do provedor e monitoramento de custos; não prometer IA ilimitada.
+- Não ativar provedor pago, alterar produção, Stripe, banco ou CSLE nesta frente.
+
+## Próxima ação
+1. Verificar P0, Chromium e MySQL no head efetivo da PR; corrigir regressões.
+2. Revisar as oito capturas da Academy e comparar com o kit aprovado, incluindo contraste, zoom e teclado.
+3. Teste de admissão com banco descartável e autenticação real, duplicidade/concorrência, duas contas e isolamento. Não usar Aiven produtivo.
+4. Homologar staging, orçamento e jornada completa do aluno, antes de emitir convites reais.
+
+---
+
+## Histórico do primeiro bloco
+
 Kit original recebido em 25/11/2026: Lingua_Kit_Visual_Web_Designer(1).zip (40 entradas), acompanhado do Documento Mestre V2.1. Referência aprovada: 1672 × 941. O hero limpo é regenerado, não camada original; fidelidade pixel a pixel não está demonstrada.
 
 ## Integração implementada
