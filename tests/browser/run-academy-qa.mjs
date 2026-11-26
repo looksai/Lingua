@@ -54,9 +54,18 @@ async function landing(page){
   assert.equal(await page.locator(".academy-benefits article").count(),4);
   const hero=await page.evaluate(()=>{
     const el=document.querySelector(".academy-hero");
-    return [getComputedStyle(el).backgroundImage,getComputedStyle(el,":after").backgroundImage].join(" ");
+    return [getComputedStyle(el).backgroundImage,getComputedStyle(el,"::before").backgroundImage,getComputedStyle(el,"::after").backgroundImage].join(" ");
   });
   assert.ok(hero.includes("hero-sem-interface.webp"));
+  const geometry=await page.evaluate(()=>{
+    const bounds=sel=>document.querySelector(sel).getBoundingClientRect();
+    return {width:innerWidth,hero:bounds(".academy-hero").height,benefits:bounds(".academy-benefits").top,banner:bounds(".academy-partners").top,preview:getComputedStyle(document.querySelector(".academy-preview")).display,photo:getComputedStyle(document.querySelector(".academy-hero"),"::after").display};
+  });
+  if(geometry.width>=1101 && geometry.width<=1920){
+    assert.ok(geometry.benefits/geometry.width<0.36,"desktop benefits must stay near reference hero boundary");
+    assert.ok(geometry.banner/geometry.width<0.44,"desktop partner banner must remain near reference position");
+  }
+  if(geometry.width<=950) assert.equal(geometry.preview,"none","avoid photo overlay in narrow viewport");
   assert.equal(await page.getByRole("link",{name:"Ver como funciona"}).getAttribute("href"),"/demo");
   await page.screenshot({path:path.join(screenshotDir,`landing-${page.viewportSize().width}.png`),fullPage:true,animations:"disabled"});
   await page.getByRole("link",{name:"Começar agora"}).click();
@@ -65,7 +74,7 @@ async function landing(page){
   await page.screenshot({path:path.join(screenshotDir,`login-${page.viewportSize().width}.png`),fullPage:true,animations:"disabled"});
 }
 try{
-  for(const width of [320,375,768,1440]){
+  for(const width of [320,375,768,1024,1440,1672]){
     await test("landing and login fit "+width+"px",width,"invite",landing);
   }
   await test("invite form is required and does not leak codes when switching modes",375,"invite",async(page,calls)=>{
@@ -107,5 +116,5 @@ try{
     await page.getByRole("link",{name:"Ver como funciona"}).click();
     await page.getByText(/DEMONSTRAÇÃO FICTÍCIA/).waitFor();
   });
-  console.log("Academy Chromium: "+passed+"/8");
+  console.log("Academy Chromium: "+passed+"/10");
 }finally{await browser.close();}
