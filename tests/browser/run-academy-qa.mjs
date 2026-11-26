@@ -145,6 +145,19 @@ try{
         await page.goto(base);
         await page.locator(fixture==="student"?".academy-welcome":".academy-onboarding-card").waitFor();
         if(fixture==="student"){
+          await page.locator(".academy-dashboard-v3").waitFor();
+          assert.equal(await page.locator(".academy-tutor-window").count(),0);
+          const geometry=await page.evaluate(()=>{
+            const nav=document.querySelector(".academy-premium-nav"),main=document.querySelector(".academy-premium-main");
+            const a=nav.getBoundingClientRect(),b=main.getBoundingClientRect();
+            return {navRight:a.right,navBottom:a.bottom,mainLeft:b.left,mainTop:b.top,navColor:getComputedStyle(nav).backgroundColor,mainColor:getComputedStyle(document.querySelector(".academy-premium")).backgroundColor,ctaColor:getComputedStyle(document.querySelector(".academy-premium-hero .academy-primary")).backgroundColor};
+          });
+          assert.equal(geometry.navColor,"rgb(11, 31, 58)");
+          assert.equal(geometry.mainColor,"rgb(248, 250, 252)");
+          assert.equal(geometry.ctaColor,"rgb(245, 166, 35)");
+          if(width>=1001)assert.ok(geometry.mainLeft>=geometry.navRight-1);
+          else assert.ok(geometry.mainTop>=geometry.navBottom-1);
+          await page.getByRole("button",{name:"Abrir conversa",exact:true}).click();
           const minimize=page.getByRole("button",{name:"Minimizar tutor"});
           await minimize.waitFor({state:"visible"});
           await page.screenshot({path:path.join(screenshotDir,`tutor-${width}.png`),fullPage:false,animations:"disabled"});
