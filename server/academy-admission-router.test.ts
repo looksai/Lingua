@@ -53,7 +53,8 @@ describe("Academy tRPC admission boundary (mocked persistence)", () => {
   });
   it("allows a valid invitation through to persistence and issues a session",async()=>{
     await expect(caller().auth.signUp({email,password,inviteCode:code})).resolves.toEqual({success:true});
-    expect(mock.register).toHaveBeenCalledExactlyOnceWith(email,password);
+    expect(mock.register).toHaveBeenCalledTimes(1);
+    expect(mock.register).toHaveBeenCalledWith(email,password);
     expect(mock.session).toHaveBeenCalledTimes(1);
     expect(mock.cookie).toHaveBeenCalledTimes(1);
   });
