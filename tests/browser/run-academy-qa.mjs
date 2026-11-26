@@ -151,7 +151,23 @@ try{
         if(fixture==="student"){
           for(const [label,file] of [["Ler e praticar","reading"],["Revisar","review"],["Meu tutor","settings"]]){
             await page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:label}).click();
+            await page.locator(file==="reading"?".academy-reading-studio":file==="review"?".academy-review-studio":".academy-settings-layout").waitFor();
+            if(file==="reading"){
+              const word=page.locator(".reading-word.known").first();
+              await word.click();
+              await page.locator(".academy-word-panel .academy-word-enter").waitFor();
+              await page.getByRole("button",{name:"Recomeçar leitura"}).click();
+              assert.equal(await page.getByRole("button",{name:"Registrar e seguir"}).count(),0);
+            }
+            if(file==="review"){
+              await page.getByRole("button",{name:"Todos os salvos"}).click();
+              assert.equal(await page.getByRole("button",{name:"Todos os salvos"}).getAttribute("aria-pressed"),"true");
+              await page.locator(".academy-review-stats").waitFor();
+            }
             await fit(page);await page.screenshot({path:path.join(screenshotDir,`${file}-${width}.png`),fullPage:true,animations:"disabled"});
+            await page.emulateMedia({reducedMotion:"reduce"});
+            assert.equal(await page.locator(".academy-view-enter").evaluate(el=>getComputedStyle(el).animationName),"none");
+            await page.emulateMedia({reducedMotion:"no-preference"});
           }
         }
       },fixture);
