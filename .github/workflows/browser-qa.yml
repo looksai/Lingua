@@ -5,6 +5,16 @@ on:
     branches: [main]
     paths:
       - 'client/qa/**'
+      - 'client/public/academy/**'
+      - 'client/src/pages/Landing.tsx'
+      - 'client/src/pages/Login.tsx'
+      - 'client/src/pages/Onboarding.tsx'
+      - 'client/src/pages/StudentHome.tsx'
+      - 'client/src/pages/academy-landing.css'
+      - 'client/src/App.tsx'
+      - 'client/index.html'
+      - 'server/academy-admission.ts'
+      - 'server/routers.ts'
       - 'tests/browser/**'
       - 'server/cal-browser-http-synthetic.test.ts'
       - 'server/cal-browser-full-tutorchat-http.test.ts'
@@ -86,5 +96,19 @@ jobs:
           trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
           node tests/browser/run-tutorchat-full-qa.mjs || {
             cat /tmp/lingua-full-tutorchat-vite.log
+            exit 1
+          }
+
+      - name: Run Academy public journey in built Chromium preview (synthetic API)
+        env:
+          LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
+        run: |
+          set -euo pipefail
+          pnpm build:static
+          pnpm exec vite preview --host 127.0.0.1 --port 4185 --strictPort > /tmp/lingua-academy-preview.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
+          node tests/browser/run-academy-qa.mjs || {
+            cat /tmp/lingua-academy-preview.log
             exit 1
           }
