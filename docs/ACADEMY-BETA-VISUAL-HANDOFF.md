@@ -1,5 +1,15 @@
 # Academy Beta — retomada visual PR #105
 
+## Home homologada pelo fundador — expansão da identidade visual
+
+Em 25/11/2026, após acessar a prévia publicada, o fundador aprovou a home ("ta otimo") e determinou manter o padrão em todas as páginas. Não alterar a composição homologada sem nova evidência.
+
+Novo sistema de interiores: academy-interior.css, escopado para não modificar landing; azul-marinho, dourado, fundo creme/azul-claro, tipografia sans-serif, logo original, cartões arredondados, foco visível e fotografia do kit em contextos de entrada. Aplicado a login/cadastro por convite, onboarding e triagem, painel e navegação do estudante, leitura/revisão/configurações, chat do tutor, demonstração de seis views, carregamento, falhas e 404 em português. Mantidas as mutações, consentimentos, limites e regras pedagógicas existentes. Nenhum acesso novo liberado.
+
+Commits 2b37d28, 280c581, ddbdb0a, eda8e1a, 9e91bf0, 229e661, 61b4ace, cd07b74, 7e4f9a5, 5ed8c9f, 8857c70. Chromium expandido para fixtures de aluno sintético, sem APIs externas nem banco. Ainda não confirmar execução do CI ou fidelidade das novas capturas. Páginas empresariais e lives atrás de flags permanecem para próxima etapa; preservar bloqueios. Prévia Render continua no commit 9733224, auto-deploy desligado; somente publicar nova revisão após CI/inspeção. Não conectar banco nem liberar inscrição na prévia.
+
+---
+
 ## Prévia visual publicada — 25/11/2026 (horário de Brasília)
 
 Commit implantado: 973322483607e3be4a17b59a028e6fc73a85c2ab. P0 45734119043, Chromium 45734119023, laboratório MySQL 45734119016 aprovados.
