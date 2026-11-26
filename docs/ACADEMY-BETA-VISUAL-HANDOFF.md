@@ -1,5 +1,15 @@
 # Academy Beta — retomada visual PR #105
 
+## Checkpoint mais recente — laboratório de admissão real
+
+- Head anterior 3475a8419f504e0c478cb6c1453adb3af5246bf5: P0 [45730212961](https://github.com/looksai/Lingua/actions/runs/45730212961), MySQL de parceiros [45730212994](https://github.com/looksai/Lingua/actions/runs/45730212994) e Chromium [45730212952](https://github.com/looksai/Lingua/actions/runs/45730212952) aprovados; mergeable=true, draft.
+- Artefato academy-screenshots [15075544965](https://github.com/looksai/Lingua/actions/runs/45730212952/artifacts/15075544965) confirmado no GitHub (expira em 03/12/2026). Conteúdo visual ainda não inspecionado diretamente; comparação humana pendente.
+- 8c2b025: novo laboratório HTTP tRPC com createContext real, JWT real, scrypt e persistência MySQL descartável. Sete grupos de verificações: convites inválidos/expirados/cross-origin sem escrita; revogação de convite não usado; corrida de cadastro duplicado e rollback; login com cadastro fechado; isolamento e retomada de onboarding; itens privados e revisão idempotente; memória consentida com exclusão por titular. Nenhuma API externa.
+- f7a6206: execução integrada ao workflow MySQL existente, com endereço loopback fixo e guardas; nenhuma migration ou credencial de produção. Execução nova ainda não confirmada.
+- Próxima ação: conferir CI deste head, corrigir falhas, revisar capturas e homologar staging com cadastro fechado e limites. Não emitir convites reais antes de gates. Não fazer merge/deploy enquanto a validação pendente não for resolvida.
+
+---
+
 ## Checkpoint atual — 25/11/2026 — PR #105 (draft)
 
 CI confirmado no commit b50d1caac7cca83309c10205f81358d28c86c1ad: P0 45729717776 e laboratório MySQL de parceiros 45729717792 aprovados. O laboratório de parceiros não prova admissão do aluno em banco real.
