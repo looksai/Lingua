@@ -1,3 +1,4 @@
+import "./academy-landing.css";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import { useEffect, useState, type FormEvent } from "react";
@@ -109,10 +110,10 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
     } catch { /* show error */ }
   }
 
-  return <div className="min-h-screen bg-paper text-ink">
+  return <div className="academy-student min-h-screen bg-paper text-ink">
     <header className="border-b border-ink/10 bg-white">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5">
-        <span className="font-display text-3xl">lingua<span className="text-teal">/</span></span>
+        <img className="academy-student-logo" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua" />
         <span className="text-sm text-ink-muted">Seu espaço • {email}</span>
         <button onClick={signOut} disabled={logout.isPending} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-muted"><LogOut size={16}/> Sair</button>
       </div>
