@@ -90,9 +90,9 @@ const vocabulary: Record<
 
 export default function ReadingLab() {
   const [selectedWord, setSelectedWord] = useState("station");
-  const [savedWords, setSavedWords] = useState<string[]>(["ready"]);
+  const [savedWords, setSavedWords] = useState<string[]>([]);
   const [reviewStates, setReviewStates] = useState<Record<string, ReviewState>>(
-    () => ({ ready: createInitialReviewState("word-ready") })
+    () => ({})
   );
   const [serverItemIds, setServerItemIds] = useState<Record<string, number>>(
     {}
@@ -169,8 +169,8 @@ export default function ReadingLab() {
     // React Query keys are not user-scoped, so discard old authenticated
     // results before hydrating a new person's local study state.
     setServerItemIds({});
-    setSavedWords(["ready"]);
-    setReviewStates({ ready: createInitialReviewState("word-ready") });
+    setSavedWords([]);
+    setReviewStates({});
     setPersistenceStatus("local");
     if (ownerId) {
       void (async () => {
