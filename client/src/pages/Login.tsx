@@ -4,7 +4,7 @@ import { trpc } from "@/lib/trpc";
 import "./academy-landing.css";
 
 export default function Login() {
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn");
+  const [mode, setMode] = useState<"signIn" | "signUp">(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "signup" ? "signUp" : "signIn");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [inviteCode, setInviteCode] = useState("");
