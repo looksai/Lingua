@@ -56,3 +56,9 @@
 .academy-auth-form button:disabled{opacity:.65;cursor:not-allowed}
 .academy-auth-help{font-size:13px;color:#394b64}.academy-auth-error{color:#9f1239;overflow-wrap:anywhere}
 @media(max-width:760px){.academy-auth{display:block}.academy-auth-art{min-height:0;height:clamp(100px,25vw,180px);background-position:70% 42%}.academy-auth-content{padding:24px}.academy-auth-content .academy-logo img{width:170px}}
+
+/* Scoped learner shell; existing practice and tutor controls retain their semantics. */
+.academy-student{background:linear-gradient(145deg,#faf8f3,#eef5fb 85%);color:#071e48}
+.academy-student-logo{display:block;width:clamp(125px,16vw,190px);height:auto;max-width:100%;object-fit:contain}
+.academy-student :is(button,a,input,select,textarea):focus-visible{outline:3px solid #1478cc;outline-offset:3px}
+@media(max-width:480px){.academy-student-logo{width:125px}}
