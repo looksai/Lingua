@@ -99,3 +99,43 @@
 }
 @media(max-width:1100px){.academy-language{display:none}.academy-flight{display:none}.academy-desktop-break{display:none}}
 @media(max-width:760px){.academy-nav-actions{gap:5px;flex-wrap:nowrap}.academy-nav-actions a{font-size:11px;padding:8px 10px;min-height:36px}.academy-logo img{width:clamp(100px,28vw,135px)}.academy-footer>div svg{width:25px}}
+
+/* Desktop calibration against the approved 16:9 composition and Chromium
+   screenshot at 1440px. Background continues underneath the four cards.
+   The clean kit photo is taller than the mockup's hero; constrain its
+   vertical scale to retain the desk, books, cup and face together. */
+@media(min-width:1101px){
+  .academy-hero{isolation:isolate;background:none;min-height:32.3vw;padding-bottom:1.5vw}
+  .academy-hero::before{content:"";position:absolute;inset:0 0 -7.6vw;z-index:-1;pointer-events:none;background-color:#f9f6f0;background-image:linear-gradient(90deg,#fffcf8 0%,#fffcf8f0 23%,#fffcf8ce 31%,#fffcf826 37%,transparent 44%),url('/academy/hero-sem-interface.webp');background-repeat:no-repeat;background-size:100% 100%,100% 46vw;background-position:center,center top}
+  .academy-copy{padding-top:1.1vw}
+  .academy-copy h1{margin-bottom:10px}
+  .academy-copy h1 span{color:#bd7b00}
+  .academy-intro{max-width:29vw;margin-bottom:15px;line-height:1.23}
+  .academy-note{margin-top:8px}
+  .academy-preview{top:46%;background:linear-gradient(135deg,#fff,#eef6ff);padding:12px 16px}
+  .academy-example-track{margin:8px 0 10px}
+  .academy-preview li{margin:8px 0}
+  .academy-flight{top:16%;right:3.4%}
+  .academy-benefits{margin-top:-1.1vw;margin-bottom:1.2vw}
+  .academy-benefits article{min-height:5.7vw;padding:8px 19px;gap:1.35vw}
+  .academy-benefits img{width:4.8vw}
+  .academy-benefits h2{line-height:1.12}
+  .academy-benefits p{line-height:1.2}
+  .academy-partners{position:relative;min-height:0;grid-template-columns:26% 32% 22% 20%;margin-bottom:.85vw}
+  .academy-building{height:100%;min-height:0;max-height:12.4vw}
+  .academy-partner-copy{padding:9px 20px;border-left:2px solid var(--gold);border-right:1px solid #ffffff40}
+  .academy-partner-copy h2{margin:5px 0;font-size:clamp(22px,1.95vw,35px);line-height:1.03}
+  .academy-partner-copy p,.academy-partner-benefits li{line-height:1.2;margin:4px 0}
+  .academy-partner-benefits{padding:8px 15px}
+  .academy-partner-status{align-self:stretch;display:flex;flex-direction:column;justify-content:center;padding:10px 16px 10px 4px}
+  .academy-footer{padding-top:4px;padding-bottom:12px;gap:10px}
+  .academy-footer strong{font-size:clamp(17px,1.45vw,27px)}
+  .academy-footer small{line-height:1.2}
+}
+@media(min-width:761px) and (max-width:1100px){
+  .academy-nav{flex-wrap:wrap;gap:8px;padding:10px 0}
+  .academy-nav nav{order:3;width:100%;justify-content:space-between;flex-wrap:wrap}
+  .academy-copy{width:47%}
+  .academy-intro{max-width:100%}
+  .academy-hero{background-position:center top}
+}
