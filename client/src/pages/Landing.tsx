@@ -55,7 +55,7 @@ export default function Landing() {
     </section>
     <section id="empresas" className="academy-partners">
       <img className="academy-building" src={asset("edificio-ilustrativo.png")} alt="Edifício conceitual, não é uma sede real" />
-      <div className="academy-partner-copy" id="programa-info"><p className="academy-tag">◇ Programa de Parceiros Fundadores</p><h2>Construa o futuro da Lingua <span>com a gente.</span></h2><p>Empresas, consultorias, escolas e recrutadoras: visão de pilotos e co-desenvolvimento.</p></div>
+      <div className="academy-partner-copy" id="programa-info"><p className="academy-tag">◇ Programa de Parceiros Fundadores</p><h2>Construa o futuro da<br className="academy-desktop-break"/> Lingua <span>com a gente.</span></h2><p>Empresas, consultorias, escolas e recrutadoras que desejam participar desde o início, com pilotos e co-desenvolvimento.</p></div>
       <ul className="academy-partner-benefits">{partnerBenefits.map(item => <li key={item}>{item}</li>)}</ul>
       <div className="academy-partner-status" id="parceiros"><p>Programa em preparação</p><a href="#programa-info" className="academy-gold">Conhecer o programa <ArrowRight size={16} aria-hidden="true" /></a></div>
     </section>
