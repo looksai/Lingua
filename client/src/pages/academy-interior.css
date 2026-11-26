@@ -68,3 +68,13 @@
 .academy-interior .academy-auth-story h2{font-size:clamp(32px,3.5vw,62px);font-weight:800;line-height:1.03;letter-spacing:-.04em;margin:0 0 12px}
 .academy-interior .academy-auth-story p:last-child{font-size:clamp(14px,1.35vw,21px);line-height:1.4}
 @media(max-width:760px){.academy-interior .academy-auth-story{height:clamp(135px,38vw,230px);padding:16px}.academy-interior .academy-auth-story h2{font-size:24px}.academy-interior .academy-auth-story .academy-eyebrow{font-size:9px;margin-bottom:5px}.academy-interior .academy-auth-story p:last-child{display:none}}
+
+.academy-interior .academy-tutor-trigger{background:linear-gradient(120deg,#071e48,#0752a8);border:1px solid #537aaf;box-shadow:0 8px 26px #071e4840}
+.academy-interior .academy-tutor-window{border-color:#a9bfd9;background:#fff}
+.academy-interior .academy-tutor-header{background:linear-gradient(120deg,#071e48,#0752a8);border-bottom:3px solid #f2aa00}
+.academy-interior .academy-demo-sidebar{border-radius:0;box-shadow:none}
+.academy-interior .academy-demo-main section.bg-ink{background:#071e48;color:#fff}
+.academy-interior .academy-auth-form .academy-gold{cursor:pointer}
+.academy-interior .academy-welcome h1{overflow-wrap:anywhere}
+.academy-interior .academy-onboarding-card{min-width:0}
+.academy-interior .academy-demo-main{overflow-wrap:break-word}
