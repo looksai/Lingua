@@ -116,6 +116,8 @@ export default function ReadingLab() {
     useState<SpeechObservationCandidate | null>(null);
   const transcriptionMutation = trpc.speech.transcribe.useMutation();
   const authQuery = trpc.auth.me.useQuery();
+  const registrationMode = trpc.auth.registrationMode.useQuery(undefined, { retry: false });
+  const legacyTranscriptionAvailable = Boolean(authQuery.data && registrationMode.data === "open");
   const ownerId = authQuery.data?.id;
   const utils = trpc.useUtils();
   const [verifiedOwnerId, setVerifiedOwnerId] = useState<number | null>(null);
@@ -277,7 +279,7 @@ export default function ReadingLab() {
   };
 
   const prepareTranscription = async () => {
-    if (!recordingUrl) return;
+    if (!recordingUrl || !legacyTranscriptionAvailable) return;
     setPipelineStage("transcription-pending");
     setRecordingError(null);
     try {
@@ -858,13 +860,15 @@ export default function ReadingLab() {
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-5">
           <p className="flex items-start gap-2 text-xs leading-5 text-ink-muted">
             <Info size={14} className="mt-0.5 shrink-0 text-teal" />{" "}
-            {pipelineStage === "recorded"
+            {!legacyTranscriptionAvailable
+              ? "A transcrição experimental não está disponível nesta sessão. Você pode ouvir sua gravação local ou praticar com o tutor autorizado."
+              : pipelineStage === "recorded"
               ? "A gravação está pronta para ser enviada quando o adaptador estiver conectado."
               : "Faça uma gravação acima para abrir a primeira etapa."}
           </p>
           <button
             disabled={
-              pipelineStage !== "recorded" || transcriptionMutation.isPending
+              !legacyTranscriptionAvailable || pipelineStage !== "recorded" || transcriptionMutation.isPending
             }
             onClick={prepareTranscription}
             className="button-outline disabled:opacity-35"
