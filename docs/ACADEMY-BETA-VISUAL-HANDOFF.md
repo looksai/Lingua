@@ -1,5 +1,13 @@
 # Academy Beta — retomada visual PR #105
 
+## Trial e retirada da demo — CI verde e publicação isolada
+
+Head d9439bb: P0 45739347060, MySQL 45739347046, lives 45739347009 e Chromium 45739346972 success. Artefato 15080920082 contém 30 capturas; inspecionados home, cadastro e painel do aluno desktop/mobile. Deploy dep-dc3p7r6i0phs7384t4ng iniciado para esse SHA na prévia isolada, última consulta update_in_progress. Não afirmar Live até confirmação. Prévia continua cadastro fechado, sem DB ou cobrança, ACADEMY_TRIAL_ENABLED não ativado.
+
+Após inspeção: 8ae3946/90773b6 bloqueiam modo open enquanto trial está habilitado, permitindo apenas piloto por convite; configuração inválida fecha cadastro. Isso é trava temporária de lançamento, não proteção definitiva contra abuso. b907e1d/284aeda removem barra de progresso 100% que poderia confundir oferta de 15 dias com domínio e mantêm texto em uma linha. Essas correções ainda aguardam CI e não fazem parte do deploy d9439bb. Próximos passos: orçamento durável de IA (atual é process-local, com allowlist), proteção de inscrição pública, política de contas existentes, privacidade pós-expiração e integração paga somente após aprovação do Stripe #32. Comunidade #106 separada. Sem merge ou migration.
+
+---
+
 ## Nova decisão do fundador — experiência real, não demonstração
 
 25/11/2026: fundador revogou a demo pública e escolheu 15 dias gratuitos. Rota antiga /demo redireciona para cadastro; Home.tsx fictício não importado no App; nome fixo removido; home não mostra 78% inventados; CTAs passam a cadastro/método. Oferta de 15 dias é explicitamente prevista, ainda não habilitada.
