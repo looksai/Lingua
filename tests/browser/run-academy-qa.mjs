@@ -39,6 +39,7 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
+      if(name==="auth.trialStatus")return {result:{data:{json:fixture==="expired"?{kind:"expired",expiresAtMs:1700000000000,remainingDays:0}:{kind:"active",expiresAtMs:1900000000000,remainingDays:15}}}};
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
       throw Error("Unexpected API call in public Academy fixture: "+name);
     });
@@ -76,10 +77,11 @@ async function landing(page){
     assert.ok(geometry.banner/geometry.width<0.44,"desktop partner banner must remain near reference position");
   }
   if(geometry.width<=1100) assert.equal(geometry.preview,"none","avoid photo overlay in narrow and intermediate viewports");
-  assert.equal(await page.getByRole("link",{name:"Ver como funciona"}).getAttribute("href"),"/demo");
+  assert.equal(await page.getByRole("link",{name:"Conhecer o método"}).getAttribute("href"),"#metodo");
+  assert.equal(await page.locator('a[href="/demo"]').count(),0);
   await page.screenshot({path:path.join(screenshotDir,`landing-${page.viewportSize().width}.png`),fullPage:true,animations:"disabled"});
   await page.getByRole("link",{name:"Começar agora"}).click();
-  await page.getByRole("heading",{name:"Bem-vindo ao Lingua"}).waitFor();
+  await page.getByRole("heading",{name:"Crie sua conta"}).waitFor();
   await fit(page);
   await page.screenshot({path:path.join(screenshotDir,`login-${page.viewportSize().width}.png`),fullPage:true,animations:"disabled"});
 }
@@ -117,29 +119,21 @@ try{
     await page.getByRole("heading",{name:"Crie sua conta"}).waitFor();
     assert.equal(await page.getByLabel("Código do convite").count(),0);
   });
-  await test("keyboard focus remains visible and demo is explicitly fictitious",1440,"invite",async page=>{
+  await test("keyboard focus remains visible and retired demo redirects",1440,"invite",async page=>{
     await page.goto(base);
     await page.getByRole("heading",{name:/Inglês que conecta você/}).waitFor();
     await page.keyboard.press("Tab");
     const focus=await page.evaluate(()=>getComputedStyle(document.activeElement).outlineStyle);
     assert.notEqual(focus,"none");
-    await page.getByRole("link",{name:"Ver como funciona"}).click();
-    await page.getByText(/DEMONSTRAÇÃO FICTÍCIA/).waitFor();
+    await page.goto(base+"/demo");
+    await page.getByRole("heading",{name:"Crie sua conta"}).waitFor();
+    assert.ok(page.url().includes("/login?mode=signup"));
   });
   for(const width of [375,1440]){
-    await test("branded demo "+width,width,"closed",async page=>{
-      await page.goto(base+"/demo");await page.getByText(/DEMONSTRAÇÃO FICTÍCIA/).waitFor();await page.locator(".academy-demo-main").waitFor();await fit(page);
-      const layout=await page.evaluate(()=>{
-        const side=document.querySelector(".academy-demo-sidebar"),content=document.querySelector(".academy-demo-content");
-        const a=side.getBoundingClientRect(),b=content.getBoundingClientRect();
-        return {sideDisplay:getComputedStyle(side).display,sideRight:a.right,sideTop:a.top,contentLeft:b.left,contentTop:b.top};
-      });
-      if(width>=1024){
-        assert.ok(layout.sideDisplay!=="none","desktop sidebar visible");
-        assert.ok(layout.contentLeft>=layout.sideRight-1,"desktop content beside sidebar");
-        assert.ok(Math.abs(layout.sideTop-layout.contentTop)<=1,"desktop content starts in same row");
-      }else assert.equal(layout.sideDisplay,"none","mobile uses bottom navigation");
-      await page.screenshot({path:path.join(screenshotDir,`demo-${width}.png`),fullPage:true,animations:"disabled"});
+    await test("retired demo blocks closed registration "+width,width,"closed",async page=>{
+      await page.goto(base+"/demo");await page.getByText("Novos cadastros estão temporariamente fechados.").waitFor();
+      assert.equal(await page.getByRole("button",{name:"Cadastrar"}).isEnabled(),false);
+      assert.equal(await page.locator(".academy-demo-main").count(),0);await fit(page);
     });
     for(const fixture of ["onboarding","diagnostic","student"]){
       await test("synthetic "+fixture+" "+width,width,"closed",async page=>{
@@ -163,6 +157,10 @@ try{
       },fixture);
     }
   }
+  await test("expired trial does not load learner profile",375,"closed",async(page,calls)=>{
+    await page.goto(base);await page.getByRole("heading",{name:"Seus 15 dias gratuitos terminaram."}).waitFor();
+    assert.ok(!calls.includes("onboarding.me"));await fit(page);
+  },"expired");
   if(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"){
     for(const width of [375,1440]){
       await test("synthetic corporate events "+width,width,"closed",async page=>{
@@ -181,5 +179,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?22:18));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?23:19));
 }finally{await browser.close();}
