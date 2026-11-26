@@ -235,7 +235,7 @@ export default function ReviewDeck() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="academy-review-studio space-y-6">
       <header className="academy-study-hero academy-review-hero flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
           <p className="eyebrow mb-3">Revisar · agenda pessoal</p>
@@ -251,7 +251,7 @@ export default function ReviewDeck() {
         </div>
       </header>
 
-      <div className="academy-review-stats" aria-label="Resumo da biblioteca"><div><span>Itens salvos</span><strong>{itemsQuery.isPending||itemsQuery.error?"—":items.length}</strong></div><div><span>Para revisar agora</span><strong>{itemsQuery.isPending||itemsQuery.error?"—":items.filter(row=>isDue(row.state.dueAt)).length}</strong></div><div><span>Operações pendentes</span><strong>{pendingCount}</strong></div></div>
+      <div className="academy-review-stats" aria-label="Resumo da biblioteca"><div><span>Itens salvos</span><strong>{verifiedOwnerId!==ownerId||itemsQuery.isPending||itemsQuery.error?"—":items.length}</strong></div><div><span>Para revisar agora</span><strong>{verifiedOwnerId!==ownerId||itemsQuery.isPending||itemsQuery.error?"—":items.filter(row=>isDue(row.state.dueAt)).length}</strong></div><div><span>Operações pendentes</span><strong>{pendingCount}</strong></div></div>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="academy-filter-control flex border border-ink/10 bg-white p-1">
           {(["due", "all"] as ReviewFilter[]).map(option => (
@@ -278,7 +278,7 @@ export default function ReviewDeck() {
         </div>
       )}
 
-      {itemsQuery.isPending ? (
+      {itemsQuery.isPending || (verifiedOwnerId!==ownerId && !itemsQuery.error) ? (
         <div className="border border-ink/10 bg-white p-6 text-sm text-ink-muted">
           Carregando sua biblioteca de revisão…
         </div>
