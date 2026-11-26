@@ -36,7 +36,7 @@ export default function Login() {
       <form onSubmit={submit} className="academy-auth-form" aria-labelledby="academy-auth-title">
         <p className="academy-eyebrow">ACADEMY BETA</p>
         <h1 id="academy-auth-title">{mode === "signIn" ? "Bem-vindo ao Lingua" : "Crie sua conta"}</h1>
-        <p>{mode === "signIn" ? "Acesse seu espaço de aprendizagem." : "Comece sua jornada quando o cadastro estiver disponível."}</p>
+        <p>{mode === "signIn" ? "Acesse seu espaço de aprendizagem." : "15 dias gratuitos previstos para o lançamento. Nenhum cartão será solicitado nesta etapa."}</p>
         <label htmlFor="academy-email">E-mail</label>
         <input id="academy-email" type="email" autoComplete="email" required maxLength={320} value={email} onChange={e => setEmail(e.target.value)} />
         <label htmlFor="academy-password">Senha</label>
