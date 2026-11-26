@@ -664,7 +664,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   return <aside ref={audioRoot} aria-label={"Chat com "+profile.tutorName}
     className="academy-tutor-window fixed inset-0 z-40 flex h-[100dvh] w-screen flex-col overflow-hidden bg-white text-ink shadow-2xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100dvh-40px))] sm:w-[min(620px,calc(100vw-40px))] sm:rounded-2xl sm:border sm:border-ink/15">
     <header className="academy-tutor-header flex shrink-0 items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
-      <div className="min-w-0"><p className="truncate font-semibold">{profile.tutorName}</p><p className="text-xs text-white/75">Converse e pratique inglês</p></div>
+      <div className="flex min-w-0 items-center gap-3"><span className="academy-tutor-avatar"><MessageCircle size={23} aria-hidden="true"/></span><div className="min-w-0"><p className="truncate font-semibold">{profile.tutorName}</p><p className="text-xs text-white/75">Seu tutor de inglês</p></div></div>
       <div className="flex items-center gap-1">
         <button type="button" onClick={()=>{stopSpeech();setPrivacyPrompt(false);setSettingsOpen(p=>!p);}}
           aria-label={settingsOpen?"Voltar à conversa":"Configurações de conversa e voz"}
