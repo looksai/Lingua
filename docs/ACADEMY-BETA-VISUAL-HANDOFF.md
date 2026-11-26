@@ -1,5 +1,13 @@
 # Academy Beta — retomada visual PR #105
 
+## Acabamento premium dos estúdios reais de estudo
+
+Fundador pediu elevar todas as páginas ao nível da home homologada. Mantida a composição da home, e eliminada a demo pública conforme decisão anterior. Nesta etapa: 7833ffa reformula leitura com hero fotográfico, painel de vocabulário, seleção acessível e ação de recomeçar funcional. Retirado botão inerte "Registrar e seguir", evitando prometer evidência oficial que não é persistida. 940ed02 reformula revisão com dados reais da biblioteca e fila, estados vazios e filtros acessíveis. e0844fb reorganiza configurações em duas colunas (mobile em uma), identidade do tutor, preferências, voz e privacidade. 5a11899 melhora cabeçalho do chat. efd2722 adiciona estilos responsivos, profundidade e microanimações reduzíveis, sem vídeo/Flash ou novas dependências. 6278ff1 adiciona testes de interação e reduced motion em 375/1440px.
+
+Validação visual das novas telas ainda pendente de CI/capturas. Não declarar acabamento final ou publicação. Preview Render ativo segue em d9439bb. Cota durável ba11038 teve 4 workflows aprovados, mas ainda não está integrada ao tutor nem aplicada ao banco. Próximos passos: validar e inspecionar estúdios, revisar onboarding/login/empresas/lives, recuperar senha antes de lançamento, comunidade #106 separada. Sem merge, cobrança ou abertura de cadastros.
+
+---
+
 ## Recuperação de senha e cota persistente — próximo bloco
 
 Fundador solicitou recuperar senha após o bloco atual. Requisito obrigatório antes de abertura pública: link de redefinição por e-mail, token aleatório armazenado apenas como hash, validade limitada, consumo atômico de uso único, resposta anti-enumeração, rate limit persistente, revogação de sessões anteriores. Não há implementação ou envio de e-mail nesta etapa; provedor transacional a definir. Login social permanece no backlog.
