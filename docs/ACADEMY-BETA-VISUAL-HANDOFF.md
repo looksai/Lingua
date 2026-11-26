@@ -1,5 +1,17 @@
 # Academy Beta — retomada visual PR #105
 
+## Correção visual prioritária — referência reafirmada pelo fundador
+
+A imagem aprovada é o layout completo da home, não mera inspiração. O fundador reafirmou em 25/11 que o fundo e composição devem permanecer o mais próximos possível do mockup. O kit contém uma fotografia limpa regenerada (1672 × 941), não a camada original do raster. Não substituir por outro conceito.
+
+A captura anterior landing-1440.png, artefato 15075544965, foi baixada e inspecionada: cabeça parcialmente cortada no topo, título/texto sobrepostos à fotografia e navegação incompleta. CI verde não era homologação visual.
+
+Correções realizadas: efb4ddf (estrutura, quebras do título, navegação, avião/rota, cartão ilustrativo e ícones de rodapé), ef0cc5a (CTA de cadastro), f3c5f1f (enquadramento, proporções, detalhes dourados e responsividade), 517be9a (aviso explícito de jornada fictícia e destino do CTA empresarial). O cartão de 78% é exemplo fictício visível, não proficiência do visitante. Indicadores empresariais fictícios do mockup seguem substituídos por descrições honestas. Planos comerciais continuam indisponíveis; nenhum novo módulo foi ativado.
+
+**Gate visual obrigatório:** baixar as novas capturas Chromium, comparar lado a lado com a referência, corrigir divergências até homologação do fundador. Não avançar para novos módulos comerciais nem considerar a home pronta com base apenas no CI. Nenhum deploy efetuado.
+
+---
+
 ## Checkpoint mais recente — laboratório de admissão real
 
 - Head anterior 3475a8419f504e0c478cb6c1453adb3af5246bf5: P0 [45730212961](https://github.com/looksai/Lingua/actions/runs/45730212961), MySQL de parceiros [45730212994](https://github.com/looksai/Lingua/actions/runs/45730212994) e Chromium [45730212952](https://github.com/looksai/Lingua/actions/runs/45730212952) aprovados; mergeable=true, draft.
