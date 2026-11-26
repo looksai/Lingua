@@ -65,7 +65,7 @@ async function landing(page){
     assert.ok(geometry.benefits/geometry.width<0.36,"desktop benefits must stay near reference hero boundary");
     assert.ok(geometry.banner/geometry.width<0.44,"desktop partner banner must remain near reference position");
   }
-  if(geometry.width<=950) assert.equal(geometry.preview,"none","avoid photo overlay in narrow viewport");
+  if(geometry.width<=1100) assert.equal(geometry.preview,"none","avoid photo overlay in narrow and intermediate viewports");
   assert.equal(await page.getByRole("link",{name:"Ver como funciona"}).getAttribute("href"),"/demo");
   await page.screenshot({path:path.join(screenshotDir,`landing-${page.viewportSize().width}.png`),fullPage:true,animations:"disabled"});
   await page.getByRole("link",{name:"Começar agora"}).click();
