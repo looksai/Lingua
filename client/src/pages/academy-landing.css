@@ -198,3 +198,7 @@
   .academy-nav nav a{justify-self:start;min-height:36px;display:flex;align-items:center}
   .academy-nav-actions a{min-height:40px}
 }
+
+/* Trial offer replaces simulated percentage. */
+.academy-example-number{white-space:nowrap;font-size:1.15em}
+.academy-trial-divider{height:3px;border-radius:999px;background:linear-gradient(90deg,#f2aa00,#e0ebf8);margin:10px 0 8px}
