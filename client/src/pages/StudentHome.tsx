@@ -3,7 +3,7 @@ import "./academy-interior.css";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import { useEffect, useState, type FormEvent } from "react";
-import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2 } from "lucide-react";
+import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Sparkles } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
 import ReviewDeck from "@/components/ReviewDeck";
@@ -129,14 +129,15 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
         <button key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined}><Icon size={16}/>{label}</button>
       ))}
     </div>
-    <main className="mx-auto max-w-6xl px-5 py-10">
+    <main key={view} className="academy-view-enter mx-auto max-w-6xl px-5 py-10">
       {view === "dashboard" && <>
         <section className="academy-welcome"><div className="academy-welcome-copy"><p className="mb-3 text-xs font-bold uppercase tracking-widest text-teal">Bem-vindo ao seu espaço</p>
         <h1 className="font-display text-4xl leading-tight sm:text-6xl">
           Seu tutor <span className="text-teal">{profile.tutorName}</span> está aqui.
         </h1>
-        <p className="mt-4 max-w-2xl leading-7 text-ink-muted">Seu percurso começa com o que você escolheu. Não inventamos níveis, notas ou experiências que você ainda não viveu.</p></div></section>
-        <div className="mt-10 grid gap-5 md:grid-cols-[1.3fr_0.7fr]">
+        <p className="mt-4 max-w-2xl leading-7 text-ink-muted">Seu percurso começa com o que você escolheu. Desenvolva seu inglês, uma habilidade de cada vez.</p><div className="mt-5 flex flex-wrap gap-3"><button className="academy-primary" onClick={()=>setView("read")}>Começar prática <ArrowRight size={17}/></button><button className="academy-secondary" onClick={()=>setView("review")}>Minhas revisões</button></div></div></section>
+        <div className="academy-quick-actions">{([{id:"read",Icon:BookOpen,title:"Pratique inglês",description:"Leitura e vocabulário em contexto."},{id:"review",Icon:ListChecks,title:"Reforce o aprendizado",description:"Retome os itens da sua agenda."},{id:"settings",Icon:Sparkles,title:"Personalize seu tutor",description:"Escolha a voz e a forma de conversar."}] as const).map(({id,Icon,title,description})=><button key={id} className="academy-quick-card" onClick={()=>setView(id)}><span className="academy-quick-icon"><Icon size={25}/></span><span><strong>{title}</strong><small>{description}</small></span><ArrowRight size={18} aria-hidden="true"/></button>)}</div>
+        <div className="mt-6 grid gap-5 md:grid-cols-[1.3fr_0.7fr]">
           <section className="rounded-2xl border border-ink/10 bg-white p-7">
             <p className="text-xs font-bold uppercase tracking-widest text-teal">{placement.data?.plan?"Plano de quatro semanas • provisório":"Seu plano inicial • exploratório"}</p>
             <h2 className="mt-3 font-display text-3xl">{placement.data?.plan?.title??plan.title}</h2>
@@ -153,7 +154,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           </section>
           <section className="rounded-2xl border border-ink/10 bg-white p-7">
             <p className="text-xs font-bold uppercase tracking-widest text-teal">Seu ponto de partida</p>
-            <p className="mt-4 text-4xl font-semibold">{recorded}<span className="text-base font-normal text-ink-muted"> / 5 respostas registradas</span></p>
+            <p className="mt-4 text-4xl font-semibold">{recorded}<span className="text-base font-normal text-ink-muted"> / 5 respostas registradas</span></p><div className="academy-real-progress" role="progressbar" aria-label="Respostas registradas na triagem" aria-valuemin={0} aria-valuemax={5} aria-valuenow={Math.min(recorded,5)}><span style={{width:`${Math.min(recorded,5)*20}%`}}/></div>
             <p className="mt-4 text-sm leading-6 text-ink-muted">
               {recorded === 0 ? "Você ainda não fez a triagem textual." : "Respostas de leitura e escrita. Ainda não equivalem a uma avaliação de proficiência."}
             </p>
