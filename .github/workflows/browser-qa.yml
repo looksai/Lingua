@@ -112,3 +112,12 @@ jobs:
             cat /tmp/lingua-academy-preview.log
             exit 1
           }
+
+      - name: Preserve public Academy screenshots for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: academy-screenshots
+          path: qa-artifacts/academy/*.png
+          if-no-files-found: warn
+          retention-days: 7
