@@ -32,6 +32,8 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   const profile = snapshot.profile!;
   const [view, setView] = useState<View>("dashboard");
   const [tutorOpenRequest,setTutorOpenRequest]=useState(0);
+  const [showTutorGreeting,setShowTutorGreeting]=useState(true);
+  const openTutor=()=>{setShowTutorGreeting(false);setTutorOpenRequest(n=>n+1);};
   const [search,setSearch]=useState("");
   const [notice,setNotice]=useState("");
   const sponsors=trpc.campus.sponsors.useQuery(undefined,{enabled:view==="dashboard",retry:false});
@@ -137,7 +139,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
         <button key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined}><Icon size={16}/>{label}</button>
       ))}
       {[{label:"Exames",Icon:Trophy},{label:"Empregos",Icon:BriefcaseBusiness},{label:"Imigração",Icon:Plane},{label:"Consultorias",Icon:Users},{label:"Comunidade",Icon:Users},{label:"Lives e Eventos",Icon:Video},{label:"Notícias Globais",Icon:Newspaper}].map(({label,Icon})=><button key={label} type="button" onClick={()=>unavailable(label)}><Icon size={17} aria-hidden="true"/>{label}<small>Em breve</small></button>)}
-      <button type="button" className="academy-rail-chat" onClick={()=>setTutorOpenRequest(n=>n+1)}><MessageSquare size={18} aria-hidden="true"/> Conversar com o tutor</button>
+      <button type="button" className="academy-rail-chat" onClick={openTutor}><MessageSquare size={18} aria-hidden="true"/> Conversar com o tutor</button>
       <div className="academy-campus-membership"><Crown size={23} aria-hidden="true"/><strong>Seu acesso</strong><p>Consulte seu período de acesso no aviso da conta. Planos comerciais em preparação.</p></div><div className="academy-rail-note"><Globe2 size={22} aria-hidden="true"/><span>Inglês para o seu próximo passo.</span></div>
     </nav>
     <main key={view} className="academy-view-enter academy-premium-main">
@@ -153,6 +155,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           
         </section>
         <div className="academy-campus-areas" aria-label="Áreas da plataforma">{areas.filter(a=>!search.trim()|| (a.label+" "+a.description).toLowerCase().includes(search.trim().toLowerCase())).map(({label,description,icon:Icon,asset,action})=><button type="button" className={"academy-campus-area area-"+asset} key={asset} onClick={action??(()=>unavailable(label))}><Icon size={27} aria-hidden="true"/><h2>{label}</h2><p>{description}</p>{!action&&<small>Em preparação</small>}</button>)}{!areas.some(a=>!search.trim()||(a.label+" "+a.description).toLowerCase().includes(search.trim().toLowerCase()))&&<p>Nenhuma área encontrada.</p>}</div>
+        <section className="academy-campus-sponsors" aria-label="Destaques patrocinados"><div className="academy-section-heading"><div><p className="academy-kicker">ESPAÇO COMERCIAL</p><h2>Destaques patrocinados</h2></div></div><p>Publicidade de parceiros, separada das recomendações de estudo.</p>{sponsors.isPending?<p>Carregando destaques...</p>:sponsors.isError?<p>Os destaques estão indisponíveis.</p>:sponsors.data?.length?<div className="academy-sponsor-grid">{sponsors.data.map(c=><article key={c.id}><small>Patrocinado · {c.sponsor}</small><h3>{c.title}</h3><p>{c.description}</p><a href={c.url} target="_blank" rel="noopener noreferrer sponsored">Conhecer o parceiro <ArrowRight size={15}/></a></article>)}</div>:<p className="academy-sponsor-empty">Nenhum destaque patrocinado publicado.</p>}</section>
         <div className="academy-dashboard-grid">
           <section className="academy-dashboard-plan">
             <div className="academy-section-heading"><div><p className="academy-kicker">MEU PLANO</p><h2>Meu Plano de Estudos</h2></div><Target size={24} aria-hidden="true"/></div>
@@ -170,7 +173,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
             <p className="academy-kicker">02 / SEU TUTOR</p>
             <h2>{profile.tutorName}</h2>
             <p>Pratique, tire dúvidas e descubra seu próximo desafio.</p>
-            <button className="academy-tutor-action" onClick={()=>setTutorOpenRequest(n=>n+1)}>Abrir conversa <ArrowRight size={17} aria-hidden="true"/></button>
+            <button className="academy-tutor-action" onClick={openTutor}>Abrir conversa <ArrowRight size={17} aria-hidden="true"/></button>
             <button className="academy-tutor-settings-link" onClick={()=>setView("settings")}>Personalizar tutor <Settings2 size={15} aria-hidden="true"/></button>
           </aside>
           <section className="academy-dashboard-progress">
@@ -185,7 +188,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           </section>
         </div>
         <div className="academy-campus-editorial"><section className="campus-event"><p className="academy-kicker">LIVES & EVENTOS</p><h2>Aprenda com especialistas</h2><p>Nenhum evento divulgado por enquanto.</p></section><section className="campus-community"><p className="academy-kicker">COMUNIDADE LINGUA</p><h2>Conecte-se com o mundo</h2><p>Comunidade exclusiva em preparação.</p></section><section className="campus-news"><p className="academy-kicker">NOTÍCIAS GLOBAIS</p><h2>O mundo em perspectiva</h2><p>Curadoria editorial em preparação.</p></section></div>
-        <section className="academy-campus-sponsors" aria-label="Destaques patrocinados"><div className="academy-section-heading"><div><p className="academy-kicker">ESPAÇO COMERCIAL</p><h2>Destaques patrocinados</h2></div></div><p>Publicidade de parceiros, separada das recomendações de estudo.</p>{sponsors.isPending?<p>Carregando destaques...</p>:sponsors.isError?<p>Os destaques estão indisponíveis.</p>:sponsors.data?.length?<div className="academy-sponsor-grid">{sponsors.data.map(c=><article key={c.id}><small>Patrocinado · {c.sponsor}</small><h3>{c.title}</h3><p>{c.description}</p><a href={c.url} target="_blank" rel="noopener noreferrer sponsored">Conhecer o parceiro <ArrowRight size={15}/></a></article>)}</div>:<p className="academy-sponsor-empty">Nenhum destaque patrocinado publicado.</p>}</section>
+
       </div>}
       {view === "read" && <>
         
@@ -254,6 +257,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       </section></div>}
       {logout.error && <p role="alert" className="mt-5 text-sm text-red-700">Não foi possível sair. Tente novamente.</p>}
     </main>
+    {showTutorGreeting&&view==="dashboard"&&<aside className="academy-campus-greeting" aria-label="Saudação do tutor"><button className="academy-greeting-dismiss" aria-label="Dispensar saudação" onClick={()=>setShowTutorGreeting(false)}>×</button><strong>{profile.tutorName}</strong><p>Olá! Que bom ter você aqui. Vamos praticar inglês hoje?</p><button type="button" className="academy-greeting-action" onClick={openTutor}>Conversar <ArrowRight size={15} aria-hidden="true"/></button></aside>}
     <TutorChat initialOpen={false} openRequest={tutorOpenRequest} profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")} placementRequested={requestPlacement} onPlacementCompleted={()=>{setRequestPlacement(false);void placement.refetch();setView("dashboard");}}/>
   </div>;
 }
