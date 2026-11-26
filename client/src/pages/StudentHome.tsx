@@ -1,4 +1,5 @@
 import "./academy-landing.css";
+import "./academy-interior.css";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import { useEffect, useState, type FormEvent } from "react";
@@ -110,31 +111,31 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
     } catch { /* show error */ }
   }
 
-  return <div className="academy-student min-h-screen bg-paper text-ink">
-    <header className="border-b border-ink/10 bg-white">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-5 py-5">
+  return <div className="academy-student academy-interior">
+    <header className="academy-topbar">
+      <div className="academy-topbar-inner">
         <img className="academy-student-logo" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua" />
-        <span className="text-sm text-ink-muted">Seu espaço • {email}</span>
+        <span className="min-w-0 break-all text-sm text-ink-muted">Seu espaço • {email}</span>
         <button onClick={signOut} disabled={logout.isPending} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-muted"><LogOut size={16}/> Sair</button>
       </div>
     </header>
-    <div className="mx-auto flex max-w-6xl flex-wrap gap-2 px-5 pt-6">
+    <div role="navigation" aria-label="Meu espaço" className="academy-route-nav">
       {([
         ["dashboard", MessageSquare, "Meu início"],
         ["read", BookOpen, "Ler e praticar"],
         ["review", ListChecks, "Revisar"],
         ["settings", Settings2, "Meu tutor"],
       ] as const).map(([id, Icon, label]) => (
-        <button key={id} onClick={() => setView(id)} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${view === id ? "bg-ink text-white" : "border border-ink/15 bg-white"}`}><Icon size={16}/>{label}</button>
+        <button key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined}><Icon size={16}/>{label}</button>
       ))}
     </div>
     <main className="mx-auto max-w-6xl px-5 py-10">
       {view === "dashboard" && <>
-        <p className="mb-3 text-xs font-bold uppercase tracking-widest text-teal">Bem-vindo ao seu espaço</p>
+        <section className="academy-welcome"><div className="academy-welcome-copy"><p className="mb-3 text-xs font-bold uppercase tracking-widest text-teal">Bem-vindo ao seu espaço</p>
         <h1 className="font-display text-4xl leading-tight sm:text-6xl">
           Seu tutor <span className="text-teal">{profile.tutorName}</span> está aqui.
         </h1>
-        <p className="mt-4 max-w-2xl leading-7 text-ink-muted">Seu percurso começa com o que você escolheu. Não inventamos níveis, notas ou experiências que você ainda não viveu.</p>
+        <p className="mt-4 max-w-2xl leading-7 text-ink-muted">Seu percurso começa com o que você escolheu. Não inventamos níveis, notas ou experiências que você ainda não viveu.</p></div></section>
         <div className="mt-10 grid gap-5 md:grid-cols-[1.3fr_0.7fr]">
           <section className="rounded-2xl border border-ink/10 bg-white p-7">
             <p className="text-xs font-bold uppercase tracking-widest text-teal">{placement.data?.plan?"Plano de quatro semanas • provisório":"Seu plano inicial • exploratório"}</p>
@@ -146,8 +147,8 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
             {placement.data&&!placement.data.plan&&<button type="button" onClick={()=>setRequestPlacement(v=>!v)} className="mt-5 rounded-full border border-teal px-5 py-2 text-sm font-semibold text-teal">Descobrir por onde começar — 3 perguntas</button>}
             {placement.isError&&<p className="mt-3 text-xs text-ink-muted">A sondagem estará disponível quando a atualização do banco for aprovada.</p>}
             <div className="mt-6 flex flex-wrap gap-3">
-              <button onClick={() => setView("read")} className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white">Praticar leitura</button>
-              <button onClick={() => setView("review")} className="rounded-full border border-ink/15 px-5 py-3 text-sm font-semibold">Ver minhas revisões</button>
+              <button onClick={() => setView("read")} className="academy-primary">Praticar leitura</button>
+              <button onClick={() => setView("review")} className="academy-secondary">Ver minhas revisões</button>
             </div>
           </section>
           <section className="rounded-2xl border border-ink/10 bg-white p-7">
@@ -174,7 +175,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
         <p className="mb-8 text-sm text-ink-muted">O SRS agenda retomadas; não atribui nível de inglês.</p>
         <ReviewDeck/>
       </>}
-      {view === "settings" && <section className="max-w-xl rounded-2xl border border-ink/10 bg-white p-7">
+      {view === "settings" && <section className="max-w-2xl rounded-2xl border border-ink/10 bg-white p-5 sm:p-7">
         <h1 className="font-display text-3xl">Meu tutor</h1>
         <p className="mt-3 mb-6 text-sm text-ink-muted">Você pode mudar o nome e o tom sempre que quiser.</p>
         <form onSubmit={savePreferences} className="space-y-5">
@@ -228,7 +229,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           <p className="text-xs text-ink-muted">Idiomas desta primeira versão: interface pt-BR, explicação em português, aprendizado de inglês. O tom de conversa é independente da voz usada na leitura.</p>
           {preferences.error && <p role="alert" className="text-sm text-red-700">{preferences.error.message}</p>}
           {saved && <p role="status" className="text-sm text-teal">Preferências salvas.</p>}
-          <button disabled={preferences.isPending || !tutorName.trim()} className="rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white disabled:opacity-50">Salvar preferências</button>
+          <button disabled={preferences.isPending || !tutorName.trim()} className="academy-primary">Salvar preferências</button>
         </form>
       </section>}
       {logout.error && <p role="alert" className="mt-5 text-sm text-red-700">Não foi possível sair. Tente novamente.</p>}
