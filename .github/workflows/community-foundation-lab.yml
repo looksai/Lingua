@@ -1,0 +1,35 @@
+name: Community foundation laboratory
+on:
+  push:
+    branches: [feat/academy-community-foundation]
+  pull_request:
+    branches: [feat/academy-beta-design]
+    paths:
+      - 'server/community-*.ts'
+      - 'client/src/pages/Community.tsx'
+      - '.github/workflows/community-foundation-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  community:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm exec vitest run server/community-access.test.ts server/community-catalog.test.ts
+      - run: pnpm build
