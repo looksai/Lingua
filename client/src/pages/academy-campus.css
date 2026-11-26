@@ -91,3 +91,14 @@
 @media(max-width:1200px){.academy-campus .academy-dashboard-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.academy-campus .academy-campus-editorial-stack{grid-column:1/-1;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto}}
 @media(max-width:1000px){.academy-campus .academy-campus-brand{width:auto;font-size:25px}}
 @media(max-width:640px){.academy-campus .academy-dashboard-grid{grid-template-columns:minmax(0,1fr)}.academy-campus .academy-dashboard-grid .campus-event,.academy-campus .academy-campus-editorial-stack{grid-column:1}.academy-campus .academy-campus-editorial-stack{grid-template-columns:minmax(0,1fr)}.academy-campus .academy-campus-brand{font-size:23px;gap:7px}.academy-campus .academy-campus-brand svg{width:27px;height:27px}}
+
+
+/* Keep the desktop rail flush with the topbar, rather than vertically
+   centering it via the inherited route navigation margin:auto. */
+@media(min-width:1001px){
+ .academy-campus .academy-premium-nav{margin:0;align-self:stretch;min-height:100%;height:auto;flex-wrap:nowrap;background-color:#0b1f3a;background-position:center bottom}
+ .academy-campus .academy-premium-main{align-self:start;margin:0 auto}
+}
+@media(max-width:1000px){
+ .academy-campus .academy-premium-nav{margin:0;width:100%}
+}
