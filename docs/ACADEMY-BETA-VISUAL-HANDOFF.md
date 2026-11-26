@@ -1,5 +1,15 @@
 # Academy Beta — retomada visual PR #105
 
+## Revisão visual com capturas reais — novo checkpoint
+
+Head 812e0df: P0 45731835371, MySQL 45731835255 e Chromium 45731835333 aprovados; PR draft e mergeable. Artefato 15077201329 baixado e capturas de 1440, 768 e 375 inspecionadas. Desktop recuperou a cabeça, menu e cartão, mas mesa/livros ainda cortados, composição alta e texto sobreposto ao fundo. Tablet apresentava sobreposição de texto e rodapé; mobile 375 manteve estrutura legível.
+
+Correções posteriores: e10fc60 (calibração do hero desktop, fundo sob cards, maior visibilidade da mesa e proporções do banner), cdff8ab (layout empilhado até 950px e correção intermediária/rodapé), 4946cb1 (Chromium passa a cobrir 320/375/768/1024/1440/1672 e verifica limites geométricos e ausência de overlay em telas estreitas). O ajuste de escala vertical da fotografia é uma escolha de implementação para aproximar o mockup, não garantia de identidade fotográfica.
+
+Aguardar CI do novo head, baixar novo artefato e comparar renderização com a imagem aprovada. Ainda não há aprovação visual do fundador, merge ou deploy. Prioridade continua exclusivamente fidelidade da home.
+
+---
+
 ## Correção visual prioritária — referência reafirmada pelo fundador
 
 A imagem aprovada é o layout completo da home, não mera inspiração. O fundador reafirmou em 25/11 que o fundo e composição devem permanecer o mais próximos possível do mockup. O kit contém uma fotografia limpa regenerada (1672 × 941), não a camada original do raster. Não substituir por outro conceito.
