@@ -207,3 +207,11 @@
 .academy-interior .academy-diagnostic-tutor svg{flex-shrink:0}
 .academy-interior .academy-diagnostic-question{background:linear-gradient(135deg,#f5faff,#e7f0fb);border-left:4px solid #f2aa00}
 @media(max-width:760px){.academy-interior .academy-onboarding-route{margin-bottom:14px}.academy-interior .academy-onboarding-route>div{font-size:11px;padding:6px 9px}}
+
+/* Navigation for the long, real study studio. */
+.academy-interior .academy-study-jumps{display:flex;flex-wrap:wrap;gap:8px;border:1px solid #d4deeb;border-radius:18px;padding:10px;background:#fff;box-shadow:var(--academy-shadow)}
+.academy-interior .academy-study-jumps button{flex:1 1 auto;min-height:44px;border:1px solid #d4deeb;border-radius:12px;padding:8px 14px;background:#edf4fb;color:#071e48;font-size:13px;font-weight:700}
+.academy-interior .academy-study-jumps button:hover{background:#dbeaf9}
+.academy-interior .academy-reading-studio [id^=academy-reading-]{scroll-margin-top:16px}
+.academy-interior .academy-reading-studio [id^=academy-reading-]:focus-visible{outline:3px solid #1478cc;outline-offset:3px}
+@media(max-width:760px){.academy-interior .academy-study-jumps{gap:6px;padding:8px}.academy-interior .academy-study-jumps button{font-size:12px;padding:7px 10px}}
