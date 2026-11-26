@@ -339,7 +339,7 @@ function HomeView({ onNavigate }: { onNavigate: (view: View) => void }) {
           <h1 className="font-display text-5xl leading-[0.92] tracking-[-0.055em] sm:text-6xl">
             Bom te ver,
             <br />
-            <span className="text-teal">Welma.</span>
+            <span className="text-teal">por aqui.</span>
           </h1>
           <p className="mt-4 max-w-lg text-sm leading-6 text-ink-muted">
             Seu caminho está salvo. Hoje, vamos transformar compreensão em uso —
