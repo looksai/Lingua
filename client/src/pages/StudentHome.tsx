@@ -1,9 +1,10 @@
 import "./academy-landing.css";
 import "./academy-interior.css";
+import "./academy-premium.css";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import { useEffect, useState, type FormEvent } from "react";
-import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Sparkles } from "lucide-react";
+import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Compass, Globe2, GraduationCap, Target, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
 import ReviewDeck from "@/components/ReviewDeck";
@@ -29,6 +30,7 @@ function loadVoiceSettings():TutorVoiceSettings {
 export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; email: string }) {
   const profile = snapshot.profile!;
   const [view, setView] = useState<View>("dashboard");
+  const [tutorOpenRequest,setTutorOpenRequest]=useState(0);
   const [tutorName, setTutorName] = useState(profile.tutorName);
   const [tutorPersona, setTutorPersona] = useState<TutorPersona>(profile.tutorPersona);
   const [interest, setInterest] = useState<LearnerInterest>(profile.interest);
@@ -111,61 +113,69 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
     } catch { /* show error */ }
   }
 
-  return <div className="academy-student academy-interior">
-    <header className="academy-topbar">
+  return <div className="academy-student academy-interior academy-premium">
+    <header className="academy-topbar academy-premium-topbar">
       <div className="academy-topbar-inner">
         <img className="academy-student-logo" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua" />
-        <span className="min-w-0 break-all text-sm text-ink-muted">Seu espaço • {email}</span>
+        <div className="academy-premium-account"><span>Minha conta</span><strong>{email}</strong></div>
         <button onClick={signOut} disabled={logout.isPending} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-muted"><LogOut size={16}/> Sair</button>
       </div>
     </header>
-    <div role="navigation" aria-label="Meu espaço" className="academy-route-nav">
+    <nav aria-label="Meu espaço" className="academy-route-nav academy-premium-nav"><div className="academy-rail-heading"><Globe2 size={19} aria-hidden="true"/> <span>MEU ESPAÇO</span></div>
       {([
-        ["dashboard", MessageSquare, "Meu início"],
+        ["dashboard", Compass, "Meu início"],
         ["read", BookOpen, "Ler e praticar"],
         ["review", ListChecks, "Revisar"],
         ["settings", Settings2, "Meu tutor"],
       ] as const).map(([id, Icon, label]) => (
         <button key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined}><Icon size={16}/>{label}</button>
       ))}
-    </div>
-    <main key={view} className="academy-view-enter mx-auto max-w-6xl px-5 py-10">
-      {view === "dashboard" && <>
-        <section className="academy-welcome"><div className="academy-welcome-copy"><p className="mb-3 text-xs font-bold uppercase tracking-widest text-teal">Bem-vindo ao seu espaço</p>
-        <h1 className="font-display text-4xl leading-tight sm:text-6xl">
-          Seu tutor <span className="text-teal">{profile.tutorName}</span> está aqui.
-        </h1>
-        <p className="mt-4 max-w-2xl leading-7 text-ink-muted">Seu percurso começa com o que você escolheu. Desenvolva seu inglês, uma habilidade de cada vez.</p><div className="mt-5 flex flex-wrap gap-3"><button className="academy-primary" onClick={()=>setView("read")}>Começar prática <ArrowRight size={17}/></button><button className="academy-secondary" onClick={()=>setView("review")}>Minhas revisões</button></div></div></section>
-        <div className="academy-quick-actions">{([{id:"read",Icon:BookOpen,title:"Pratique inglês",description:"Leitura e vocabulário em contexto."},{id:"review",Icon:ListChecks,title:"Reforce o aprendizado",description:"Retome os itens da sua agenda."},{id:"settings",Icon:Sparkles,title:"Personalize seu tutor",description:"Escolha a voz e a forma de conversar."}] as const).map(({id,Icon,title,description})=><button key={id} className="academy-quick-card" onClick={()=>setView(id)}><span className="academy-quick-icon"><Icon size={25}/></span><span><strong>{title}</strong><small>{description}</small></span><ArrowRight size={18} aria-hidden="true"/></button>)}</div>
-        <div className="mt-6 grid gap-5 md:grid-cols-[1.3fr_0.7fr]">
-          <section className="rounded-2xl border border-ink/10 bg-white p-7">
-            <p className="text-xs font-bold uppercase tracking-widest text-teal">{placement.data?.plan?"Plano de quatro semanas • provisório":"Seu plano inicial • exploratório"}</p>
-            <h2 className="mt-3 font-display text-3xl">{placement.data?.plan?.title??plan.title}</h2>
-            {placement.data?.plan?<div className="mt-4 space-y-4">{placement.data.plan.weeks.map(w=><div key={w.week} className="rounded-xl border border-ink/10 p-4"><p className="font-semibold">Semana {w.week}: {w.goal}</p><p className="mt-2 text-sm">{w.practice}</p><p className="mt-2 text-xs text-ink-muted">Como conferir: {w.check}</p></div>)}</div>:<p className="mt-4 text-sm leading-6">{plan.objective}</p>}
-            {!placement.data?.plan&&<p className="mt-2 text-sm leading-6 text-ink-muted">Exemplos próximos de {plan.context}.</p>}
-            {placement.data?.plan&&<><p className="mt-3 text-xs text-ink-muted">Estas são sugestões de estudo geradas a partir de três amostras de texto, não um currículo certificado nem uma avaliação CEFR.</p><p className="mt-2 text-sm font-semibold">Pistas a verificar</p>{placement.data.plan.observations.map((v,i)=><p key={i} className="text-sm">{v}</p>)}<p className="mt-2 text-sm font-semibold">Ainda precisamos avaliar</p>{placement.data.plan.nextChecks.map((v,i)=><p key={i} className="text-sm text-ink-muted">{v}</p>)}</>}
-            {!placement.data?.plan&&<p className="mt-3 border-l-2 border-teal pl-3 text-xs leading-5 text-ink-muted">{plan.reason} {plan.limits}</p>}
-            {placement.data&&!placement.data.plan&&<button type="button" onClick={()=>setRequestPlacement(v=>!v)} className="mt-5 rounded-full border border-teal px-5 py-2 text-sm font-semibold text-teal">Descobrir por onde começar — 3 perguntas</button>}
-            {placement.isError&&<p className="mt-3 text-xs text-ink-muted">A sondagem estará disponível quando a atualização do banco for aprovada.</p>}
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button onClick={() => setView("read")} className="academy-primary">Praticar leitura</button>
-              <button onClick={() => setView("review")} className="academy-secondary">Ver minhas revisões</button>
+      <button type="button" className="academy-rail-chat" onClick={()=>setTutorOpenRequest(n=>n+1)}><MessageSquare size={18} aria-hidden="true"/> Conversar com o tutor</button>
+      <div className="academy-rail-note"><Globe2 size={22} aria-hidden="true"/><span>Inglês para o seu próximo passo.</span></div>
+    </nav>
+    <main key={view} className="academy-view-enter academy-premium-main">
+      {view === "dashboard" && <div className="academy-dashboard-v3">
+        <div className="academy-dashboard-heading"><div><p className="academy-kicker">ACADEMY / MEU INÍCIO</p><h1>Seu espaço de aprendizagem.</h1></div><span className="academy-dashboard-language"><Globe2 size={17} aria-hidden="true"/> Português → Inglês</span></div>
+        <section className="academy-welcome academy-premium-hero">
+          <div className="academy-hero-editorial"><p className="academy-kicker"><span/> SEU PRÓXIMO PASSO</p>
+            <h2>Um mundo de oportunidades começa <em>com você.</em></h2>
+            <p>Transforme o inglês em uma habilidade para a sua vida. Seu caminho é construído a partir do que você pratica.</p>
+            <button className="academy-primary" onClick={()=>setView("read")}>Começar prática <ArrowRight size={18} aria-hidden="true"/></button>
+          </div>
+          <div className="academy-hero-location" aria-hidden="true"><Globe2 size={16}/> YOUR WORLD. YOUR FUTURE.</div>
+        </section>
+        <div className="academy-dashboard-grid">
+          <section className="academy-dashboard-plan">
+            <div className="academy-section-heading"><div><p className="academy-kicker">01 / SUA JORNADA</p><h2>Seu plano de estudo</h2></div><Target size={24} aria-hidden="true"/></div>
+            <div className="academy-plan-focus">
+              <p className="academy-kicker">{placement.data?.plan?"PLANO DE QUATRO SEMANAS · PROVISÓRIO":"PLANO INICIAL · EXPLORATÓRIO"}</p>
+              <h3>{placement.data?.plan?.title??plan.title}</h3>
+              {placement.data?.plan?<div className="academy-plan-timeline">{placement.data.plan.weeks.map(w=><div key={w.week}><span>{String(w.week).padStart(2,"0")}</span><div><strong>{w.goal}</strong><p>{w.practice}</p><small>Como conferir: {w.check}</small></div></div>)}</div>:<><p>{plan.objective}</p><p className="academy-plan-context">Contexto: {plan.context}</p></>}
+              {placement.data?.plan?<details className="academy-plan-details"><summary>Sobre este plano</summary><p>Sugestões a partir de três amostras de texto, não uma avaliação CEFR.</p><strong>Pistas a verificar</strong>{placement.data.plan.observations.map((v,i)=><p key={i}>{v}</p>)}<strong>Próximas verificações</strong>{placement.data.plan.nextChecks.map((v,i)=><p key={i}>{v}</p>)}</details>:<details className="academy-plan-details"><summary>Como o plano foi escolhido</summary><p>{plan.reason} {plan.limits}</p></details>}
             </div>
+            {placement.data&&!placement.data.plan&&<button type="button" onClick={()=>setRequestPlacement(v=>!v)} className="academy-dashboard-link">Descobrir por onde começar — 3 perguntas <ChevronRight size={16} aria-hidden="true"/></button>}
+            {placement.isError&&<p className="text-sm text-ink-muted">A sondagem não está disponível neste momento.</p>}
           </section>
-          <section className="rounded-2xl border border-ink/10 bg-white p-7">
-            <p className="text-xs font-bold uppercase tracking-widest text-teal">Seu ponto de partida</p>
-            <p className="mt-4 text-4xl font-semibold">{recorded}<span className="text-base font-normal text-ink-muted"> / 5 respostas registradas</span></p><div className="academy-real-progress" role="progressbar" aria-label="Respostas registradas na triagem" aria-valuemin={0} aria-valuemax={5} aria-valuenow={Math.min(recorded,5)}><span style={{width:`${Math.min(recorded,5)*20}%`}}/></div>
-            <p className="mt-4 text-sm leading-6 text-ink-muted">
-              {recorded === 0 ? "Você ainda não fez a triagem textual." : "Respostas de leitura e escrita. Ainda não equivalem a uma avaliação de proficiência."}
-            </p>
-            <p className="mt-3 text-sm">Palavras salvas no SRS: {items.isError ? "indisponível" : items.isLoading ? "carregando" : items.data?.length ?? 0}</p>
-            {deferred && <button onClick={resumeDiagnostic} disabled={resume.isPending} className="mt-6 text-sm font-semibold text-teal underline">
-              Retomar a conversa inicial
-            </button>}
-            {resume.error && <p role="alert" className="mt-2 text-sm text-red-700">{resume.error.message}</p>}
+          <aside className="academy-dashboard-tutor">
+            <div className="academy-tutor-monogram"><MessageSquare size={30} aria-hidden="true"/><span>AI</span></div>
+            <p className="academy-kicker">02 / SEU TUTOR</p>
+            <h2>{profile.tutorName}</h2>
+            <p>Pratique, tire dúvidas e descubra seu próximo desafio.</p>
+            <button className="academy-tutor-action" onClick={()=>setTutorOpenRequest(n=>n+1)}>Abrir conversa <ArrowRight size={17} aria-hidden="true"/></button>
+            <button className="academy-tutor-settings-link" onClick={()=>setView("settings")}>Personalizar tutor <Settings2 size={15} aria-hidden="true"/></button>
+          </aside>
+          <section className="academy-dashboard-progress">
+            <div className="academy-section-heading"><div><p className="academy-kicker">03 / SEU PROGRESSO</p><h2>Pequenos passos. Avanço real.</h2></div><GraduationCap size={26} aria-hidden="true"/></div>
+            <div className="academy-progress-layout"><div className="academy-progress-ring" role="progressbar" aria-label="Respostas registradas na triagem" aria-valuemin={0} aria-valuemax={5} aria-valuenow={Math.min(recorded,5)} style={{background:`conic-gradient(#F5A623 ${Math.min(recorded,5)*20}%,#e5eaf0 0)`}}><span><strong>{recorded}<small>/5</small></strong><small>respostas</small></span></div><div><h3>Conversa inicial</h3><p>{recorded===0?"Seu ponto de partida ainda está por descobrir.":"Respostas de leitura e escrita registradas."}</p><small>Não é uma nota de proficiência.</small>{deferred&&<button onClick={resumeDiagnostic} disabled={resume.isPending} className="academy-dashboard-link">Retomar conversa inicial <ChevronRight size={16} aria-hidden="true"/></button>}{resume.error&&<p role="alert" className="text-sm text-red-700">{resume.error.message}</p>}</div></div>
+          </section>
+          <section className="academy-dashboard-library">
+            <p className="academy-kicker">04 / SUA BIBLIOTECA</p><ListChecks size={24} aria-hidden="true"/>
+            <strong className="academy-library-number">{items.isError||items.isLoading?"—":items.data?.length??0}</strong>
+            <h2>Itens salvos</h2><p>Seu vocabulário e frases para retomar no momento certo.</p>
+            <button className="academy-dashboard-link" onClick={()=>setView("review")}>Minhas revisões <ChevronRight size={17} aria-hidden="true"/></button>
           </section>
         </div>
-      </>}
+      </div>}
       {view === "read" && <>
         
         <ReadingLab/>
@@ -233,6 +243,6 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       </section></div>}
       {logout.error && <p role="alert" className="mt-5 text-sm text-red-700">Não foi possível sair. Tente novamente.</p>}
     </main>
-    <TutorChat profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")} placementRequested={requestPlacement} onPlacementCompleted={()=>{setRequestPlacement(false);void placement.refetch();setView("dashboard");}}/>
+    <TutorChat initialOpen={false} openRequest={tutorOpenRequest} profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")} placementRequested={requestPlacement} onPlacementCompleted={()=>{setRequestPlacement(false);void placement.refetch();setView("dashboard");}}/>
   </div>;
 }
