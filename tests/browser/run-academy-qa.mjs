@@ -148,7 +148,10 @@ try{
         if(fixture==="student"){
           await page.locator(".academy-dashboard-v3").waitFor();
           await page.getByText("Nenhum destaque patrocinado publicado.").waitFor();
-          await page.getByRole("button",{name:"Dispensar saudação"}).click();
+          await page.getByRole("button",{name:"Dispensar saudação"}).waitFor();
+          await page.locator(".academy-tutor-trigger").click();
+          await page.getByRole("button",{name:"Minimizar tutor"}).click();
+          assert.equal(await page.getByRole("button",{name:"Dispensar saudação"}).count(),0);
           assert.equal(await page.locator(".academy-campus-areas button").count(),5);
           await page.getByRole("searchbox").count();
           const search=page.getByRole("textbox",{name:"Buscar áreas do Lingua"});
@@ -164,6 +167,7 @@ try{
           assert.equal(geometry.mainColor,"rgb(248, 250, 252)");
           assert.equal(geometry.ctaColor,"rgb(245, 166, 35)");
           if(width>=1001)assert.ok(geometry.mainLeft>=geometry.navRight-1);
+          if(width>1200){const g=await page.evaluate(()=>{const rect=s=>document.querySelector(s).getBoundingClientRect();const a=rect(".academy-dashboard-plan"),b=rect(".campus-event"),c=rect(".academy-campus-editorial-stack");return {sameRow:Math.abs(a.top-b.top)<2&&Math.abs(b.top-c.top)<2,ordered:a.right<=b.left&&b.right<=c.left}});assert.ok(g.sameRow&&g.ordered,"approved three-column layout");}
           else assert.ok(geometry.mainTop>=geometry.navBottom-1);
           await page.getByRole("button",{name:"Abrir conversa",exact:true}).click();
           const minimize=page.getByRole("button",{name:"Minimizar tutor"});
