@@ -1,5 +1,15 @@
 # Academy Beta — retomada visual PR #105
 
+## Recuperação de senha e cota persistente — próximo bloco
+
+Fundador solicitou recuperar senha após o bloco atual. Requisito obrigatório antes de abertura pública: link de redefinição por e-mail, token aleatório armazenado apenas como hash, validade limitada, consumo atômico de uso único, resposta anti-enumeração, rate limit persistente, revogação de sessões anteriores. Não há implementação ou envio de e-mail nesta etapa; provedor transacional a definir. Login social permanece no backlog.
+
+Deploy d9439bb confirmado Live (dep-dc3p7r6i0phs7384t4ng); demo retirada. CI de 3dc2b6d: P0 45740241132, MySQL 45740241146, lives 45740241151, Chromium 45740241141 success. Registro na PR #105. Não publicar automaticamente novos commits.
+
+Cota durável: academy-budget-draft.ts e academy-budget-repository.ts criam contadores persistentes de unidades de operações, por conta e global, com lock global primeiro, transação antes de chamadas ao provedor, rollover UTC, bloqueio de relógio anterior e limites máximos conservadores. Teste MySQL com pools independentes verifica concorrência, persistência, rollover e teto zero. Schema apenas na configuração de laboratório descartável, sem migration de produção. Repositório NÃO conectado ao tutor ainda. Ainda faltam: CI, integração fail-closed, limite acumulado por trial, orçamento em moeda por tipo de operação/token/áudio, concorrência distribuída, política de retenção/eliminação dos contadores, controle anti-abuso no cadastro, revisão de privacidade. Nenhuma garantia de custo financeiro absoluto nesta fase. Stripe #32 continua pausada.
+
+---
+
 ## Trial e retirada da demo — CI verde e publicação isolada
 
 Head d9439bb: P0 45739347060, MySQL 45739347046, lives 45739347009 e Chromium 45739346972 success. Artefato 15080920082 contém 30 capturas; inspecionados home, cadastro e painel do aluno desktop/mobile. Deploy dep-dc3p7r6i0phs7384t4ng iniciado para esse SHA na prévia isolada, última consulta update_in_progress. Não afirmar Live até confirmação. Prévia continua cadastro fechado, sem DB ou cobrança, ACADEMY_TRIAL_ENABLED não ativado.
