@@ -215,8 +215,8 @@ export default function ReviewDeck() {
 
   if (!authQuery.data) {
     return (
-      <div className="space-y-8">
-        <header className="border-b border-ink/10 pb-8">
+      <div className="academy-review-studio space-y-6">
+        <header className="academy-study-hero academy-review-hero">
           <p className="eyebrow mb-3">Revisar · agenda pessoal</p>
           <h1 className="font-display text-5xl tracking-[-0.05em]">
             Sua revisão, sem bloqueios.
@@ -236,16 +236,14 @@ export default function ReviewDeck() {
 
   return (
     <div className="space-y-8">
-      <header className="flex flex-col justify-between gap-5 border-b border-ink/10 pb-8 md:flex-row md:items-end">
+      <header className="academy-study-hero academy-review-hero flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
           <p className="eyebrow mb-3">Revisar · agenda pessoal</p>
           <h1 className="font-display text-5xl tracking-[-0.05em]">
-            Voltar no momento certo.
+            O conhecimento que fica.
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-6 text-ink-muted">
-            Todos os itens salvos ficam aqui. Comece pelo que venceu, ou
-            percorra a biblioteca inteira sem transformar repetição em
-            certificação.
+            Retome suas palavras e frases no momento certo. Sua agenda é construída a partir das revisões que você realmente faz.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs text-ink-muted">
@@ -253,12 +251,14 @@ export default function ReviewDeck() {
         </div>
       </header>
 
+      <div className="academy-review-stats" aria-label="Resumo da biblioteca"><div><span>Itens salvos</span><strong>{itemsQuery.isPending||itemsQuery.error?"—":items.length}</strong></div><div><span>Para revisar agora</span><strong>{itemsQuery.isPending||itemsQuery.error?"—":items.filter(row=>isDue(row.state.dueAt)).length}</strong></div><div><span>Operações pendentes</span><strong>{pendingCount}</strong></div></div>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex border border-ink/10 bg-white p-1">
+        <div className="academy-filter-control flex border border-ink/10 bg-white p-1">
           {(["due", "all"] as ReviewFilter[]).map(option => (
             <button
               key={option}
               onClick={() => setFilter(option)}
+              aria-pressed={filter===option}
               className={`px-4 py-2 text-xs font-bold ${filter === option ? "bg-ink text-paper" : "text-ink-muted hover:text-ink"}`}
             >
               {option === "due" ? "Para revisar agora" : "Todos os salvos"}
@@ -288,10 +288,10 @@ export default function ReviewDeck() {
           continua disponível no Laboratório de Leitura.
         </div>
       ) : visibleItems.length === 0 ? (
-        <div className="border border-ink/10 bg-[#F5F7FB] p-8">
+        <div className="academy-review-empty border border-ink/10 p-8"><Clock3 size={32} className="mb-4 text-teal" aria-hidden="true"/>
           <p className="eyebrow mb-2">Nada pendente nesta visão</p>
           <h2 className="font-display text-3xl tracking-[-0.035em]">
-            A agenda pode respirar.
+            Tudo em dia nesta visão.
           </h2>
           <p className="mt-3 max-w-xl text-sm leading-6 text-ink-muted">
             Salve palavras no Laboratório de Leitura ou alterne para “Todos os
@@ -304,7 +304,7 @@ export default function ReviewDeck() {
           {visibleItems.map(row => (
             <article
               key={row.item.id}
-              className="border border-ink/10 bg-white p-6"
+              className="academy-review-card border border-ink/10 bg-white p-6"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -341,14 +341,13 @@ export default function ReviewDeck() {
                     onClick={() =>
                       review(row.item.id, rating.id, row.item.text)
                     }
-                    className="border border-ink/10 p-3 text-left transition hover:border-teal/40 hover:bg-teal/5 disabled:opacity-40"
+                    data-rating={rating.id}
+                    className="academy-rating-button border border-ink/10 p-3 text-left transition hover:border-teal/40 hover:bg-teal/5 disabled:opacity-40"
                   >
                     <span className="block text-xs font-bold">
                       {rating.label}
                     </span>
-                    <span className="mt-1 block text-[11px] text-ink-faint">
-                      {rating.id}
-                    </span>
+                    
                   </button>
                 ))}
               </div>
@@ -463,6 +462,7 @@ export default function ReviewDeck() {
               <button
                 key={day}
                 onClick={() => toggleRetention(day)}
+                aria-pressed={active}
                 className={`border p-4 text-left transition ${active ? "border-teal bg-white" : "border-ink/10 bg-white/50 opacity-60"}`}
               >
                 <p className="font-display text-3xl">
