@@ -78,3 +78,17 @@
 .academy-interior .academy-welcome h1{overflow-wrap:anywhere}
 .academy-interior .academy-onboarding-card{min-width:0}
 .academy-interior .academy-demo-main{overflow-wrap:break-word}
+
+/* Corporate and public event surfaces: no new capabilities. */
+.academy-interior .academy-business-shell{max-width:1100px;margin:auto;padding:24px;display:grid;gap:20px}
+.academy-interior .academy-business-hero{position:relative;isolation:isolate;overflow:hidden;border-radius:24px;background:#071e48;color:#fff;padding:clamp(22px,4vw,48px);box-shadow:var(--academy-shadow)}
+.academy-interior .academy-business-hero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,#071e48 5%,#071e48eb 48%,#071e4866 100%),url('/academy/edificio-ilustrativo.png') right center/cover no-repeat}
+.academy-interior .academy-business-card{min-width:0;background:white;border:1px solid #d4deeb;border-radius:20px;padding:clamp(18px,3vw,32px);box-shadow:var(--academy-shadow);overflow-wrap:anywhere}
+.academy-interior .academy-business-card label{font-size:14px;font-weight:650}
+.academy-interior .academy-business-card :is(input,select){margin-top:6px;min-height:44px;padding:10px 12px;font-weight:400}
+.academy-interior .academy-invite-panel{border-top:1px solid #d4deeb;padding-top:16px;margin-top:12px}
+.academy-interior .academy-event-status{border:1px solid #d4deeb;background:#f3f6fb;border-radius:999px;padding:4px 10px;font-weight:700}
+.academy-interior .academy-event-status[data-status=live]{background:#e6f5ee;color:#17613e;border-color:#c3e4d1}
+.academy-interior .academy-live-stage{min-height:210px;background:linear-gradient(130deg,#071e48,#123b68);color:#fff;border-radius:20px;border:1px solid #47658a;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;padding:24px}
+.academy-interior .academy-live-stage svg{color:#ffda65}
+@media(max-width:760px){.academy-interior .academy-business-shell{padding:16px;gap:14px}.academy-interior .academy-business-hero::before{opacity:.75}}
