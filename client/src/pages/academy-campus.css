@@ -60,3 +60,11 @@
 @media(max-width:1100px){.academy-campus .academy-campus-areas{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:1000px){.academy-campus.academy-premium{grid-template-columns:1fr}.academy-campus .academy-premium-nav{background:#0b1f3a;min-height:0}.academy-campus .academy-campus-membership{display:none}.academy-campus .academy-premium-main{padding:0 16px 96px}.academy-campus .academy-premium-hero{margin:0 -16px}.academy-campus .academy-premium-nav button small{display:none}.academy-campus .academy-campus-editorial{grid-template-columns:1fr 1fr}}
 @media(max-width:640px){.academy-campus .academy-topbar-inner{flex-wrap:wrap;padding:10px 15px}.academy-campus .academy-campus-search{order:3;flex:1 1 100%}.academy-campus .academy-premium-account strong{font-size:11px}.academy-campus .academy-premium-nav{padding:6px 10px}.academy-campus .academy-premium-nav button{font-size:11px;min-height:44px}.academy-campus .academy-campus-areas{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:-14px}.academy-campus .academy-campus-area{min-height:125px}.academy-campus .academy-premium-hero{min-height:310px}.academy-campus .academy-premium-hero::before{background:linear-gradient(90deg,#0b1f3af7,#0b1f3ab0),url('/academy/campus/campus-hero.webp') 70% center/auto 100% no-repeat}.academy-campus .academy-dashboard-grid,.academy-campus .academy-campus-editorial,.academy-campus .academy-sponsor-grid{grid-template-columns:1fr}}
+
+.academy-campus.academy-interior .academy-campus-search input{background:transparent;color:white;border:0;border-radius:0}
+.academy-campus .academy-campus-greeting{position:fixed;right:22px;bottom:82px;z-index:39;width:min(280px,calc(100vw - 44px));padding:14px 36px 14px 15px;border-radius:12px;background:#0b1f3a;color:white;box-shadow:0 8px 25px #0b1f3a30;border:1px solid #f5a62370}
+.academy-campus .academy-campus-greeting strong{color:#f5a623;font:700 18px Georgia,serif}
+.academy-campus .academy-campus-greeting p{font-size:13px;line-height:1.5;margin:5px 0}
+.academy-campus .academy-greeting-dismiss{position:absolute;top:5px;right:5px;min-width:28px;min-height:28px;font-size:20px}
+.academy-campus .academy-greeting-action{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#f5a623;min-height:32px}
+@media(max-width:640px){.academy-campus .academy-campus-greeting{bottom:78px;right:16px}}
