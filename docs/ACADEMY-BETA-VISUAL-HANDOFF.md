@@ -1,5 +1,13 @@
 # Academy Beta — retomada visual PR #105
 
+## Checkpoint visual 1672px — referência do fundador
+
+Head 31f7a05: P0 45733164995, MySQL 45733164911, Chromium 45733165900 aprovados; PR draft e mergeable. Artefato [15078036419](https://github.com/looksai/Lingua/actions/runs/45733165900/artifacts/15078036419) baixado e inspecionado. Captura desktop 1672 × 942; referência 1672 × 941. Os quatro cards e o banner ficaram próximos da posição do mockup. A fotografia do kit continua sendo uma reconstrução, não a camada exata do original. Diferenças observadas: livros e planta parcialmente ocultos pelo gradiente, título mais estreito, fotografia mais baixa, navegação sobre retrato em 1024. Mobile 375 legível com seções empilhadas.
+
+Novos commits: 4ebffc2 (texto e quebra de título do banner); e7d928e (gradiente com fade vertical, proporção da foto, tipografia, enquadramento, layout separado até 1100); a215d94 (regressão Chromium para layout intermediário). Últimas mudanças não renderizadas/validadas neste momento. Comparar novo artefato à referência antes de merge/deploy. Indicadores empresariais fictícios continuam omitidos. Não avançar outros módulos até homologação visual.
+
+---
+
 ## Revisão visual com capturas reais — novo checkpoint
 
 Head 812e0df: P0 45731835371, MySQL 45731835255 e Chromium 45731835333 aprovados; PR draft e mergeable. Artefato 15077201329 baixado e capturas de 1440, 768 e 375 inspecionadas. Desktop recuperou a cabeça, menu e cartão, mas mesa/livros ainda cortados, composição alta e texto sobreposto ao fundo. Tablet apresentava sobreposição de texto e rodapé; mobile 375 manteve estrutura legível.
