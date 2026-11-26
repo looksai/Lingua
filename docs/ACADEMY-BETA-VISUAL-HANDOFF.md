@@ -1,5 +1,13 @@
 # Academy Beta — retomada visual PR #105
 
+## Checkpoint de homologação visual — 569f1af e ajustes finais
+
+CI confirmado no head 569f1af: P0 [45733667972](https://github.com/looksai/Lingua/actions/runs/45733667972), MySQL [45733667922](https://github.com/looksai/Lingua/actions/runs/45733667922) e Chromium [45733668069](https://github.com/looksai/Lingua/actions/runs/45733668069) aprovados. PR draft, mergeable. Artefato [15077868034](https://github.com/looksai/Lingua/actions/runs/45733668069/artifacts/15077868034) baixado; capturas reais de 1672, 1024, 375 e 320 examinadas. Layout desktop preserva fundo fotográfico, cenário internacional, quatro cards, faixa empresarial e rodapé; em 1024 e abaixo, texto/foto separados intencionalmente para legibilidade. Diferenças residuais em relação ao original decorrem especialmente da fotografia limpa regenerada e da omissão de métricas empresariais fictícias. Não afirmar identidade pixel a pixel.
+
+Problema restante observado: aviso de admissão sobre a fotografia/livros com contraste insuficiente; menu 320 quebrava de maneira irregular. bca1e80 corrige aviso, gradiente/fade e menu compacto; 4a50a99 esclarece rótulo fictício do cartão. CI e renderização desses dois commits ainda não confirmados. Após a confirmação, apresentar a captura final ao fundador para decisão visual, sem prolongar alterações cosméticas sem evidência. Sem merge/deploy ou mudanças no banco.
+
+---
+
 ## Checkpoint visual 1672px — referência do fundador
 
 Head 31f7a05: P0 45733164995, MySQL 45733164911, Chromium 45733165900 aprovados; PR draft e mergeable. Artefato [15078036419](https://github.com/looksai/Lingua/actions/runs/45733165900/artifacts/15078036419) baixado e inspecionado. Captura desktop 1672 × 942; referência 1672 × 941. Os quatro cards e o banner ficaram próximos da posição do mockup. A fotografia do kit continua sendo uma reconstrução, não a camada exata do original. Diferenças observadas: livros e planta parcialmente ocultos pelo gradiente, título mais estreito, fotografia mais baixa, navegação sobre retrato em 1024. Mobile 375 legível com seções empilhadas.
