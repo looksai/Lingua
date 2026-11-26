@@ -4,6 +4,7 @@ import {createPartnerInviteRouter} from "./partner-invite-router";
 import {createPartnerInviteLimiter} from "./partner-invite-rate-limit";
 import {getDb} from "./db";
 import { academyAdmissionMode, assertAcademyAdmission } from "./academy-admission";
+import { academyTrialStatus } from "./academy-trial";
 import { COOKIE_NAME } from "@shared/const";
 import { onboardingRouter } from "./onboarding-router";
 import { tutorRouter } from "./tutor-router";
@@ -42,6 +43,7 @@ export const appRouter = router({
   placement: placementRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    trialStatus: protectedProcedure.query(({ctx}) => academyTrialStatus(ctx.user.createdAt)),
     registrationMode: publicProcedure.query(() => academyAdmissionMode()),
     signUp: publicProcedure.input(z.object({
       email: z.email().max(320),
