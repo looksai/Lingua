@@ -167,23 +167,21 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
         </div>
       </>}
       {view === "read" && <>
-        <h1 className="mb-3 font-display text-4xl">Laboratório de leitura</h1>
-        <p className="mb-8 text-sm text-ink-muted">Texto de prática inicial. O shadowing local mede duração e pausas, não certifica pronúncia.</p>
+        
         <ReadingLab/>
       </>}
       {view === "review" && <>
-        <h1 className="mb-3 font-display text-4xl">Minhas revisões</h1>
-        <p className="mb-8 text-sm text-ink-muted">O SRS agenda retomadas; não atribui nível de inglês.</p>
+        
         <ReviewDeck/>
       </>}
-      {view === "settings" && <section className="max-w-2xl rounded-2xl border border-ink/10 bg-white p-5 sm:p-7">
-        <h1 className="font-display text-3xl">Meu tutor</h1>
+      {view === "settings" && <div className="academy-settings-layout"><section className="academy-settings-intro"><div className="academy-settings-avatar"><MessageSquare size={35} aria-hidden="true"/></div><p className="eyebrow">Seu tutor pessoal</p><h1 className="font-display text-4xl">{profile.tutorName}</h1><p>Uma experiência de aprendizado que acompanha seu ritmo. Personalize a conversa, a voz e suas preferências.</p><div className="academy-settings-meta"><span>Estilo de conversa</span><strong>{tutorPersonaLabels[profile.tutorPersona]}</strong><span>Interesse atual</span><strong>{interestLabels[profile.interest]}</strong></div></section><section className="academy-settings-form rounded-2xl border border-ink/10 bg-white p-5 sm:p-7">
+        <h2 className="font-display text-3xl">Personalize seu tutor</h2>
         <p className="mt-3 mb-6 text-sm text-ink-muted">Você pode mudar o nome e o tom sempre que quiser.</p>
         <form onSubmit={savePreferences} className="space-y-5">
           <label className="block text-sm font-semibold">Nome<input required maxLength={40} value={tutorName} onChange={e => setTutorName(e.target.value)} className="mt-2 w-full rounded-lg border p-3 font-normal" /></label>
           <label className="block text-sm font-semibold">Tom<select value={tutorPersona} onChange={e=>setTutorPersona(e.target.value as TutorPersona)} className="mt-2 w-full rounded-lg border p-3 font-normal">{Object.entries(tutorPersonaLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
           <label className="block text-sm font-semibold">Interesse<select value={interest} onChange={e=>setInterest(e.target.value as LearnerInterest)} className="mt-2 w-full rounded-lg border p-3 font-normal">{Object.entries(interestLabels).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label>
-          <div className="space-y-4 border-t border-ink/10 pt-5">
+          <div className="academy-voice-panel space-y-4 border-t border-ink/10 pt-5">
             <h2 className="font-display text-2xl">Voz do tutor</h2>
             <div className="rounded-xl border border-ink/10 bg-paper p-4">
               <p className="font-semibold">Voz neural em inglês · Groq</p>
@@ -196,7 +194,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
                 </select>
               </label>
               <button type="button" disabled={neuralPreview.isPending} onClick={()=>void previewNeuralVoice()}
-                className="mt-3 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+                className="academy-secondary mt-3 text-sm">
                 {neuralPreview.isPending?"Gerando prévia…":"Testar esta voz neural"}
               </button>
               {voicePreviewAudio&&<audio controls autoPlay preload="none" className="mt-3 w-full" src={"data:audio/wav;base64,"+voicePreviewAudio}/>}
@@ -230,9 +228,9 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           <p className="text-xs text-ink-muted">Idiomas desta primeira versão: interface pt-BR, explicação em português, aprendizado de inglês. O tom de conversa é independente da voz usada na leitura.</p>
           {preferences.error && <p role="alert" className="text-sm text-red-700">{preferences.error.message}</p>}
           {saved && <p role="status" className="text-sm text-teal">Preferências salvas.</p>}
-          <button disabled={preferences.isPending || !tutorName.trim()} className="academy-primary">Salvar preferências</button>
+          <div className="academy-settings-save"><button disabled={preferences.isPending || !tutorName.trim()} className="academy-primary">{preferences.isPending?"Salvando…":"Salvar preferências"}</button></div>
         </form>
-      </section>}
+      </section></div>}
       {logout.error && <p role="alert" className="mt-5 text-sm text-red-700">Não foi possível sair. Tente novamente.</p>}
     </main>
     <TutorChat profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")} placementRequested={requestPlacement} onPlacementCompleted={()=>{setRequestPlacement(false);void placement.refetch();setView("dashboard");}}/>
