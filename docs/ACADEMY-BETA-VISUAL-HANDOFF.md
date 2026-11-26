@@ -1,5 +1,11 @@
 # Academy Beta — retomada visual PR #105
 
+## Revisão de regressão dos estúdios e primeiro acesso
+
+Head 1d122bd: P0 45742086587, MySQL 45742086592, lives 45742086629 success; Chromium 45742086574 failure. Log: 13 cenários Academy passaram, navegação de aluno autenticado em 375px não encontrou .academy-review-studio porque classe faltava no retorno autenticado (existia apenas no retorno anônimo). 3e7968c corrige o root e impede indicadores vazios/zero durante verificação de proprietário. a9306fe adiciona captura diagnóstica em falhas e verifica estado vazio confirmado da revisão. 3858c75/9c71b2f refinam primeiro acesso e triagem: etapas visuais reais de perfil/conversa, progresso acessível, painel de idioma e pergunta destacada. Mantém fluxo, consentimento e dados existentes. CI dessas correções ainda não confirmado; inspecionar capturas e só então atualizar preview. Deploy ativo d9439bb. Nenhum cadastro liberado, sem alteração de produção. Recuperação de senha obrigatória antes de abertura pública.
+
+---
+
 ## Acabamento premium dos estúdios reais de estudo
 
 Fundador pediu elevar todas as páginas ao nível da home homologada. Mantida a composição da home, e eliminada a demo pública conforme decisão anterior. Nesta etapa: 7833ffa reformula leitura com hero fotográfico, painel de vocabulário, seleção acessível e ação de recomeçar funcional. Retirado botão inerte "Registrar e seguir", evitando prometer evidência oficial que não é persistida. 940ed02 reformula revisão com dados reais da biblioteca e fila, estados vazios e filtros acessíveis. e0844fb reorganiza configurações em duas colunas (mobile em uma), identidade do tutor, preferências, voz e privacidade. 5a11899 melhora cabeçalho do chat. efd2722 adiciona estilos responsivos, profundidade e microanimações reduzíveis, sem vídeo/Flash ou novas dependências. 6278ff1 adiciona testes de interação e reduced motion em 375/1440px.
