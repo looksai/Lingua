@@ -1,5 +1,13 @@
 # Academy Beta — retomada visual PR #105
 
+## Revisão real das telas internas — correções de QA e contraste
+
+Head f76ee33: P0 45736869174, MySQL 45736869131 e public live 45736869125 success; Chromium 45736869202 failure. Head ae42cfa, Chromium 45736645594, log confirmou que 13 cenários iniciais passaram; clique de navegação do aluno em 375px bloqueado pelo chat proativo aberto (comportamento existente). Corrigido teste 9aa9f96: captura tutor, minimiza via botão real, verifica fechamento, navega nas demais views. 11b8fb1 captura somente viewport do tutor para não misturar scroll da página subjacente. Não desativar saudação proativa nem forçar clique.
+
+Artefato parcial [15079496304](https://github.com/looksai/Lingua/actions/runs/45736645594/artifacts/15079496304) baixado, 16 PNG. Inspecionados login 1440/375, demo, onboarding, diagnóstico e tutor 375. Identidade coerente, mas títulos brancos sobre trechos claros da foto no onboarding/login mobile; f93314f melhora contraste com gradiente localizado. Home aprovada intocada. Novas correções aguardam CI; sem publicação prematura. Render ainda no 9733224. Comunidade funcional não entregue.
+
+---
+
 ## Expansão visual empresarial e eventos
 
 Base ae42cfa: P0 45736645610, MySQL 45736645576 e Public live browser laboratory 45736645571 confirmados success. Chromium 45736645594 ainda in_progress na última consulta.
