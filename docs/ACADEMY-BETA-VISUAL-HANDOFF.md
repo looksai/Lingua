@@ -1,5 +1,17 @@
 # Academy Beta — retomada visual PR #105
 
+## Expansão visual empresarial e eventos
+
+Base ae42cfa: P0 45736645610, MySQL 45736645576 e Public live browser laboratory 45736645571 confirmados success. Chromium 45736645594 ainda in_progress na última consulta.
+
+Aplicado o design oficial ao PartnerDashboard (f22ec23) e PublicLivePreview (8eb6321), com estilos compartilhados (f29d8de): cabeçalho com logo original, azul-marinho/dourado, fotografia institucional do kit, cartões, formulários, estados de eventos e sala de espera. Nenhuma transmissão de vídeo foi implementada ou liberada. Preservadas verificações de sessão, papel, convite, visibilidade e mutações existentes.
+
+CI expandido para disparar por alterações nas páginas internas (dea91a1), adicionar capturas sintéticas de painel empresarial e eventos em 375/1440 px (b77d47a), ativar flags das rotas SOMENTE no build isolado de testes (1ace5cb). Total esperado 22 cenários Academy, não confirmar como executados ainda. Home homologada permanece intocada. Comunidade ainda não possui página funcional homologada; não anunciar como entregue.
+
+Prévia Render continua no commit 9733224, sem banco, sem APIs externas configuradas, sem liberação de cadastro. Próximo passo: verificar CI do head, baixar capturas, corrigir regressões antes de publicar nova revisão no serviço visual existente.
+
+---
+
 ## Home homologada pelo fundador — expansão da identidade visual
 
 Em 25/11/2026, após acessar a prévia publicada, o fundador aprovou a home ("ta otimo") e determinou manter o padrão em todas as páginas. Não alterar a composição homologada sem nova evidência.
