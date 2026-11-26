@@ -11,6 +11,13 @@ on:
       - 'client/src/pages/Onboarding.tsx'
       - 'client/src/pages/StudentHome.tsx'
       - 'client/src/pages/academy-landing.css'
+      - 'client/src/pages/academy-interior.css'
+      - 'client/src/pages/Home.tsx'
+      - 'client/src/pages/NotFound.tsx'
+      - 'client/src/pages/PartnerDashboard.tsx'
+      - 'client/src/pages/PublicLivePreview.tsx'
+      - 'client/src/components/ReadingLab.tsx'
+      - 'client/src/components/ReviewDeck.tsx'
       - 'client/src/App.tsx'
       - 'client/index.html'
       - 'server/academy-admission.ts'
@@ -99,7 +106,7 @@ jobs:
             exit 1
           }
 
-      - name: Run Academy public journey in built Chromium preview (synthetic API)
+      - name: Run Academy public and learner journeys in built Chromium preview (synthetic API)
         env:
           LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
         run: |
@@ -113,7 +120,7 @@ jobs:
             exit 1
           }
 
-      - name: Preserve public Academy screenshots for visual review
+      - name: Preserve Academy synthetic screenshots for visual review
         if: always()
         uses: actions/upload-artifact@v4
         with:
