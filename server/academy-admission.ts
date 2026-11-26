@@ -10,6 +10,12 @@ const invitation = z.object({
 const invitations = z.array(invitation).max(20);
 export function academyAdmissionMode(env: NodeJS.ProcessEnv = process.env): "open" | "invite" | "closed" {
   const mode = env.ACADEMY_ADMISSION_MODE;
+  const trial = env.ACADEMY_TRIAL_ENABLED;
+  // Public trial enrollment remains blocked until durable abuse/budget controls
+  // and paid conversion are reviewed. The bounded invitation pilot can proceed.
+  if (trial !== undefined && trial !== "false") {
+    if (trial !== "true" || mode !== "invite") return "closed";
+  }
   // Preserve existing non-pilot deployments; explicit invalid values fail closed.
   if (mode === undefined || mode === "open") return "open";
   return mode === "invite" ? "invite" : "closed";
