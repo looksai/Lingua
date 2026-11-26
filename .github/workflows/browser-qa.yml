@@ -109,6 +109,9 @@ jobs:
       - name: Run Academy public and learner journeys in built Chromium preview (synthetic API)
         env:
           LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
+          LINGUA_QA_EXPERIMENTAL_ROUTES: '1'
+          VITE_PUBLIC_LIVES_ENABLED: 'true'
+          VITE_PARTNER_DASHBOARD_ENABLED: 'true'
         run: |
           set -euo pipefail
           pnpm build:static
