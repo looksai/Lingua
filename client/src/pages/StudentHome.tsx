@@ -124,7 +124,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   return <div className="academy-student academy-interior academy-premium academy-campus">
     <header className="academy-topbar academy-premium-topbar">
       <div className="academy-topbar-inner">
-        <img className="academy-student-logo" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua" />
+        <button type="button" className="academy-campus-brand" aria-label="Lingua — voltar ao início" onClick={()=>setView("dashboard")}><Globe2 size={34} aria-hidden="true"/><span>Lingua</span></button>
         <form className="academy-campus-search" role="search" onSubmit={e=>{e.preventDefault();setView("dashboard");}}><Search size={17} aria-hidden="true"/><input aria-label="Buscar áreas do Lingua" placeholder="Buscar áreas do Lingua..." value={search} onChange={e=>setSearch(e.target.value)}/></form><div className="academy-premium-account"><span>Minha conta</span><strong>{email}</strong></div>
         <button onClick={signOut} disabled={logout.isPending} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-muted"><LogOut size={16}/> Sair</button>
       </div>
@@ -168,6 +168,8 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
             {placement.data&&!placement.data.plan&&<button type="button" onClick={()=>setRequestPlacement(v=>!v)} className="academy-dashboard-link">Descobrir por onde começar — 3 perguntas <ChevronRight size={16} aria-hidden="true"/></button>}
             {placement.isError&&<p className="text-sm text-ink-muted">A sondagem não está disponível neste momento.</p>}
           </section>
+          <section className="campus-event"><p className="academy-kicker">LIVES & EVENTOS</p><h2>Aprenda com especialistas</h2><p>Agenda de aulas e encontros em preparação.</p></section>
+          <div className="academy-campus-editorial-stack"><section className="campus-community"><p className="academy-kicker">COMUNIDADE LINGUA</p><h2>Conecte-se com o mundo</h2><p>Comunidade exclusiva em preparação.</p></section><section className="campus-news"><p className="academy-kicker">NOTÍCIAS GLOBAIS</p><h2>O mundo em perspectiva</h2><p>Curadoria editorial em preparação.</p></section></div>
           <aside className="academy-dashboard-tutor">
             <div className="academy-tutor-monogram"><MessageSquare size={30} aria-hidden="true"/><span>AI</span></div>
             <p className="academy-kicker">02 / SEU TUTOR</p>
@@ -187,7 +189,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
             <button className="academy-dashboard-link" onClick={()=>setView("review")}>Minhas revisões <ChevronRight size={17} aria-hidden="true"/></button>
           </section>
         </div>
-        <div className="academy-campus-editorial"><section className="campus-event"><p className="academy-kicker">LIVES & EVENTOS</p><h2>Aprenda com especialistas</h2><p>Nenhum evento divulgado por enquanto.</p></section><section className="campus-community"><p className="academy-kicker">COMUNIDADE LINGUA</p><h2>Conecte-se com o mundo</h2><p>Comunidade exclusiva em preparação.</p></section><section className="campus-news"><p className="academy-kicker">NOTÍCIAS GLOBAIS</p><h2>O mundo em perspectiva</h2><p>Curadoria editorial em preparação.</p></section></div>
+
 
       </div>}
       {view === "read" && <>
@@ -258,6 +260,6 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       {logout.error && <p role="alert" className="mt-5 text-sm text-red-700">Não foi possível sair. Tente novamente.</p>}
     </main>
     {showTutorGreeting&&view==="dashboard"&&<aside className="academy-campus-greeting" aria-label="Saudação do tutor"><button className="academy-greeting-dismiss" aria-label="Dispensar saudação" onClick={()=>setShowTutorGreeting(false)}>×</button><strong>{profile.tutorName}</strong><p>Olá! Que bom ter você aqui. Vamos praticar inglês hoje?</p><button type="button" className="academy-greeting-action" onClick={openTutor}>Conversar <ArrowRight size={15} aria-hidden="true"/></button></aside>}
-    <TutorChat initialOpen={false} openRequest={tutorOpenRequest} profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")} placementRequested={requestPlacement} onPlacementCompleted={()=>{setRequestPlacement(false);void placement.refetch();setView("dashboard");}}/>
+    <TutorChat initialOpen={false} openRequest={tutorOpenRequest} onOpen={()=>setShowTutorGreeting(false)} profile={profile} accountEmail={email} voiceSettings={voiceSettings} onVoiceSettingsChange={setVoiceSettings} onOpenTutorSettings={()=>setView("settings")} placementRequested={requestPlacement} onPlacementCompleted={()=>{setRequestPlacement(false);void placement.refetch();setView("dashboard");}}/>
   </div>;
 }
