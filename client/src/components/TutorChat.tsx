@@ -28,16 +28,19 @@ type Capture = { recorder: MediaRecorder; stream: MediaStream; timer?: ReturnTyp
 const MAX_MESSAGES = 24;
 
 export type TutorVoiceSettings={voiceURI:string;rate:number;pitch:number;neuralVoice?:"troy"|"daniel"|"austin"|"autumn"|"diana"|"hannah"};
-export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings,placementRequested,onPlacementCompleted}: {
+export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings,placementRequested,onPlacementCompleted,initialOpen=true,openRequest=0}: {
   profile:TutorProfile;
   accountEmail:string;
   voiceSettings:TutorVoiceSettings;
   onVoiceSettingsChange:(prefs:TutorVoiceSettings)=>void;
   onOpenTutorSettings:()=>void;
+  initialOpen?:boolean;
+  openRequest?:number;
   placementRequested:boolean;
   onPlacementCompleted:()=>void;
 }) {
-  const [open,setOpen] = useState(true);
+  const [open,setOpen] = useState(initialOpen);
+  useEffect(()=>{if(openRequest>0)setOpen(true);},[openRequest]);
   const [messages,setMessages] = useState<Message[]>(()=>[{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
   const [consent,setConsent] = useState(false);
   const [termsAccepted,setTermsAccepted] = useState(false);
