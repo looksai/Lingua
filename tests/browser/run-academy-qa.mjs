@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import {mkdir} from "node:fs/promises";
 import {pathToFileURL} from "node:url";
 
 const dir=process.env.LINGUA_QA_PLAYWRIGHT_DIR||"/tmp/lingua-browser-tools";
@@ -10,6 +11,8 @@ for(let i=0;i<60;i++){
   if(i===59)throw Error("Academy preview did not start");
   await new Promise(r=>setTimeout(r,250));
 }
+const screenshotDir=path.resolve("qa-artifacts/academy");
+await mkdir(screenshotDir,{recursive:true});
 const browser=await chromium.launch({headless:true});
 let passed=0;
 async function test(name,width,mode,body){
@@ -55,9 +58,11 @@ async function landing(page){
   });
   assert.ok(hero.includes("hero-sem-interface.webp"));
   assert.equal(await page.getByRole("link",{name:"Ver como funciona"}).getAttribute("href"),"/demo");
+  await page.screenshot({path:path.join(screenshotDir,`landing-${page.viewportSize().width}.png`),fullPage:true,animations:"disabled"});
   await page.getByRole("link",{name:"Começar agora"}).click();
   await page.getByRole("heading",{name:"Bem-vindo ao Lingua"}).waitFor();
   await fit(page);
+  await page.screenshot({path:path.join(screenshotDir,`login-${page.viewportSize().width}.png`),fullPage:true,animations:"disabled"});
 }
 try{
   for(const width of [320,375,768,1440]){
