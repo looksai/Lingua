@@ -1,5 +1,13 @@
 # Academy Beta — retomada visual PR #105
 
+## Campus: composição aprovada e gate de publicação
+
+1cfd70d confirmado com quatro workflows verdes (P0 45751267151, MySQL 45751267122, lives 45751267179, Chromium 45751267240). Atenção: esses testes não demonstravam presença dos backgrounds CSS. 02800e0/56d94ce organizam composição acadêmica: plano à esquerda, evento no centro, comunidade/notícias à direita; tutor e progresso abaixo. 62f4a20 corrige saudação ao abrir atalho flutuante. Landing/login preservados. Destaques pagos continuam em posição privilegiada, sem campanha fictícia.
+
+680c94a/d442914/9fcbe21 adicionam verificação obrigatória dos 10 WebP no código-fonte e build (SHA-256 e cabeçalho RIFF/WEBP), geometria e saudação. O gate deve falhar enquanto os arquivos binários estiverem ausentes. Pasta client/public/academy/campus/ criada com manifest.json; pacote Lingua-Campus-Assets.zip contém exatamente as imagens a enviar. Operação de blob GitHub aceita base64, porém não há ponte disponível para ler bytes binários do container diretamente no conector. Upload manual dos dez WebP nesta branch resolve o bloqueio. Não publicar antes dos checks e revisão das novas capturas. Deploy online anterior preservado. CI dos novos commits pendente. Sem alteração de cobrança, banco ou main.
+
+---
+
 ## Campus acadêmico homologado e destaques pagos
 
 Fundador aprovou a referência “Dashboard Lingua_ Aprenda e Conecte-se.png”: biblioteca, estudantes multiculturais, globo dourado, serifas editoriais, navy e dourado, cinco áreas temáticas e módulos editoriais. Landing/login ficam intactos. Rejeitou o chat visual anterior: tutor flutuante global com saudação discreta local, minimizável e sem envio externo antes de consentimento. As demais páginas serão homologadas separadamente.
