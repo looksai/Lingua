@@ -1,3 +1,4 @@
+import "./academy-landing.css";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import { useState, type FormEvent } from "react";
@@ -57,10 +58,10 @@ export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
   }
 
   return (
-    <main className="min-h-screen bg-paper px-4 py-8 text-ink sm:py-16">
+    <main className="academy-student min-h-screen bg-paper px-4 py-8 text-ink sm:py-16">
       <div className="mx-auto max-w-2xl">
         <header className="mb-10 flex items-center justify-between">
-          <span className="font-display text-3xl">lingua<span className="text-teal">/</span></span>
+          <img className="academy-student-logo" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua" />
           <span className="text-xs uppercase tracking-widest text-ink-muted">
             {profile ? "Uma conversa para começar" : "Seu primeiro acesso"}
           </span>
