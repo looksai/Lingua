@@ -92,3 +92,12 @@
 .academy-interior .academy-live-stage{min-height:210px;background:linear-gradient(130deg,#071e48,#123b68);color:#fff;border-radius:20px;border:1px solid #47658a;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:18px;padding:24px}
 .academy-interior .academy-live-stage svg{color:#ffda65}
 @media(max-width:760px){.academy-interior .academy-business-shell{padding:16px;gap:14px}.academy-interior .academy-business-hero::before{opacity:.75}}
+
+/* First screenshot review: retain landmark imagery without white-on-sky copy. */
+.academy-interior .academy-onboarding-art{background-image:linear-gradient(0deg,#071e48f5 0%,#071e48df 30%,#071e4870 65%,transparent 100%),url('/academy/hero-sem-interface.webp')}
+.academy-interior .academy-onboarding-art h2,.academy-interior .academy-auth-story h2{text-shadow:0 2px 8px #071e4899}
+@media(max-width:760px){
+  .academy-interior .academy-onboarding-art{min-height:210px;background-image:linear-gradient(90deg,#071e48ed,#071e48b3 55%,#071e4833),url('/academy/hero-sem-interface.webp')}
+  .academy-interior .academy-auth-story{background-image:linear-gradient(90deg,#071e48e6,#071e4899 52%,transparent),url('/academy/hero-sem-interface.webp')}
+  .academy-interior .academy-topbar-inner>span{max-width:100%;overflow-wrap:anywhere}
+}
