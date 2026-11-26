@@ -16,3 +16,9 @@ server/community-access.ts and tests implement only a pure server-side authoriza
 4. Isolated browser and MySQL labs before release. No production migration, merge or deploy without review.
 
 Separate branch from 951367a keeps the currently validated Academy visual release candidate untouched. Tests newly authored, not yet executed in CI.
+
+## Checkpoint — catalog service
+- c82d574: guarded read-only thematic group catalog; injected authoritative entitlement lookup; anonymous/disabled requests do not consult billing; failures deny access. No public router yet.
+- 1a33be3: synthetic catalog tests, not yet executed in CI.
+- Historical Stripe PR #32 remains open/unmerged and explicitly paused by founder on 23/11. Do not merge, migrate 0008, activate billing or use credentials without new express approval. Catalog entitlement adapter remains unconnected. 
+- Academy visual candidate 951367a separately passed all four workflows and was submitted to existing isolated preview service. No community code included in that deploy.
