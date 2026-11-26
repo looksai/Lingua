@@ -138,7 +138,7 @@ try{
         if(fixture==="student"){
           const minimize=page.getByRole("button",{name:"Minimizar tutor"});
           await minimize.waitFor({state:"visible"});
-          await page.screenshot({path:path.join(screenshotDir,`tutor-${width}.png`),fullPage:true,animations:"disabled"});
+          await page.screenshot({path:path.join(screenshotDir,`tutor-${width}.png`),fullPage:false,animations:"disabled"});
           await minimize.click();
           await page.locator(".academy-tutor-window").waitFor({state:"hidden"});
         }
