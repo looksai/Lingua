@@ -3,6 +3,7 @@ import "./academy-interior.css";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import { useState, type FormEvent } from "react";
+import { Globe2, MessageCircle, Compass, ArrowRight, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import {
   firstAccessTasks, interestLabels, tutorPersonaLabels,
@@ -67,14 +68,14 @@ export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
           </span>
         </div></header>
       <div className="academy-onboarding-shell">
-        <aside className="academy-onboarding-art"><p className="mb-2 text-xs font-bold uppercase tracking-widest text-[#ffda65]">Seu próximo passo</p><h2 className="font-display text-3xl sm:text-4xl">O mundo começa com uma conversa.</h2><p className="mt-3 text-sm leading-6">Vamos construir um caminho de aprendizagem que faça sentido para você.</p></aside>
+        <aside className="academy-onboarding-art"><div className="academy-onboarding-route" aria-label="Etapas do primeiro acesso"><div data-current={!profile}><span>{profile?<Check size={15}/>:<Compass size={15}/>}</span><strong>Seu perfil</strong></div><div data-current={Boolean(profile)}><span><MessageCircle size={15}/></span><strong>Conversa inicial</strong></div></div><p className="mb-2 text-xs font-bold uppercase tracking-widest text-[#ffda65]">Seu próximo passo</p><h2 className="font-display text-3xl sm:text-4xl">O mundo começa com uma conversa.</h2><p className="mt-3 text-sm leading-6">Vamos construir um caminho de aprendizagem que faça sentido para você.</p></aside>
         {!profile ? (
           <form onSubmit={createProfile} className="academy-onboarding-card space-y-6 border bg-white p-5 sm:p-8">
             <p className="text-sm font-semibold text-teal">Olá! Que bom ter você aqui.</p>
             <h1 className="font-display text-4xl leading-tight">Vamos criar o seu espaço?</h1>
             <p className="text-sm leading-6 text-ink-muted">Você poderá mudar o nome e o estilo do tutor depois. Nenhum nível de inglês será presumido.</p>
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-semibold">Idiomas iniciais</legend>
+            <fieldset className="academy-language-panel space-y-2">
+              <legend className="text-sm font-semibold"><Globe2 size={16} className="mr-2 inline" aria-hidden="true"/>Idiomas iniciais</legend>
               <div className="grid gap-3 sm:grid-cols-3">
                 <label className="text-xs text-ink-muted">Interface
                   <select value="pt-BR" disabled className="mt-1 w-full rounded-lg border p-3 text-sm"><option value="pt-BR">Português (Brasil)</option></select>
@@ -108,16 +109,16 @@ export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
             <label className="flex items-start gap-3 text-sm leading-6"><input type="checkbox" className="mt-1" checked={allowAIFeedback} onChange={e=>setAllowAIFeedback(e.target.checked)}/><span>Quero feedback curto com IA durante a triagem. Ao ativar, minha resposta textual e a pergunta serão enviadas à API da OpenAI para processar o feedback. Posso deixar desativado e continuar normalmente.</span></label>
             {error && <p role="alert" className="text-sm text-red-700">{error.message}</p>}
             <button disabled={busy || !name.trim()} className="academy-primary w-full">
-              {busy ? "Salvando..." : "Conhecer meu tutor"}
+              {busy ? "Salvando..." : "Conhecer meu tutor"} <ArrowRight size={17} aria-hidden="true"/>
             </button>
           </form>
         ) : (
           <div className="academy-onboarding-card space-y-6 border bg-white p-5 sm:p-8">
             <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="font-semibold text-teal">{profile.tutorName}</span>
+              <span className="academy-diagnostic-tutor"><MessageCircle size={20} aria-hidden="true"/><span>{profile.tutorName}</span></span>
               <span className="text-ink-muted">Etapa {Math.min(currentPosition + 1, firstAccessTasks.length)} de {firstAccessTasks.length}</span>
             </div>
-            <div className="academy-steps" aria-hidden="true">{firstAccessTasks.map((task,index)=><span key={task.id} data-complete={index<currentPosition}/>)}</div>
+            <div className="academy-steps" role="progressbar" aria-label="Respostas da conversa inicial" aria-valuemin={0} aria-valuemax={firstAccessTasks.length} aria-valuenow={Math.min(currentPosition,firstAccessTasks.length)}>{firstAccessTasks.map((task,index)=><span key={task.id} data-complete={index<currentPosition}/>)}</div>
             {currentPosition === 0 && !lastReply && (
               <div className="rounded-xl bg-paper p-5 text-sm leading-6">
                 Oi! Você pode me chamar de <strong>{profile.tutorName}</strong>. Quero conhecer como você usa o inglês — sem provas longas e sem julgamentos. Podemos começar por texto?
@@ -128,7 +129,7 @@ export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
             <p className="text-sm text-ink-muted">Esta é uma triagem curta por texto, não uma avaliação completa. A fala e a escuta ainda não serão avaliadas.</p>
             {nextTask ? (
               <form onSubmit={sendAnswer} className="space-y-5">
-                <div className="rounded-xl border border-teal/20 bg-teal/5 p-5">
+                <div className="academy-diagnostic-question rounded-xl border border-teal/20 p-5">
                   <p className="mb-2 text-xs font-bold uppercase tracking-wide text-teal">Pergunta {currentPosition + 1}</p>
                   <p className="text-base leading-7">{nextTask.message}</p>
                 </div>
@@ -138,7 +139,7 @@ export default function Onboarding({ snapshot }: { snapshot: Snapshot }) {
                 </label>
                 {error && <p role="alert" className="text-sm text-red-700">{error.message}</p>}
                 <button disabled={busy || !answer.trim()} className="academy-primary w-full">
-                  {submit.isPending ? "Registrando..." : "Responder e continuar"}
+                  {submit.isPending ? "Registrando..." : "Responder e continuar"} <ArrowRight size={17} aria-hidden="true"/>
                 </button>
               </form>
             ) : <p className="text-sm">Suas respostas foram registradas. O plano inicial será provisório até avaliarmos mais habilidades.</p>}
