@@ -60,3 +60,11 @@
  .academy-interior .academy-route-nav button{font-size:13px;padding:10px 8px}
  .academy-interior .academy-demo-mobile{padding-bottom:max(8px,env(safe-area-inset-bottom))}
 }
+
+.academy-auth.academy-interior{--shadow:var(--academy-shadow)}
+.academy-interior .academy-auth-story{position:relative;display:flex;align-items:flex-end;padding:clamp(24px,5vw,72px);background-image:linear-gradient(0deg,#071e48ef 0%,#071e4870 35%,transparent 67%),url('/academy/hero-sem-interface.webp')}
+.academy-interior .academy-auth-story>div{color:#fff;max-width:510px}
+.academy-interior .academy-auth-story .academy-eyebrow{color:#ffda65}
+.academy-interior .academy-auth-story h2{font-size:clamp(32px,3.5vw,62px);font-weight:800;line-height:1.03;letter-spacing:-.04em;margin:0 0 12px}
+.academy-interior .academy-auth-story p:last-child{font-size:clamp(14px,1.35vw,21px);line-height:1.4}
+@media(max-width:760px){.academy-interior .academy-auth-story{height:clamp(135px,38vw,230px);padding:16px}.academy-interior .academy-auth-story h2{font-size:24px}.academy-interior .academy-auth-story .academy-eyebrow{font-size:9px;margin-bottom:5px}.academy-interior .academy-auth-story p:last-child{display:none}}
