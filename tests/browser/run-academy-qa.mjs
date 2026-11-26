@@ -161,12 +161,12 @@ try{
           const geometry=await page.evaluate(()=>{
             const nav=document.querySelector(".academy-premium-nav"),main=document.querySelector(".academy-premium-main");
             const a=nav.getBoundingClientRect(),b=main.getBoundingClientRect();
-            return {navRight:a.right,navBottom:a.bottom,mainLeft:b.left,mainTop:b.top,navColor:getComputedStyle(nav).backgroundColor,mainColor:getComputedStyle(document.querySelector(".academy-premium")).backgroundColor,ctaColor:getComputedStyle(document.querySelector(".academy-premium-hero .academy-primary")).backgroundColor};
+            return {navRight:a.right,navTop:a.top,navBottom:a.bottom,mainLeft:b.left,mainTop:b.top,mainBottom:b.bottom,headerBottom:document.querySelector(".academy-premium-topbar").getBoundingClientRect().bottom,navColor:getComputedStyle(nav).backgroundColor,mainColor:getComputedStyle(document.querySelector(".academy-premium")).backgroundColor,ctaColor:getComputedStyle(document.querySelector(".academy-premium-hero .academy-primary")).backgroundColor};
           });
           assert.equal(geometry.navColor,"rgb(11, 31, 58)");
           assert.equal(geometry.mainColor,"rgb(248, 250, 252)");
           assert.equal(geometry.ctaColor,"rgb(245, 166, 35)");
-          if(width>=1001)assert.ok(geometry.mainLeft>=geometry.navRight-1);
+          if(width>=1001){assert.ok(geometry.mainLeft>=geometry.navRight-1);assert.ok(Math.abs(geometry.navTop-geometry.headerBottom)<=1,"desktop sidebar must start immediately below header");assert.ok(geometry.navBottom>=geometry.mainBottom-1,"desktop sidebar must cover full content height");}
           if(width>1200){const g=await page.evaluate(()=>{const rect=s=>document.querySelector(s).getBoundingClientRect();const a=rect(".academy-dashboard-plan"),b=rect(".campus-event"),c=rect(".academy-campus-editorial-stack");return {sameRow:Math.abs(a.top-b.top)<2&&Math.abs(b.top-c.top)<2,ordered:a.right<=b.left&&b.right<=c.left}});assert.ok(g.sameRow&&g.ordered,"approved three-column layout");}
           else assert.ok(geometry.mainTop>=geometry.navBottom-1);
           await page.getByRole("button",{name:"Abrir conversa",exact:true}).click();
