@@ -1,5 +1,15 @@
 # Academy Beta — retomada visual PR #105
 
+## Nova decisão do fundador — experiência real, não demonstração
+
+25/11/2026: fundador revogou a demo pública e escolheu 15 dias gratuitos. Rota antiga /demo redireciona para cadastro; Home.tsx fictício não importado no App; nome fixo removido; home não mostra 78% inventados; CTAs passam a cadastro/método. Oferta de 15 dias é explicitamente prevista, ainda não habilitada.
+
+Trial: server/academy-trial.ts usa users.createdAt do contexto autenticado do banco, janela de 15 x 24h; não reinicia em login. Middleware tRPC protege operações de aprendizagem, mantém login, logout e APIs de exclusão/revogação. auth.trialStatus permite status e tela de expiração. ACADEMY_TRIAL_ENABLED ausente/false mantém legado, true aplica regra a todas as contas existentes pela data original; configuração inválida falha fechada. NÃO ativar antes de validar política de contas existentes, proteção contra criação de contas repetidas, cotas sustentáveis e autorização de cobrança. Stripe PR #32 ainda pausada; não há transição paga nem checkout neste branch. Acesso de privacidade via UI pós-expiração ainda precisa de revisão. Não abrir cadastro real na prévia.
+
+Visual: painel real enriquecido com cartões de ações, progresso da triagem registrado (não proficiência), transição curta de views, animações de entrada no login/onboarding/chat e efeitos de hover; respeita prefers-reduced-motion. Sem Adobe Flash nem vídeo pesado. Home mantém arte homologada, com atualização de oferta e botões. Testes de política, tRPC e Chromium atualizados; CI ainda não confirmado. Deploy visual ativo anterior 951367a ainda contém demo até nova publicação. Comunidade #106 continua separada, sem liberação.
+
+---
+
 ## CI verde e revisão das 32 capturas
 
 Head 335fd7d: P0 45737208849, MySQL 45737208877, Public live browser 45737209015, Chromium 45737209027 todos success. Artefato [15079916044](https://github.com/looksai/Lingua/actions/runs/45737209027/artifacts/15079916044) baixado; 32 PNG, incluindo login, onboarding, diagnóstico, dashboard, tutor, leitura, revisão, configuração, demo, painel empresarial e sala de espera em 375/1440px. Inspeção por mosaico e captura inteira de demo: mobile coerente, contraste corrigido, mas demo desktop possuía espaço em branco pois o seletor de grid exigia um descendente em vez de classe no próprio root. 062f1d7 corrige seletor e posicionamento explícito lado a lado, reforça contraste de título em cartão escuro e reserva margem inferior mobile para chat minimizado. 72d4520 acrescenta teste geométrico da barra lateral e conteúdo na mesma linha. Sem alteração da home, regras de negócio ou flags publicadas. Últimas duas correções ainda sem CI confirmado; conferir nova captura demo antes de publicar. Prévia permanece em 9733224. 
