@@ -45,7 +45,7 @@ export default function Landing() {
       <div className="academy-flight" aria-hidden="true"><svg viewBox="0 0 360 120" fill="none"><path d="M0 110 Q165 4 337 25" stroke="#1767b4" strokeWidth="1.5" strokeDasharray="5 5"/></svg><Plane size={50} fill="currentColor"/></div>
       <aside className="academy-preview" aria-label="Exemplo de jornada">
         <div className="academy-preview-top"><span aria-hidden="true">🇬🇧</span><div><strong>Inglês</strong><small>Jornada de aprendizagem</small></div><b className="academy-example-number">15 dias</b></div>
-        <div className="academy-example-track" aria-hidden="true"><span style={{width:"100%"}}/></div>
+        <div className="academy-trial-divider" aria-hidden="true"/>
         <ul><li>Comunicação profissional</li><li>Entrevistas e carreira</li><li>Mobilidade internacional</li></ul>
         <small>Período gratuito previsto • sem cobrança nesta prévia</small>
       </aside>
