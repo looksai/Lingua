@@ -21,9 +21,10 @@ function Loading({ text }: { text: string }) {
 
 function PrivateExperience({ email }: { email: string }) {
   const trial = trpc.auth.trialStatus.useQuery(undefined, { retry: false, refetchInterval: 60000 });
+  const logout = trpc.auth.logout.useMutation({onSuccess:()=>window.location.assign("/login")});
   if (trial.isPending) return <Loading text="Confirmando seu acesso..."/>;
   if (trial.error || !trial.data || trial.data.kind === "unavailable") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><h1 className="font-display text-3xl">Não foi possível confirmar seu acesso</h1><button className="academy-primary mt-5" onClick={()=>void trial.refetch()}>Tentar novamente</button></div></main>;
-  if (trial.data.kind === "expired") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p><a className="academy-secondary" href="/login">Voltar ao acesso</a></div></main>;
+  if (trial.data.kind === "expired") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p><button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>{logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}</div></main>;
   return <><div className="academy-trial-strip" hidden={trial.data.kind !== "active"}>{trial.data.kind === "active" ? `Período gratuito · ${trial.data.remainingDays} dia(s) restantes` : null}</div><LearningExperience email={email}/></>;
 }
 
