@@ -1,5 +1,14 @@
 # Academy Beta — retomada visual PR #105
 
+## Prévia visual publicada — 25/11/2026 (horário de Brasília)
+
+Commit implantado: 973322483607e3be4a17b59a028e6fc73a85c2ab. P0 45734119043, Chromium 45734119023, laboratório MySQL 45734119016 aprovados.
+Render: serviço separado gratuito lingua-academy-visual-preview, srv-dc3og7rl550s73f3jsh0, branch feat/academy-beta-design, auto-deploy desativado. URL https://lingua-academy-visual-preview.onrender.com.
+Primeiro deploy dep-dc3og83l550s73f3jt7g falhou por EROFS ao instalar pnpm globalmente. Configuração NPM_CONFIG_PREFIX=/tmp/lingua-pnpm e PNPM_VERSION=10.18.0 aplicada. Segundo deploy dep-dc3oj5ec6qcc73beisjg confirmado Live pelo Render às 01:22:39 UTC de 26/11 (22:22:39 BRT de 25/11).
+Prévia sem conexão de banco configurada, cadastro fechado, tutor e módulos experimentais desativados; não é ambiente de aprendizagem funcional. Staging original preservado. PR permanece draft, sem merge. A confirmação Live não substitui teste HTTP externo nem homologação visual do fundador. Próximo passo: verificar acesso no navegador e obter feedback visual sobre a home publicada antes de liberar a Academy.
+ 
+---
+
 ## Checkpoint de homologação visual — 569f1af e ajustes finais
 
 CI confirmado no head 569f1af: P0 [45733667972](https://github.com/looksai/Lingua/actions/runs/45733667972), MySQL [45733667922](https://github.com/looksai/Lingua/actions/runs/45733667922) e Chromium [45733668069](https://github.com/looksai/Lingua/actions/runs/45733668069) aprovados. PR draft, mergeable. Artefato [15077868034](https://github.com/looksai/Lingua/actions/runs/45733668069/artifacts/15077868034) baixado; capturas reais de 1672, 1024, 375 e 320 examinadas. Layout desktop preserva fundo fotográfico, cenário internacional, quatro cards, faixa empresarial e rodapé; em 1024 e abaixo, texto/foto separados intencionalmente para legibilidade. Diferenças residuais em relação ao original decorrem especialmente da fotografia limpa regenerada e da omissão de métricas empresariais fictícias. Não afirmar identidade pixel a pixel.
