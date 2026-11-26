@@ -36,6 +36,9 @@ async function test(name,width,mode,body,fixture="public"){
         const fixtures={"onboarding.me":{profile:fixture==="onboarding"?null:profile,responses:[],nextTask:fixture==="diagnostic"?nextTask:null,plan:fixture==="onboarding"?null:plan},"learning.listItems":[],"learning.history":[],"placement.me":{answers:[],plan:null,source:null,nextTask:null,status:"in_progress",skills:{writing:"sampled",reading:"not_assessed",listening:"not_assessed",speaking:"not_assessed"}},"tutor.capabilities":{provider:"off",chat:false,asr:false,tts:false,neuralEnglish:false,geminiDemo:false,memory:false}};
         if(Object.hasOwn(fixtures,name))return {result:{data:{json:fixtures[name]}}};
       }
+      if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
+      if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
+      if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
       throw Error("Unexpected API call in public Academy fixture: "+name);
     });
@@ -143,5 +146,23 @@ try{
       },fixture);
     }
   }
-  console.log("Academy Chromium: "+passed+"/18");
+  if(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"){
+    for(const width of [375,1440]){
+      await test("synthetic corporate events "+width,width,"closed",async page=>{
+        await page.goto(base+"/partners");
+        await page.getByRole("heading",{name:"Painel empresarial"}).waitFor();
+        await page.getByRole("heading",{name:"Preparação para entrevistas"}).waitFor();
+        await fit(page);
+        await page.screenshot({path:path.join(screenshotDir,`partner-${width}.png`),fullPage:true,animations:"disabled"});
+      },"partner");
+      await test("synthetic live waiting room "+width,width,"closed",async page=>{
+        await page.goto(base+"/live#"+"A".repeat(43));
+        await page.getByRole("heading",{name:"Inglês para entrevistas internacionais"}).waitFor();
+        await page.getByText(/transmissão de vídeo ainda não está disponível/).waitFor();
+        await fit(page);
+        await page.screenshot({path:path.join(screenshotDir,`live-${width}.png`),fullPage:true,animations:"disabled"});
+      },"live");
+    }
+  }
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?22:18));
 }finally{await browser.close();}
