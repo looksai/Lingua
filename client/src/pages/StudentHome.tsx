@@ -1,10 +1,11 @@
 import "./academy-landing.css";
 import "./academy-interior.css";
 import "./academy-premium.css";
+import "./academy-campus.css";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import { useEffect, useState, type FormEvent } from "react";
-import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Compass, Globe2, GraduationCap, Target, ChevronRight } from "lucide-react";
+import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Compass, Globe2, GraduationCap, Target, ChevronRight, Trophy, BriefcaseBusiness, Plane, Users, Newspaper, Video, Search, Crown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
 import ReviewDeck from "@/components/ReviewDeck";
@@ -31,6 +32,11 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   const profile = snapshot.profile!;
   const [view, setView] = useState<View>("dashboard");
   const [tutorOpenRequest,setTutorOpenRequest]=useState(0);
+  const [search,setSearch]=useState("");
+  const [notice,setNotice]=useState("");
+  const sponsors=trpc.campus.sponsors.useQuery(undefined,{enabled:view==="dashboard",retry:false});
+  const areas=[{label:"Idiomas",description:"Prática real de inglês.",icon:BookOpen,asset:"idiomas",action:()=>setView("read")},{label:"Exames",description:"Preparação para exames de proficiência.",icon:Trophy,asset:"exames"},{label:"Empregos Globais",description:"Carreira e oportunidades internacionais.",icon:BriefcaseBusiness,asset:"empregos"},{label:"Imigração",description:"Planejamento da sua mudança.",icon:Plane,asset:"imigracao"},{label:"Consultorias",description:"Orientação profissional especializada.",icon:Users,asset:"consultorias"}];
+  const unavailable=(label:string)=>setNotice(label+" — área em preparação. Ainda não está disponível.");
   const [tutorName, setTutorName] = useState(profile.tutorName);
   const [tutorPersona, setTutorPersona] = useState<TutorPersona>(profile.tutorPersona);
   const [interest, setInterest] = useState<LearnerInterest>(profile.interest);
@@ -113,11 +119,11 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
     } catch { /* show error */ }
   }
 
-  return <div className="academy-student academy-interior academy-premium">
+  return <div className="academy-student academy-interior academy-premium academy-campus">
     <header className="academy-topbar academy-premium-topbar">
       <div className="academy-topbar-inner">
         <img className="academy-student-logo" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua" />
-        <div className="academy-premium-account"><span>Minha conta</span><strong>{email}</strong></div>
+        <form className="academy-campus-search" role="search" onSubmit={e=>{e.preventDefault();setView("dashboard");}}><Search size={17} aria-hidden="true"/><input aria-label="Buscar áreas do Lingua" placeholder="Buscar áreas do Lingua..." value={search} onChange={e=>setSearch(e.target.value)}/></form><div className="academy-premium-account"><span>Minha conta</span><strong>{email}</strong></div>
         <button onClick={signOut} disabled={logout.isPending} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-muted"><LogOut size={16}/> Sair</button>
       </div>
     </header>
@@ -130,23 +136,26 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       ] as const).map(([id, Icon, label]) => (
         <button key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined}><Icon size={16}/>{label}</button>
       ))}
+      {[{label:"Exames",Icon:Trophy},{label:"Empregos",Icon:BriefcaseBusiness},{label:"Imigração",Icon:Plane},{label:"Consultorias",Icon:Users},{label:"Comunidade",Icon:Users},{label:"Lives e Eventos",Icon:Video},{label:"Notícias Globais",Icon:Newspaper}].map(({label,Icon})=><button key={label} type="button" onClick={()=>unavailable(label)}><Icon size={17} aria-hidden="true"/>{label}<small>Em breve</small></button>)}
       <button type="button" className="academy-rail-chat" onClick={()=>setTutorOpenRequest(n=>n+1)}><MessageSquare size={18} aria-hidden="true"/> Conversar com o tutor</button>
-      <div className="academy-rail-note"><Globe2 size={22} aria-hidden="true"/><span>Inglês para o seu próximo passo.</span></div>
+      <div className="academy-campus-membership"><Crown size={23} aria-hidden="true"/><strong>Seu acesso</strong><p>Consulte seu período de acesso no aviso da conta. Planos comerciais em preparação.</p></div><div className="academy-rail-note"><Globe2 size={22} aria-hidden="true"/><span>Inglês para o seu próximo passo.</span></div>
     </nav>
     <main key={view} className="academy-view-enter academy-premium-main">
+      {notice&&<div role="status" className="academy-campus-notice">{notice}<button type="button" onClick={()=>setNotice("")} aria-label="Fechar aviso">×</button></div>}
       {view === "dashboard" && <div className="academy-dashboard-v3">
-        <div className="academy-dashboard-heading"><div><p className="academy-kicker">ACADEMY / MEU INÍCIO</p><h1>Seu espaço de aprendizagem.</h1></div><span className="academy-dashboard-language"><Globe2 size={17} aria-hidden="true"/> Português → Inglês</span></div>
+        
         <section className="academy-welcome academy-premium-hero">
-          <div className="academy-hero-editorial"><p className="academy-kicker"><span/> SEU PRÓXIMO PASSO</p>
-            <h2>Um mundo de oportunidades começa <em>com você.</em></h2>
-            <p>Transforme o inglês em uma habilidade para a sua vida. Seu caminho é construído a partir do que você pratica.</p>
-            <button className="academy-primary" onClick={()=>setView("read")}>Começar prática <ArrowRight size={18} aria-hidden="true"/></button>
+          <div className="academy-hero-editorial"><p className="academy-kicker"><span/> BEM-VINDO(A) À LINGUA</p>
+            <h1>Aprenda, conquiste oportunidades e conecte-se <em>com o mundo.</em></h1>
+            <p>Idiomas, preparação para exames, empregos internacionais, imigração e consultorias em um só lugar.</p>
+            <button className="academy-primary" onClick={()=>setView("read")}>Continuar meus estudos <ArrowRight size={18} aria-hidden="true"/></button>
           </div>
-          <div className="academy-hero-location" aria-hidden="true"><Globe2 size={16}/> YOUR WORLD. YOUR FUTURE.</div>
+          
         </section>
+        <div className="academy-campus-areas" aria-label="Áreas da plataforma">{areas.filter(a=>!search.trim()|| (a.label+" "+a.description).toLowerCase().includes(search.trim().toLowerCase())).map(({label,description,icon:Icon,asset,action})=><button type="button" className={"academy-campus-area area-"+asset} key={asset} onClick={action??(()=>unavailable(label))}><Icon size={27} aria-hidden="true"/><h2>{label}</h2><p>{description}</p>{!action&&<small>Em preparação</small>}</button>)}{!areas.some(a=>!search.trim()||(a.label+" "+a.description).toLowerCase().includes(search.trim().toLowerCase()))&&<p>Nenhuma área encontrada.</p>}</div>
         <div className="academy-dashboard-grid">
           <section className="academy-dashboard-plan">
-            <div className="academy-section-heading"><div><p className="academy-kicker">01 / SUA JORNADA</p><h2>Seu plano de estudo</h2></div><Target size={24} aria-hidden="true"/></div>
+            <div className="academy-section-heading"><div><p className="academy-kicker">MEU PLANO</p><h2>Meu Plano de Estudos</h2></div><Target size={24} aria-hidden="true"/></div>
             <div className="academy-plan-focus">
               <p className="academy-kicker">{placement.data?.plan?"PLANO DE QUATRO SEMANAS · PROVISÓRIO":"PLANO INICIAL · EXPLORATÓRIO"}</p>
               <h3>{placement.data?.plan?.title??plan.title}</h3>
@@ -175,6 +184,8 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
             <button className="academy-dashboard-link" onClick={()=>setView("review")}>Minhas revisões <ChevronRight size={17} aria-hidden="true"/></button>
           </section>
         </div>
+        <div className="academy-campus-editorial"><section className="campus-event"><p className="academy-kicker">LIVES & EVENTOS</p><h2>Aprenda com especialistas</h2><p>Nenhum evento divulgado por enquanto.</p></section><section className="campus-community"><p className="academy-kicker">COMUNIDADE LINGUA</p><h2>Conecte-se com o mundo</h2><p>Comunidade exclusiva em preparação.</p></section><section className="campus-news"><p className="academy-kicker">NOTÍCIAS GLOBAIS</p><h2>O mundo em perspectiva</h2><p>Curadoria editorial em preparação.</p></section></div>
+        <section className="academy-campus-sponsors" aria-label="Destaques patrocinados"><div className="academy-section-heading"><div><p className="academy-kicker">ESPAÇO COMERCIAL</p><h2>Destaques patrocinados</h2></div></div><p>Publicidade de parceiros, separada das recomendações de estudo.</p>{sponsors.isPending?<p>Carregando destaques...</p>:sponsors.isError?<p>Os destaques estão indisponíveis.</p>:sponsors.data?.length?<div className="academy-sponsor-grid">{sponsors.data.map(c=><article key={c.id}><small>Patrocinado · {c.sponsor}</small><h3>{c.title}</h3><p>{c.description}</p><a href={c.url} target="_blank" rel="noopener noreferrer sponsored">Conhecer o parceiro <ArrowRight size={15}/></a></article>)}</div>:<p className="academy-sponsor-empty">Nenhum destaque patrocinado publicado.</p>}</section>
       </div>}
       {view === "read" && <>
         
