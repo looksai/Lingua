@@ -1,5 +1,11 @@
 # Academy Beta — retomada visual PR #105
 
+## CI verde e revisão das 32 capturas
+
+Head 335fd7d: P0 45737208849, MySQL 45737208877, Public live browser 45737209015, Chromium 45737209027 todos success. Artefato [15079916044](https://github.com/looksai/Lingua/actions/runs/45737209027/artifacts/15079916044) baixado; 32 PNG, incluindo login, onboarding, diagnóstico, dashboard, tutor, leitura, revisão, configuração, demo, painel empresarial e sala de espera em 375/1440px. Inspeção por mosaico e captura inteira de demo: mobile coerente, contraste corrigido, mas demo desktop possuía espaço em branco pois o seletor de grid exigia um descendente em vez de classe no próprio root. 062f1d7 corrige seletor e posicionamento explícito lado a lado, reforça contraste de título em cartão escuro e reserva margem inferior mobile para chat minimizado. 72d4520 acrescenta teste geométrico da barra lateral e conteúdo na mesma linha. Sem alteração da home, regras de negócio ou flags publicadas. Últimas duas correções ainda sem CI confirmado; conferir nova captura demo antes de publicar. Prévia permanece em 9733224. 
+
+---
+
 ## Revisão real das telas internas — correções de QA e contraste
 
 Head f76ee33: P0 45736869174, MySQL 45736869131 e public live 45736869125 success; Chromium 45736869202 failure. Head ae42cfa, Chromium 45736645594, log confirmou que 13 cenários iniciais passaram; clique de navegação do aluno em 375px bloqueado pelo chat proativo aberto (comportamento existente). Corrigido teste 9aa9f96: captura tutor, minimiza via botão real, verifica fechamento, navega nas demais views. 11b8fb1 captura somente viewport do tutor para não misturar scroll da página subjacente. Não desativar saudação proativa nem forçar clique.
