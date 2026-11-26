@@ -51,6 +51,11 @@ async function test(name,width,mode,body,fixture="public"){
     assert.deepEqual(broken,[],"failed approved assets");
     passed++;
     console.log("PASS "+name);
+  }catch(error){
+    const safeName=name.replace(/[^a-zA-Z0-9]+/g,"-");
+    await page.screenshot({path:path.join(screenshotDir,"failure-"+safeName+".png"),fullPage:true,animations:"disabled"}).catch(()=>{});
+    console.error("Failed synthetic browser case:",name,"path:",new URL(page.url()).pathname,"browser errors:",errors,"broken assets:",broken);
+    throw error;
   }finally{await context.close();}
 }
 const fit=async page=>{
@@ -163,6 +168,8 @@ try{
               await page.getByRole("button",{name:"Todos os salvos"}).click();
               assert.equal(await page.getByRole("button",{name:"Todos os salvos"}).getAttribute("aria-pressed"),"true");
               await page.locator(".academy-review-stats").waitFor();
+              await page.getByRole("heading",{name:"Tudo em dia nesta visão."}).waitFor();
+              assert.equal(await page.locator(".academy-review-stats strong").first().innerText(),"0");
             }
             await fit(page);await page.screenshot({path:path.join(screenshotDir,`${file}-${width}.png`),fullPage:true,animations:"disabled"});
             await page.emulateMedia({reducedMotion:"reduce"});
