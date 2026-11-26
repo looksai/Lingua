@@ -37,17 +37,17 @@ export default function Landing() {
         <h1>Inglês que conecta<br className="academy-desktop-break"/> você a <span>oportunidades<br className="academy-desktop-break"/> reais no mundo.</span></h1>
         <p className="academy-intro">Aprenda inglês com um método inteligente e prático, desenvolva habilidades para sua carreira e prepare-se para novas oportunidades e acompanhe a construção de uma comunidade global.</p>
         <div className="academy-actions">
-          <Link href="/login" className="academy-gold"><Play size={15} aria-hidden="true" /> Começar agora</Link>
-          <Link href="/demo" className="academy-outline"><Play size={15} aria-hidden="true" /> Ver como funciona</Link>
+          <Link href="/login?mode=signup" className="academy-gold"><Play size={15} aria-hidden="true" /> Começar agora</Link>
+          <a href="#metodo" className="academy-outline"><ArrowRight size={15} aria-hidden="true" /> Conhecer o método</a>
         </div>
-        <p className="academy-note" id="planos">Academy Beta por convite, em preparação. Planos comerciais ainda não disponíveis.</p>
+        <p className="academy-note" id="planos">15 dias gratuitos previstos para o lançamento. Cadastro da Academy Beta sujeito à disponibilidade.</p>
       </div>
       <div className="academy-flight" aria-hidden="true"><svg viewBox="0 0 360 120" fill="none"><path d="M0 110 Q165 4 337 25" stroke="#1767b4" strokeWidth="1.5" strokeDasharray="5 5"/></svg><Plane size={50} fill="currentColor"/></div>
       <aside className="academy-preview" aria-label="Exemplo de jornada">
-        <div className="academy-preview-top"><span aria-hidden="true">🇬🇧</span><div><strong>Inglês</strong><small>Exemplo fictício de jornada</small></div><b className="academy-example-number">78%</b></div>
-        <div className="academy-example-track" aria-hidden="true"><span/></div>
+        <div className="academy-preview-top"><span aria-hidden="true">🇬🇧</span><div><strong>Inglês</strong><small>Jornada de aprendizagem</small></div><b className="academy-example-number">15 dias</b></div>
+        <div className="academy-example-track" aria-hidden="true"><span style={{width:"100%"}}/></div>
         <ul><li>Comunicação profissional</li><li>Entrevistas e carreira</li><li>Mobilidade internacional</li></ul>
-        <small>Prévia ilustrativa • não é avaliação</small>
+        <small>Período gratuito previsto • sem cobrança nesta prévia</small>
       </aside>
     </section>
     <section id="metodo" className="academy-benefits" aria-label="Pilares do Lingua">
