@@ -28,7 +28,7 @@ type Capture = { recorder: MediaRecorder; stream: MediaStream; timer?: ReturnTyp
 const MAX_MESSAGES = 24;
 
 export type TutorVoiceSettings={voiceURI:string;rate:number;pitch:number;neuralVoice?:"troy"|"daniel"|"austin"|"autumn"|"diana"|"hannah"};
-export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings,placementRequested,onPlacementCompleted,initialOpen=true,openRequest=0}: {
+export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings,placementRequested,onPlacementCompleted,initialOpen=true,openRequest=0,onOpen}: {
   profile:TutorProfile;
   accountEmail:string;
   voiceSettings:TutorVoiceSettings;
@@ -36,6 +36,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   onOpenTutorSettings:()=>void;
   initialOpen?:boolean;
   openRequest?:number;
+  onOpen?:()=>void;
   placementRequested:boolean;
   onPlacementCompleted:()=>void;
 }) {
@@ -653,7 +654,7 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(!next)void confirmRevocation();
   }
 
-  if(!open)return <button type="button" onClick={()=>setOpen(true)} aria-label={"Conversar com "+profile.tutorName}
+  if(!open)return <button type="button" onClick={()=>{onOpen?.();setOpen(true);}} aria-label={"Conversar com "+profile.tutorName}
     className="academy-tutor-trigger fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink px-5 py-4 text-white shadow-lg">
     <MessageCircle size={21}/><Mic size={15}/><span className="max-w-40 truncate text-sm font-semibold">{profile.tutorName}</span>
   </button>;
