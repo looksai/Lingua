@@ -3,6 +3,7 @@ import {partnerInviteLabEnabled} from "./partner-invite-gate";
 import {createPartnerInviteRouter} from "./partner-invite-router";
 import {createPartnerInviteLimiter} from "./partner-invite-rate-limit";
 import {getDb} from "./db";
+import { academyAdmissionMode, assertAcademyAdmission } from "./academy-admission";
 import { COOKIE_NAME } from "@shared/const";
 import { onboardingRouter } from "./onboarding-router";
 import { tutorRouter } from "./tutor-router";
@@ -41,12 +42,16 @@ export const appRouter = router({
   placement: placementRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    registrationMode: publicProcedure.query(() => academyAdmissionMode()),
     signUp: publicProcedure.input(z.object({
       email: z.email().max(320),
       password: z.string().min(12).max(128),
+      inviteCode: z.string().max(128).optional(),
     })).mutation(async ({ ctx, input }) => {
       checkRequestOrigin(ctx.req);
       rateLimit("signup:" + (ctx.req.ip ?? "unknown") + ":" + normalizeEmail(input.email));
+      if (academyAdmissionMode() !== "open") rateLimit("academy-invite:" + (ctx.req.ip ?? "unknown"));
+      assertAcademyAdmission(input.email, input.inviteCode);
       let user;
       try {
         user = await registerLocalUser(input.email, input.password);
