@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import "./academy-landing.css";
+import "./academy-interior.css";
 
 export default function Login() {
   const [mode, setMode] = useState<"signIn" | "signUp">(() => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("mode") === "signup" ? "signUp" : "signIn");
@@ -27,15 +28,15 @@ export default function Login() {
       window.location.assign("/");
     } catch { /* error displayed below */ }
   };
-  return <main className="academy-landing academy-auth">
-    <div className="academy-auth-art" aria-hidden="true" />
+  return <main className="academy-landing academy-auth academy-interior">
+    <div className="academy-auth-art academy-auth-story"><div><p className="academy-eyebrow">APRENDIZADO • CARREIRA • MOBILIDADE</p><h2>Inglês para o seu<br/> próximo passo.</h2><p>Desenvolva habilidades para oportunidades reais no mundo.</p></div></div>
     <section className="academy-auth-content">
       <Link href="/" className="academy-logo"><img src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua" /></Link>
       <Link href="/" className="academy-auth-back">← Voltar ao início</Link>
       <form onSubmit={submit} className="academy-auth-form" aria-labelledby="academy-auth-title">
         <p className="academy-eyebrow">ACADEMY BETA</p>
         <h1 id="academy-auth-title">{mode === "signIn" ? "Bem-vindo ao Lingua" : "Crie sua conta"}</h1>
-        <p>Acesse seu espaço de aprendizagem.</p>
+        <p>{mode === "signIn" ? "Acesse seu espaço de aprendizagem." : "Comece sua jornada quando o cadastro estiver disponível."}</p>
         <label htmlFor="academy-email">E-mail</label>
         <input id="academy-email" type="email" autoComplete="email" required maxLength={320} value={email} onChange={e => setEmail(e.target.value)} />
         <label htmlFor="academy-password">Senha</label>
