@@ -12,6 +12,8 @@ on:
       - 'client/src/pages/StudentHome.tsx'
       - 'client/src/pages/academy-landing.css'
       - 'client/src/pages/academy-interior.css'
+      - 'client/src/pages/academy-premium.css'
+      - 'client/src/pages/academy-campus.css'
       - 'client/src/pages/Home.tsx'
       - 'client/src/pages/NotFound.tsx'
       - 'client/src/pages/PartnerDashboard.tsx'
@@ -122,6 +124,9 @@ jobs:
             cat /tmp/lingua-academy-preview.log
             exit 1
           }
+
+      - name: Verify approved Campus art in source and compiled build
+        run: node tests/browser/verify-campus-assets.mjs
 
       - name: Preserve Academy synthetic screenshots for visual review
         if: always()
