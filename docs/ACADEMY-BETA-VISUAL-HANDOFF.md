@@ -1,5 +1,15 @@
 # Academy Beta — retomada visual PR #105
 
+## Direção premium definitiva do fundador — redesign tela por tela
+
+Fundador rejeitou o visual interno anterior. Brief oficial: Navy #0B1F3A, dourado #F5A623, fundo #F8FAFC; visual premium com personalidade, energia da landing, hierarquia forte, densidade inteligente, dourado só para CTA principal, sombras suaves. Landing e login preservados. Ordem: dashboard real → tutor (nome configurável, não fixar Alex) → onboarding → prática/conversa → progresso/revisão. Validar composição de cada tela, não apenas cores; evitar declarar homologação sem aprovação.
+
+Primeiro bloco: 690b732 reorganiza dashboard real em navegação navy lateral desktop/horizontal mobile, hero editorial, plano, tutor, triagem e biblioteca; usa dados reais e sem demo. ad7242f abre tutor por ação deliberada no dashboard (preserva comportamento padrão nos outros chamadores); 79c24eb estabelece CSS escopado ao workspace autenticado, paleta exata, grid responsivo e animações leves. b467cce testa paleta, geometria e abertura do tutor. CI/capturas do novo dashboard pendentes. Não publicar até verificar e obter aprovação visual. Não aplicar outras telas integralmente antes de definir dashboard. Home/login não alterados neste bloco.
+
+Último deploy f639fff confirmado Live (dep-dc3pt2uq1p3s73bvj740). ff7ab61 teve quatro workflows verdes: P0 45745209235, lives 45745209156, Chromium 45745209165, MySQL 45745209158. Recuperação de senha permanece obrigatória antes de abrir cadastros. Trial e billing não ativados, sem DB/Stripe/CSLE/merge.
+
+---
+
 ## Estúdios premium validados, navegação mobile refinada
 
 Head f639fff: P0 45743570950, MySQL 45743570795, lives 45743570839 e Chromium 45743570775 success. Artefato 15082780529: 30 PNG, conferidos mosaicos de dez interfaces desktop/mobile. Deploy dep-dc3pt2uq1p3s73bvj740 iniciado para f639fff no preview isolado, não para main. A leitura mobile permanece longa (captura 375x5445), então bd15121/30a77ec acrescentam atalhos reais com foco acessível para texto, vocabulário, revisão, fala e compreensão. 3f57768 retira a palavra "ready" pré-semeada indevidamente na lista do aluno; conta nova inicia vazia, preservando itens realmente recuperados do servidor. 6de345d testa atalhos e lista vazia. Correções posteriores ao SHA publicado ainda precisam de CI. Recuperação de senha e ativação de trial/billing seguem pendentes; nenhum cadastro, banco ou cobrança foi liberado.
