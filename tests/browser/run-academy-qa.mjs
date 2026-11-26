@@ -135,6 +135,13 @@ try{
       await test("synthetic "+fixture+" "+width,width,"closed",async page=>{
         await page.goto(base);
         await page.locator(fixture==="student"?".academy-welcome":".academy-onboarding-card").waitFor();
+        if(fixture==="student"){
+          const minimize=page.getByRole("button",{name:"Minimizar tutor"});
+          await minimize.waitFor({state:"visible"});
+          await page.screenshot({path:path.join(screenshotDir,`tutor-${width}.png`),fullPage:true,animations:"disabled"});
+          await minimize.click();
+          await page.locator(".academy-tutor-window").waitFor({state:"hidden"});
+        }
         await fit(page);
         await page.screenshot({path:path.join(screenshotDir,`${fixture}-${width}.png`),fullPage:true,animations:"disabled"});
         if(fixture==="student"){
