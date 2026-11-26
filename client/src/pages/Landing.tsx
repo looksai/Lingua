@@ -44,7 +44,7 @@ export default function Landing() {
       </div>
       <div className="academy-flight" aria-hidden="true"><svg viewBox="0 0 360 120" fill="none"><path d="M0 110 Q165 4 337 25" stroke="#1767b4" strokeWidth="1.5" strokeDasharray="5 5"/></svg><Plane size={50} fill="currentColor"/></div>
       <aside className="academy-preview" aria-label="Exemplo de jornada">
-        <div className="academy-preview-top"><span aria-hidden="true">🇬🇧</span><div><strong>Inglês</strong><small>Exemplo de jornada</small></div><b className="academy-example-number">78%</b></div>
+        <div className="academy-preview-top"><span aria-hidden="true">🇬🇧</span><div><strong>Inglês</strong><small>Exemplo de jornada fictício</small></div><b className="academy-example-number">78%</b></div>
         <div className="academy-example-track" aria-hidden="true"><span/></div>
         <ul><li>Comunicação profissional</li><li>Entrevistas e carreira</li><li>Mobilidade internacional</li></ul>
         <small>Prévia ilustrativa • não é avaliação</small>
@@ -55,9 +55,9 @@ export default function Landing() {
     </section>
     <section id="empresas" className="academy-partners">
       <img className="academy-building" src={asset("edificio-ilustrativo.png")} alt="Edifício conceitual, não é uma sede real" />
-      <div className="academy-partner-copy"><p className="academy-tag">◇ Programa de Parceiros Fundadores</p><h2>Construa o futuro da Lingua <span>com a gente.</span></h2><p>Empresas, consultorias, escolas e recrutadoras: visão de pilotos e co-desenvolvimento.</p></div>
+      <div className="academy-partner-copy" id="programa-info"><p className="academy-tag">◇ Programa de Parceiros Fundadores</p><h2>Construa o futuro da Lingua <span>com a gente.</span></h2><p>Empresas, consultorias, escolas e recrutadoras: visão de pilotos e co-desenvolvimento.</p></div>
       <ul className="academy-partner-benefits">{partnerBenefits.map(item => <li key={item}>{item}</li>)}</ul>
-      <div className="academy-partner-status" id="parceiros"><p>Programa em preparação</p><a href="#sobre" className="academy-gold">Conhecer o programa <ArrowRight size={16} aria-hidden="true" /></a></div>
+      <div className="academy-partner-status" id="parceiros"><p>Programa em preparação</p><a href="#programa-info" className="academy-gold">Conhecer o programa <ArrowRight size={16} aria-hidden="true" /></a></div>
     </section>
     <footer id="sobre" className="academy-footer">{pillars.map(({title,description,Icon}) => <div key={title}><Icon aria-hidden="true" size={36}/><section><strong>{title}</strong><small>{description}</small></section></div>)}<span>Uma plataforma global para o seu próximo passo.</span></footer>
   </main>;
