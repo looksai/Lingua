@@ -20,6 +20,14 @@ function Loading({ text }: { text: string }) {
 }
 
 function PrivateExperience({ email }: { email: string }) {
+  const trial = trpc.auth.trialStatus.useQuery(undefined, { retry: false, refetchInterval: 60000 });
+  if (trial.isPending) return <Loading text="Confirmando seu acesso..."/>;
+  if (trial.error || !trial.data || trial.data.kind === "unavailable") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><h1 className="font-display text-3xl">Não foi possível confirmar seu acesso</h1><button className="academy-primary mt-5" onClick={()=>void trial.refetch()}>Tentar novamente</button></div></main>;
+  if (trial.data.kind === "expired") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p><a className="academy-secondary" href="/login">Voltar ao acesso</a></div></main>;
+  return <><div className="academy-trial-strip" hidden={trial.data.kind !== "active"}>{trial.data.kind === "active" ? `Período gratuito · ${trial.data.remainingDays} dia(s) restantes` : null}</div><LearningExperience email={email}/></>;
+}
+
+function LearningExperience({ email }: { email: string }) {
   const snapshot = trpc.onboarding.me.useQuery(undefined, { retry: false });
   if (snapshot.isPending) return <Loading text="Preparando seu espaço de aprendizagem..." />;
   if (snapshot.error || !snapshot.data) return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/>
