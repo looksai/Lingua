@@ -25,11 +25,13 @@ describe("Academy approved visual kit", () => {
     const sources = read("client/src/pages/Landing.tsx") + read("client/src/pages/academy-landing.css");
     for (const name of Object.keys(approved)) expect(sources).toContain(name);
   });
-  it("keeps demo and beta distinct and uses existing routes", () => {
+  it("retires fictional demo and advertises the planned trial honestly", () => {
     const landing = read("client/src/pages/Landing.tsx");
     expect(landing).toContain('href="/login"');
-    expect(landing).toContain('href="/demo"');
-    expect(landing).toContain("Prévia ilustrativa");
+    expect(landing).not.toContain('href="/demo"');
+    expect(landing).toContain('href="/login?mode=signup"');
+    expect(landing).toContain("15 dias gratuitos previstos");
+    expect(landing).not.toContain("78%");
     expect(landing).toContain("Programa em preparação");
   });
 });
