@@ -102,7 +102,9 @@ export const appRouter = router({
           language: z.string().default("en"),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        checkRequestOrigin(ctx.req);
+        if (academyAdmissionMode() !== "open") throw new TRPCError({code:"PRECONDITION_FAILED",message:"A transcrição experimental de leitura está desativada na Academy Beta. Use o tutor autorizado ou continue por texto."});
         const apiUrl = process.env.MANUS_API_URL;
         const apiKey = process.env.MANUS_API_KEY;
         if (!apiUrl || !apiKey) {
