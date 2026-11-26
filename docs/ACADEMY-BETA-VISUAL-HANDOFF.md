@@ -1,5 +1,17 @@
 # Academy Beta — retomada visual PR #105
 
+## Campus acadêmico homologado e destaques pagos
+
+Fundador aprovou a referência “Dashboard Lingua_ Aprenda e Conecte-se.png”: biblioteca, estudantes multiculturais, globo dourado, serifas editoriais, navy e dourado, cinco áreas temáticas e módulos editoriais. Landing/login ficam intactos. Rejeitou o chat visual anterior: tutor flutuante global com saudação discreta local, minimizável e sem envio externo antes de consentimento. As demais páginas serão homologadas separadamente.
+
+509baae/1630155 e CSS academy-campus.css estruturam o dashboard autenticado com a referência (hero, cinco áreas, menu, plano real, tutor, progresso, biblioteca, espaços de eventos/comunidade/notícias). Busca local de áreas; módulos não implementados explicitamente em preparação, sem ofertas, notícias, vagas, contagens, níveis, percentuais ou eventos fictícios. Tutor continua montado no workspace; saudação local não é resposta de IA.
+
+Receita empresarial: seção “Destaques patrocinados” visível logo após áreas temáticas. c6f94d1/d21b04e/f211524 criam seleção server-side de até três campanhas autorizadas, com janela temporal, URL HTTPS, flag desligada por padrão e rótulo de publicidade. Configuração CAMPUS_SPONSORS_ENABLED=true e CAMPUS_SPONSORS_JSON só para operador autorizado; approval=approved_paid é declaração manual, não confirmação financeira. Sem targeting pessoal, sem métricas inventadas, sem recomendação pedagógica paga. Futuro: contratos, cobrança recorrente, portal empresa, moderação, auditoria, métricas agregadas e limites comerciais. Stripe #32 permanece pausada. Não ativar campanhas ou cadastro sem revisão.
+
+Bloqueio de assets: ferramenta GitHub disponível escreve somente UTF-8, não binários. Pacote Lingua-Campus-Assets.zip contém 10 WebP recortados da referência aprovada e manifest; extrair em client/public/academy/campus/ e enviar pelo GitHub. Não substituir por rapaz da landing ou screenshot completo. CI 14e8107 atualizado para busca, saudação, ausência de campanha e fixture de publicidade. CI novo e fidelidade visual ainda pendentes. Não publicar versão incompleta. Deploy anterior f639fff permanece isolado. Nenhuma alteração em banco/Stripe/main.
+
+---
+
 ## Direção premium definitiva do fundador — redesign tela por tela
 
 Fundador rejeitou o visual interno anterior. Brief oficial: Navy #0B1F3A, dourado #F5A623, fundo #F8FAFC; visual premium com personalidade, energia da landing, hierarquia forte, densidade inteligente, dourado só para CTA principal, sombras suaves. Landing e login preservados. Ordem: dashboard real → tutor (nome configurável, não fixar Alex) → onboarding → prática/conversa → progresso/revisão. Validar composição de cada tela, não apenas cores; evitar declarar homologação sem aprovação.
