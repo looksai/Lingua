@@ -573,8 +573,14 @@ export default function ReadingLab() {
         </div>
       </div>
 
+      <nav className="academy-study-jumps" aria-label="Atalhos do estúdio">
+        {([{id:"academy-reading-text",label:"Texto"},{id:"academy-reading-word",label:"Vocabulário"},{id:"academy-reading-review",label:"Revisão"},{id:"academy-reading-voice",label:"Fala"},{id:"academy-reading-check",label:"Compreensão"}] as const).map(({id,label})=><button type="button" key={id} onClick={()=>{
+          const target=document.getElementById(id);
+          if(target){target.scrollIntoView({block:"start",behavior:"auto"});target.focus({preventScroll:true});}
+        }}>{label}</button>)}
+      </nav>
       <div className="grid gap-5 xl:grid-cols-[1fr_0.36fr]">
-        <section className="academy-reading-sheet border border-ink/10 bg-white p-5 sm:p-9">
+        <section id="academy-reading-text" tabIndex={-1} aria-label="Texto de prática" className="academy-reading-sheet border border-ink/10 bg-white p-5 sm:p-9">
           <div className="mb-8 flex items-start justify-between gap-4">
             <div>
               <p className="eyebrow mb-2">Texto de prática · A2/B1</p>
@@ -616,7 +622,7 @@ export default function ReadingLab() {
           </div>
         </section>
 
-        <aside className="academy-word-panel border border-ink/10 p-5 sm:p-6">
+        <aside id="academy-reading-word" tabIndex={-1} aria-label="Vocabulário em foco" className="academy-word-panel border border-ink/10 p-5 sm:p-6">
           <div className="mb-6 flex items-center justify-between">
             <p className="eyebrow">Palavra em foco</p>
             <button
@@ -660,7 +666,7 @@ export default function ReadingLab() {
         </aside>
       </div>
 
-      <section className="border border-ink/10 bg-white p-6 sm:p-8">
+      <section id="academy-reading-review" tabIndex={-1} aria-label="Revisão das palavras salvas" className="border border-ink/10 bg-white p-6 sm:p-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
             <p className="eyebrow mb-2">
@@ -754,7 +760,7 @@ export default function ReadingLab() {
         </p>
       </section>
 
-      <section className="border border-ink/10 bg-white p-6 sm:p-8">
+      <section id="academy-reading-voice" tabIndex={-1} aria-label="Prática de fala" className="border border-ink/10 bg-white p-6 sm:p-8">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="eyebrow mb-2">Gravação · transcrição opcional</p>
@@ -954,7 +960,7 @@ export default function ReadingLab() {
         </section>
       )}
 
-      <section className="border border-ink/10 bg-white p-6 sm:p-8">
+      <section id="academy-reading-check" tabIndex={-1} aria-label="Compreensão do texto" className="border border-ink/10 bg-white p-6 sm:p-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
             <p className="eyebrow mb-2">Depois da leitura · compreensão</p>
