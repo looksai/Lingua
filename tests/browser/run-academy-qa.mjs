@@ -129,6 +129,16 @@ try{
   for(const width of [375,1440]){
     await test("branded demo "+width,width,"closed",async page=>{
       await page.goto(base+"/demo");await page.getByText(/DEMONSTRAÇÃO FICTÍCIA/).waitFor();await page.locator(".academy-demo-main").waitFor();await fit(page);
+      const layout=await page.evaluate(()=>{
+        const side=document.querySelector(".academy-demo-sidebar"),content=document.querySelector(".academy-demo-content");
+        const a=side.getBoundingClientRect(),b=content.getBoundingClientRect();
+        return {sideDisplay:getComputedStyle(side).display,sideRight:a.right,sideTop:a.top,contentLeft:b.left,contentTop:b.top};
+      });
+      if(width>=1024){
+        assert.ok(layout.sideDisplay!=="none","desktop sidebar visible");
+        assert.ok(layout.contentLeft>=layout.sideRight-1,"desktop content beside sidebar");
+        assert.ok(Math.abs(layout.sideTop-layout.contentTop)<=1,"desktop content starts in same row");
+      }else assert.equal(layout.sideDisplay,"none","mobile uses bottom navigation");
       await page.screenshot({path:path.join(screenshotDir,`demo-${width}.png`),fullPage:true,animations:"disabled"});
     });
     for(const fixture of ["onboarding","diagnostic","student"]){
