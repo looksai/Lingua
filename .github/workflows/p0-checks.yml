@@ -38,3 +38,34 @@ jobs:
         run: pnpm test
       - name: Build
         run: pnpm build
+
+  campus-db-bootstrap:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/feat/academy-beta-design'
+    needs: check-test-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: campus-db-setup
+    concurrency:
+      group: campus-db-bootstrap
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Generate new isolated schema without credentials
+        run: pnpm exec drizzle-kit generate --config=drizzle.campus-bootstrap.config.ts
+      - name: Initialize exclusively lingua_campus and verify scoped account
+        env:
+          CAMPUS_ADMIN_DATABASE_URL: ${{ secrets.CAMPUS_ADMIN_DATABASE_URL }}
+          CAMPUS_APP_DATABASE_URL: ${{ secrets.CAMPUS_APP_DATABASE_URL }}
+          CAMPUS_DATABASE_CA: ${{ secrets.CAMPUS_DATABASE_CA }}
+        run: pnpm exec tsx scripts/campus-db-bootstrap.ts
