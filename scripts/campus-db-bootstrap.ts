@@ -12,9 +12,17 @@ async function main(){
  const adminUrl=process.env.CAMPUS_ADMIN_DATABASE_URL??"";
  const appUrl=process.env.CAMPUS_APP_DATABASE_URL??"";
  const ca=process.env.CAMPUS_DATABASE_CA;
- const admin=buildMysqlPoolOptions(adminUrl,ca),app=buildMysqlPoolOptions(appUrl,ca);
+ if(!adminUrl)throw new Error("missing admin URL");
+ if(!appUrl)throw new Error("missing app URL");
+ if(!ca?.trim())throw new Error("missing CA");
+ stage="validate admin URL and CA";
+ const admin=buildMysqlPoolOptions(adminUrl,ca);
+ stage="validate app URL and CA";
+ const app=buildMysqlPoolOptions(appUrl,ca);
+ stage="verify target configuration";
  if(admin.database!==schema||app.database!==schema||admin.user!=="avnadmin"||app.user!==appUser||admin.host!==app.host||admin.port!==app.port||!admin.ssl||!app.ssl||!admin.host?.endsWith(".aivencloud.com"))throw Error("unexpected target");
- const db=await mysql.createConnection(admin);
+ stage="connect administrator via TLS";
+ const db=await mysql.createConnection({...admin,connectTimeout:20000});
  try{
   stage="verify target and empty database";
   const [identity]=await db.query<RowDataPacket[]>("SELECT DATABASE() AS db");
@@ -43,4 +51,12 @@ async function main(){
   console.log("Campus bootstrap complete: ten core tables and isolated app connection verified.");
  }finally{await db.end();}
 }
-main().catch(()=>{console.error("Campus bootstrap stopped at: "+stage+". Review before retrying; credentials and SQL errors withheld.");process.exitCode=1;});
+const safeMessages=new Set(["missing admin URL","missing app URL","missing CA","Invalid MySQL DATABASE_URL","MySQL URL requests an insecure TLS mode","Invalid MySQL port","DATABASE_SSL_CA_BASE64 is missing; enter the Aiven CA PEM or Base64","DATABASE_SSL_CA_BASE64 is invalid: expected the full CA PEM or Base64","Invalid database CA certificate","Invalid or expired database CA certificate","unexpected target","unexpected schema","database is not empty; manual review required","app has unexpected existing privileges","missing expected core table","unexpected app identity","unexpected visible schema"]);
+const safeCodes=new Set(["ENOTFOUND","EAI_AGAIN","ETIMEDOUT","ECONNREFUSED","ECONNRESET","ER_ACCESS_DENIED_ERROR","ER_BAD_DB_ERROR","ER_DBACCESS_DENIED_ERROR","ER_TABLEACCESS_DENIED_ERROR","ER_SPECIFIC_ACCESS_DENIED_ERROR","ER_CANNOT_USER","ER_NONEXISTING_GRANT","ER_PARSE_ERROR","HANDSHAKE_SSL_ERROR","CERT_HAS_EXPIRED","UNABLE_TO_VERIFY_LEAF_SIGNATURE","SELF_SIGNED_CERT_IN_CHAIN","ERR_TLS_CERT_ALTNAME_INVALID","PROTOCOL_CONNECTION_LOST"]);
+main().catch((error:unknown)=>{
+ const e=error as {message?:unknown;code?:unknown;cause?:{code?:unknown}};
+ const code=typeof e?.code==="string"?e.code:typeof e?.cause?.code==="string"?e.cause.code:"";
+ const reason=typeof e?.message==="string"&&safeMessages.has(e.message)?e.message:safeCodes.has(code)?code:"withheld";
+ console.error("Campus bootstrap stopped at: "+stage+"; reason: "+reason+". No connection strings or raw SQL errors logged.");
+ process.exitCode=1;
+});
