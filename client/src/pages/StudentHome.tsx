@@ -5,7 +5,7 @@ import "./academy-campus.css";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "../../../server/routers";
 import { useEffect, useState, type FormEvent } from "react";
-import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Compass, Globe2, GraduationCap, Target, ChevronRight, Trophy, BriefcaseBusiness, Plane, Users, Newspaper, Video, Search, Crown } from "lucide-react";
+import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Compass, Globe2, GraduationCap, Target, ChevronRight, ChevronDown, Trophy, BriefcaseBusiness, Plane, Users, Newspaper, Video, Search, Crown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
 import StudyCampus from "./StudyCampus";
@@ -31,7 +31,17 @@ function loadVoiceSettings():TutorVoiceSettings {
 
 export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; email: string }) {
   const profile = snapshot.profile!;
-  const [view, setView] = useState<View>("dashboard");
+  const [view, setActiveView] = useState<View>("dashboard");
+  const [studyExpanded,setStudyExpanded]=useState(false);
+  const studyActive=view==="study"||view==="read"||view==="review";
+  function setView(next:View){
+    setActiveView(next);
+    setStudyExpanded(next==="study"||next==="read"||next==="review");
+  }
+  function openStudySection(section:"study-path-title"|"study-progress-title"|"study-plan-title"){
+    setView("study");
+    requestAnimationFrame(()=>{const target=document.getElementById(section);target?.focus({preventScroll:true});target?.scrollIntoView({block:"start"});});
+  }
   const [tutorOpenRequest,setTutorOpenRequest]=useState(0);
   const [showTutorGreeting,setShowTutorGreeting]=useState(true);
   const openTutor=()=>{setShowTutorGreeting(false);setTutorOpenRequest(n=>n+1);};
@@ -131,16 +141,19 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
       </div>
     </header>
     <nav aria-label="Meu espaço" className="academy-route-nav academy-premium-nav"><div className="academy-rail-heading"><Globe2 size={19} aria-hidden="true"/> <span>MEU ESPAÇO</span></div>
-      {([
-        ["dashboard", Compass, "Meu início"],
-        ["study", BookOpen, "Estudar"],
-        ["read", BookOpen, "Ler e praticar"],
-        ["review", ListChecks, "Revisar"],
-        ["settings", Settings2, "Meu tutor"],
-      ] as const).map(([id, Icon, label]) => (
-        <button key={id} onClick={() => setView(id)} aria-current={view === id ? "page" : undefined}><Icon size={16}/>{label}</button>
-      ))}
+      <button type="button" onClick={()=>setView("dashboard")} aria-current={view==="dashboard"?"page":undefined}><Compass size={16}/>Meu início</button>
+      <div className="academy-study-nav-group">
+        <button type="button" className="academy-study-nav-trigger" aria-expanded={studyExpanded} aria-controls="academy-study-subnav" data-active={studyActive} onClick={()=>{if(!studyActive){setView("study");}else{setStudyExpanded(v=>!v);}}}><BookOpen size={16}/>Estudar <ChevronDown className="academy-study-chevron" size={16} aria-hidden="true"/></button>
+        <div id="academy-study-subnav" className="academy-study-subnav" role="group" aria-label="Ferramentas de estudo" hidden={!studyExpanded}>
+          <button type="button" aria-current={view==="study"?"page":undefined} onClick={()=>setView("study")}><Compass size={15}/>Minha trilha</button>
+          <button type="button" aria-current={view==="read"?"page":undefined} onClick={()=>setView("read")}><BookOpen size={15}/>Ler e praticar</button>
+          <button type="button" onClick={()=>{setView("study");openTutor();}}><MessageSquare size={15}/>Conversação</button>
+          <button type="button" aria-current={view==="review"?"page":undefined} onClick={()=>setView("review")}><ListChecks size={15}/>Revisões espaçadas</button>
+          <button type="button" onClick={()=>openStudySection("study-progress-title")}><Target size={15}/>Meu progresso</button>
+        </div>
+      </div>
       {[{label:"Exames",Icon:Trophy},{label:"Empregos",Icon:BriefcaseBusiness},{label:"Imigração",Icon:Plane},{label:"Consultorias",Icon:Users},{label:"Comunidade",Icon:Users},{label:"Lives e Eventos",Icon:Video},{label:"Notícias Globais",Icon:Newspaper}].map(({label,Icon})=><button key={label} type="button" onClick={()=>unavailable(label)}><Icon size={17} aria-hidden="true"/>{label}<small>Em breve</small></button>)}
+      <button type="button" onClick={()=>setView("settings")} aria-current={view==="settings"?"page":undefined}><Settings2 size={16}/>Meu tutor</button>
       <button type="button" className="academy-rail-chat" onClick={openTutor}><MessageSquare size={18} aria-hidden="true"/> Conversar com o tutor</button>
       <div className="academy-campus-membership"><Crown size={23} aria-hidden="true"/><strong>Seu acesso</strong><p>Consulte seu período de acesso no aviso da conta. Planos comerciais em preparação.</p></div><div className="academy-rail-note"><Globe2 size={22} aria-hidden="true"/><span>Inglês para o seu próximo passo.</span></div>
     </nav>
@@ -194,7 +207,8 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
 
 
       </div>}
-      {view === "study" && <StudyCampus tutorName={profile.tutorName} planTitle={placement.data?.plan?.title??plan.title} objective={plan.objective} responses={recorded} savedCount={items.isError||items.isLoading?null:items.data?.length??null} placementReady={Boolean(placement.data?.plan)} canStartPlacement={Boolean(placement.data&&!placement.data.plan)} onRead={()=>setView("read")} onReview={()=>setView("review")} onTutor={openTutor} onPlan={()=>setView("dashboard")} onPlacement={()=>{setRequestPlacement(true);openTutor();}} onUnavailable={unavailable}/>}
+      {view === "study" && <StudyCampus tutorName={profile.tutorName} planTitle={placement.data?.plan?.title??plan.title} objective={plan.objective} responses={recorded} savedCount={items.isError||items.isLoading?null:items.data?.length??null} placementReady={Boolean(placement.data?.plan)} canStartPlacement={Boolean(placement.data&&!placement.data.plan)} onRead={()=>setView("read")} onReview={()=>setView("review")} onTutor={openTutor} onPlan={()=>openStudySection("study-plan-title")} onPlacement={()=>{setRequestPlacement(true);openTutor();}} onUnavailable={unavailable}/>}
+      {(view==="read"||view==="review")&&<div className="academy-study-breadcrumb"><button type="button" onClick={()=>setView("study")}><BookOpen size={16}/>Estudar</button><ChevronRight size={14} aria-hidden="true"/><span aria-current="page">{view==="read"?"Ler e praticar":"Revisões espaçadas"}</span></div>}
       {view === "read" && <>
         
         <ReadingLab/>
