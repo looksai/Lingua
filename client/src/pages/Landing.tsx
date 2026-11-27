@@ -1,41 +1,64 @@
 import { Link } from "wouter";
-import { ArrowRight, BookOpen, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Play, Globe, Plane, Users, ChartNoAxesColumnIncreasing, Handshake } from "lucide-react";
+import "./academy-landing.css";
+
+const asset = (name: string) => `${import.meta.env.BASE_URL}academy/${name}`;
+const benefits = [
+  { title: "Aprenda", text: "Inglês com IA e método adaptativo", image: "icone-aprenda.png" },
+  { title: "Prepare-se", text: "Para entrevistas e o mercado global", image: "icone-prepare-se.png" },
+  { title: "Conecte-se", text: "Comunidade internacional em planejamento", image: "icone-conecte-se.png" },
+  { title: "Expanda", text: "Suas oportunidades de estudo, trabalho e vida", image: "icone-expanda.png" },
+];
+const pillars = [
+  { title: "Tutor IA", description: "Aprendizagem personalizada", Icon: Users },
+  { title: "Carreira", description: "Inglês aplicado à vida real", Icon: ChartNoAxesColumnIncreasing },
+  { title: "Comunidade", description: "Visão de expansão", Icon: Handshake },
+  { title: "Empresas", description: "Programa de pré-lançamento", Icon: Globe },
+];
+const partnerBenefits = ["Pilotos de capacitação", "Condições comerciais a definir", "Visibilidade institucional futura", "Participação consultiva"];
 
 export default function Landing() {
-  return (
-    <main className="min-h-screen bg-paper text-ink">
-      <header className="mx-auto flex max-w-6xl items-center justify-between border-b border-ink/10 px-6 py-5">
-        <span className="font-display text-3xl tracking-tight">lingua<span className="text-teal">/</span></span>
-        <Link href="/login" className="rounded-full border border-ink/15 px-5 py-2 text-sm font-semibold hover:bg-white">
-          Entrar
-        </Link>
+  return <main className="academy-landing">
+    <section className="academy-hero" id="solucao">
+      <header className="academy-nav">
+        <Link href="/" className="academy-logo"><img src={asset("logo-lingua-transparente.png")} alt="Lingua" /></Link>
+        <nav aria-label="Menu principal">
+          <a className="academy-active" href="#solucao">Solução</a>
+          <a href="#metodo">Método</a>
+          <a href="#planos">Planos</a>
+          <a href="#empresas">Empresas</a>
+          <a href="#parceiros">Parceiros</a>
+          <a href="#sobre">Sobre</a>
+        </nav>
+        <div className="academy-actions academy-nav-actions"><span className="academy-language" aria-label="Idioma da interface: português"><Globe size={22} aria-hidden="true"/> PT</span><Link href="/login" className="academy-outline">Entrar</Link><Link href="/login?mode=signup" className="academy-gold">Criar conta</Link></div>
       </header>
-      <section className="mx-auto grid max-w-6xl items-center gap-12 px-6 py-16 lg:grid-cols-[1.2fr_0.8fr] lg:py-28">
-        <div>
-          <p className="mb-5 text-sm font-bold uppercase tracking-[0.2em] text-teal-deep">Inglês com um caminho que faz sentido</p>
-          <h1 className="font-display text-5xl leading-tight tracking-tight sm:text-7xl">Aprender começa com uma conversa.</h1>
-          <p className="mt-7 max-w-xl text-lg leading-8 text-ink-muted">
-            Descubra o que já sabe, escolha como chamar seu tutor e explore inglês com leitura,
-            prática e revisões no seu ritmo. Sem progresso inventado.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3">
-            <Link href="/login" className="inline-flex items-center gap-2 rounded-full bg-ink px-7 py-4 font-semibold text-white">
-              Conhecer meu tutor <ArrowRight size={18}/>
-            </Link>
-            <Link href="/demo" className="inline-flex items-center gap-2 rounded-full border border-ink/15 px-7 py-4 font-semibold">
-              Ver demonstração
-            </Link>
-          </div>
-          <p className="mt-5 text-xs text-ink-faint">A demonstração é fictícia e não representa resultados de alunos reais.</p>
+      <div className="academy-copy">
+        <p className="academy-eyebrow">APRENDIZADO • CARREIRA • MOBILIDADE</p>
+        <h1>Inglês que conecta<br className="academy-desktop-break"/> você a <span>oportunidades<br className="academy-desktop-break"/> reais no mundo.</span></h1>
+        <p className="academy-intro">Aprenda inglês com um método inteligente e prático, desenvolva habilidades para sua carreira e prepare-se para novas oportunidades e acompanhe a construção de uma comunidade global.</p>
+        <div className="academy-actions">
+          <Link href="/login?mode=signup" className="academy-gold"><Play size={15} aria-hidden="true" /> Começar agora</Link>
+          <a href="#metodo" className="academy-outline"><ArrowRight size={15} aria-hidden="true" /> Conhecer o método</a>
         </div>
-        <aside className="grid gap-4 rounded-3xl border border-ink/10 bg-white p-8 shadow-sm">
-          <h2 className="font-display text-3xl">Seu ritmo. Seu tutor.</h2>
-          <div className="flex items-start gap-4"><MessageCircle className="shrink-0 text-teal" /><p>Uma conversa curta para começar. Você escolhe o nome e o tom do tutor.</p></div>
-          <div className="flex items-start gap-4"><BookOpen className="shrink-0 text-teal" /><p>Leitura, produção e revisão com objetivos pedagógicos claros.</p></div>
-          <div className="flex items-start gap-4"><Sparkles className="shrink-0 text-teal" /><p>O plano inicial é explicado e ajustado à medida que há evidências reais.</p></div>
-          <div className="flex items-start gap-4"><ShieldCheck className="shrink-0 text-teal" /><p>A voz é opcional. Sem captação oculta nem certificação automática.</p></div>
-        </aside>
-      </section>
-    </main>
-  );
+        <p className="academy-note" id="planos">15 dias gratuitos previstos para o lançamento. Cadastro da Academy Beta sujeito à disponibilidade.</p>
+      </div>
+      <div className="academy-flight" aria-hidden="true"><svg viewBox="0 0 360 120" fill="none"><path d="M0 110 Q165 4 337 25" stroke="#1767b4" strokeWidth="1.5" strokeDasharray="5 5"/></svg><Plane size={50} fill="currentColor"/></div>
+      <aside className="academy-preview" aria-label="Exemplo de jornada">
+        <div className="academy-preview-top"><span aria-hidden="true">🇬🇧</span><div><strong>Inglês</strong><small>Jornada de aprendizagem</small></div><b className="academy-example-number">15 dias</b></div>
+        <div className="academy-trial-divider" aria-hidden="true"/>
+        <ul><li>Comunicação profissional</li><li>Entrevistas e carreira</li><li>Mobilidade internacional</li></ul>
+        <small>Período gratuito previsto • sem cobrança nesta prévia</small>
+      </aside>
+    </section>
+    <section id="metodo" className="academy-benefits" aria-label="Pilares do Lingua">
+      {benefits.map(({title,text,image}) => <article key={title}><img src={asset(image)} alt="" /><div><h2>{title}</h2><p>{text}</p></div></article>)}
+    </section>
+    <section id="empresas" className="academy-partners">
+      <img className="academy-building" src={asset("edificio-ilustrativo.png")} alt="Edifício conceitual, não é uma sede real" />
+      <div className="academy-partner-copy" id="programa-info"><p className="academy-tag">◇ Programa de Parceiros Fundadores</p><h2>Construa o futuro da<br className="academy-desktop-break"/> Lingua <span>com a gente.</span></h2><p>Empresas, consultorias, escolas e recrutadoras que desejam participar desde o início, com pilotos e co-desenvolvimento.</p></div>
+      <ul className="academy-partner-benefits">{partnerBenefits.map(item => <li key={item}>{item}</li>)}</ul>
+      <div className="academy-partner-status" id="parceiros"><p>Programa em preparação</p><a href="#programa-info" className="academy-gold">Conhecer o programa <ArrowRight size={16} aria-hidden="true" /></a></div>
+    </section>
+    <footer id="sobre" className="academy-footer">{pillars.map(({title,description,Icon}) => <div key={title}><Icon aria-hidden="true" size={36}/><section><strong>{title}</strong><small>{description}</small></section></div>)}<span>Uma plataforma global para o seu próximo passo.</span></footer>
+  </main>;
 }

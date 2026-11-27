@@ -90,9 +90,9 @@ const vocabulary: Record<
 
 export default function ReadingLab() {
   const [selectedWord, setSelectedWord] = useState("station");
-  const [savedWords, setSavedWords] = useState<string[]>(["ready"]);
+  const [savedWords, setSavedWords] = useState<string[]>([]);
   const [reviewStates, setReviewStates] = useState<Record<string, ReviewState>>(
-    () => ({ ready: createInitialReviewState("word-ready") })
+    () => ({})
   );
   const [serverItemIds, setServerItemIds] = useState<Record<string, number>>(
     {}
@@ -116,6 +116,8 @@ export default function ReadingLab() {
     useState<SpeechObservationCandidate | null>(null);
   const transcriptionMutation = trpc.speech.transcribe.useMutation();
   const authQuery = trpc.auth.me.useQuery();
+  const registrationMode = trpc.auth.registrationMode.useQuery(undefined, { retry: false });
+  const legacyTranscriptionAvailable = Boolean(authQuery.data && registrationMode.data === "open");
   const ownerId = authQuery.data?.id;
   const utils = trpc.useUtils();
   const [verifiedOwnerId, setVerifiedOwnerId] = useState<number | null>(null);
@@ -167,8 +169,8 @@ export default function ReadingLab() {
     // React Query keys are not user-scoped, so discard old authenticated
     // results before hydrating a new person's local study state.
     setServerItemIds({});
-    setSavedWords(["ready"]);
-    setReviewStates({ ready: createInitialReviewState("word-ready") });
+    setSavedWords([]);
+    setReviewStates({});
     setPersistenceStatus("local");
     if (ownerId) {
       void (async () => {
@@ -277,7 +279,7 @@ export default function ReadingLab() {
   };
 
   const prepareTranscription = async () => {
-    if (!recordingUrl) return;
+    if (!recordingUrl || !legacyTranscriptionAvailable) return;
     setPipelineStage("transcription-pending");
     setRecordingError(null);
     try {
@@ -549,16 +551,15 @@ export default function ReadingLab() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col justify-between gap-5 border-b border-ink/10 pb-7 md:flex-row md:items-end">
+    <div className="academy-reading-studio space-y-6">
+      <div className="academy-study-hero academy-reading-hero flex flex-col justify-between gap-5 md:flex-row md:items-end">
         <div>
-          <p className="eyebrow mb-3">Ler · laboratório contextual</p>
+          <p className="eyebrow mb-3">Seu estúdio de leitura</p>
           <h1 className="font-display text-5xl tracking-[-0.05em]">
-            Inglês em contexto.
+            Inglês que você leva para a vida.
           </h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-ink-muted">
-            Leia sem sair da rota. Toque em uma palavra para investigar, salve o
-            que merece retorno e depois responda sem consultar o texto.
+            Explore um texto em inglês, descubra palavras no contexto e pratique o que aprendeu.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -572,11 +573,17 @@ export default function ReadingLab() {
         </div>
       </div>
 
+      <nav className="academy-study-jumps" aria-label="Atalhos do estúdio">
+        {([{id:"academy-reading-text",label:"Texto"},{id:"academy-reading-word",label:"Vocabulário"},{id:"academy-reading-review",label:"Revisão"},{id:"academy-reading-voice",label:"Fala"},{id:"academy-reading-check",label:"Compreensão"}] as const).map(({id,label})=><button type="button" key={id} onClick={()=>{
+          const target=document.getElementById(id);
+          if(target){target.scrollIntoView({block:"start",behavior:"auto"});target.focus({preventScroll:true});}
+        }}>{label}</button>)}
+      </nav>
       <div className="grid gap-5 xl:grid-cols-[1fr_0.36fr]">
-        <section className="border border-ink/10 bg-white p-6 sm:p-9">
+        <section id="academy-reading-text" tabIndex={-1} aria-label="Texto de prática" className="academy-reading-sheet border border-ink/10 bg-white p-5 sm:p-9">
           <div className="mb-8 flex items-start justify-between gap-4">
             <div>
-              <p className="eyebrow mb-2">Texto guiado · nível A2/B1</p>
+              <p className="eyebrow mb-2">Texto de prática · A2/B1</p>
               <h2 className="font-display text-3xl tracking-[-0.035em]">
                 Before the train leaves
               </h2>
@@ -609,24 +616,25 @@ export default function ReadingLab() {
               <Volume2 size={14} className="text-teal" /> Leia primeiro pelo
               sentido geral.
             </div>
-            <button className="flex items-center gap-1.5 text-xs font-bold text-teal-deep hover:underline">
-              <RotateCcw size={14} /> recomeçar leitura
+            <button type="button" onClick={()=>{setSelectedWord(Object.keys(vocabulary)[0]);setAnswered(false);}} className="academy-secondary text-xs">
+              <RotateCcw size={14} /> Recomeçar leitura
             </button>
           </div>
         </section>
 
-        <aside className="border border-ink/10 bg-[#F5F7FB] p-6">
+        <aside id="academy-reading-word" tabIndex={-1} aria-label="Vocabulário em foco" className="academy-word-panel border border-ink/10 p-5 sm:p-6">
           <div className="mb-6 flex items-center justify-between">
             <p className="eyebrow">Palavra em foco</p>
             <button
-              aria-label="Salvar palavra"
+              aria-label={savedWords.includes(selectedWord) ? "Remover palavra salva" : "Salvar palavra"}
+              aria-pressed={savedWords.includes(selectedWord)}
               onClick={toggleSaved}
               className={`bookmark-button ${savedWords.includes(selectedWord) ? "saved" : ""}`}
             >
               <BookmarkPlus size={16} />
             </button>
           </div>
-          <p className="font-display text-4xl tracking-[-0.04em]">
+          <p key={selectedWord} className="academy-word-enter font-display text-4xl tracking-[-0.04em]">
             {selectedWord}
           </p>
           <p className="mt-2 text-sm font-semibold text-teal-deep">
@@ -658,7 +666,7 @@ export default function ReadingLab() {
         </aside>
       </div>
 
-      <section className="border border-ink/10 bg-white p-6 sm:p-8">
+      <section id="academy-reading-review" tabIndex={-1} aria-label="Revisão das palavras salvas" className="border border-ink/10 bg-white p-6 sm:p-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
             <p className="eyebrow mb-2">
@@ -752,7 +760,7 @@ export default function ReadingLab() {
         </p>
       </section>
 
-      <section className="border border-ink/10 bg-white p-6 sm:p-8">
+      <section id="academy-reading-voice" tabIndex={-1} aria-label="Prática de fala" className="border border-ink/10 bg-white p-6 sm:p-8">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <div>
             <p className="eyebrow mb-2">Gravação · transcrição opcional</p>
@@ -858,13 +866,15 @@ export default function ReadingLab() {
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-5">
           <p className="flex items-start gap-2 text-xs leading-5 text-ink-muted">
             <Info size={14} className="mt-0.5 shrink-0 text-teal" />{" "}
-            {pipelineStage === "recorded"
+            {!legacyTranscriptionAvailable
+              ? "A transcrição experimental não está disponível nesta sessão. Você pode ouvir sua gravação local ou praticar com o tutor autorizado."
+              : pipelineStage === "recorded"
               ? "A gravação está pronta para ser enviada quando o adaptador estiver conectado."
               : "Faça uma gravação acima para abrir a primeira etapa."}
           </p>
           <button
             disabled={
-              pipelineStage !== "recorded" || transcriptionMutation.isPending
+              !legacyTranscriptionAvailable || pipelineStage !== "recorded" || transcriptionMutation.isPending
             }
             onClick={prepareTranscription}
             className="button-outline disabled:opacity-35"
@@ -950,7 +960,7 @@ export default function ReadingLab() {
         </section>
       )}
 
-      <section className="border border-ink/10 bg-white p-6 sm:p-8">
+      <section id="academy-reading-check" tabIndex={-1} aria-label="Compreensão do texto" className="border border-ink/10 bg-white p-6 sm:p-8">
         <div className="flex flex-col justify-between gap-5 md:flex-row md:items-end">
           <div>
             <p className="eyebrow mb-2">Depois da leitura · compreensão</p>
@@ -958,8 +968,7 @@ export default function ReadingLab() {
               Por que a equipe verifica as ferramentas?
             </h2>
             <p className="mt-3 text-sm text-ink-muted">
-              Responda com suas palavras. Você pode consultar o texto uma vez,
-              mas marque isso para a evidência.
+              Escolha a alternativa que melhor explica a situação do texto.
             </p>
           </div>
           <span className="text-xs text-ink-faint">sem certificação</span>
@@ -988,16 +997,11 @@ export default function ReadingLab() {
             <p>
               Boa leitura. Você conectou a ação{" "}
               <b className="text-ink">check</b> ao propósito do texto. Essa
-              observação será registrada como compreensão contextual.
+              é uma indicação de compreensão nesta atividade.
             </p>
           </div>
         )}
-        <button
-          disabled={!answered}
-          className="button-dark mt-7 disabled:opacity-35"
-        >
-          Registrar e seguir <ArrowRight size={15} />
-        </button>
+        <p className="mt-5 text-xs leading-5 text-ink-muted">Esta atividade oferece feedback nesta sessão; não registra uma evidência oficial de proficiência.</p>
       </section>
     </div>
   );

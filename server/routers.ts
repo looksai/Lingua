@@ -1,8 +1,11 @@
+import {campusSponsors} from "./campus-sponsors";
 import {createPartnerEventRouter} from "./partner-event-router";
 import {partnerInviteLabEnabled} from "./partner-invite-gate";
 import {createPartnerInviteRouter} from "./partner-invite-router";
 import {createPartnerInviteLimiter} from "./partner-invite-rate-limit";
 import {getDb} from "./db";
+import { academyAdmissionMode, assertAcademyAdmission } from "./academy-admission";
+import { academyTrialStatus } from "./academy-trial";
 import { COOKIE_NAME } from "@shared/const";
 import { onboardingRouter } from "./onboarding-router";
 import { tutorRouter } from "./tutor-router";
@@ -36,17 +39,23 @@ export const appRouter = router({
     database:getDb,
     allowRequest:createPartnerInviteLimiter(),
   }),
+  campus: router({sponsors: protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return campusSponsors();})}),
   onboarding: onboardingRouter,
   tutor: tutorRouter,
   placement: placementRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    trialStatus: protectedProcedure.query(({ctx}) => academyTrialStatus(ctx.user.createdAt)),
+    registrationMode: publicProcedure.query(() => academyAdmissionMode()),
     signUp: publicProcedure.input(z.object({
       email: z.email().max(320),
       password: z.string().min(12).max(128),
+      inviteCode: z.string().max(128).optional(),
     })).mutation(async ({ ctx, input }) => {
       checkRequestOrigin(ctx.req);
       rateLimit("signup:" + (ctx.req.ip ?? "unknown") + ":" + normalizeEmail(input.email));
+      if (academyAdmissionMode() !== "open") rateLimit("academy-invite:" + (ctx.req.ip ?? "unknown"));
+      assertAcademyAdmission(input.email, input.inviteCode);
       let user;
       try {
         user = await registerLocalUser(input.email, input.password);
@@ -97,7 +106,9 @@ export const appRouter = router({
           language: z.string().default("en"),
         })
       )
-      .mutation(async ({ input }) => {
+      .mutation(async ({ ctx, input }) => {
+        checkRequestOrigin(ctx.req);
+        if (academyAdmissionMode() !== "open") throw new TRPCError({code:"PRECONDITION_FAILED",message:"A transcrição experimental de leitura está desativada na Academy Beta. Use o tutor autorizado ou continue por texto."});
         const apiUrl = process.env.MANUS_API_URL;
         const apiKey = process.env.MANUS_API_KEY;
         if (!apiUrl || !apiKey) {

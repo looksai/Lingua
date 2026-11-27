@@ -28,16 +28,20 @@ type Capture = { recorder: MediaRecorder; stream: MediaStream; timer?: ReturnTyp
 const MAX_MESSAGES = 24;
 
 export type TutorVoiceSettings={voiceURI:string;rate:number;pitch:number;neuralVoice?:"troy"|"daniel"|"austin"|"autumn"|"diana"|"hannah"};
-export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings,placementRequested,onPlacementCompleted}: {
+export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSettingsChange,onOpenTutorSettings,placementRequested,onPlacementCompleted,initialOpen=true,openRequest=0,onOpen}: {
   profile:TutorProfile;
   accountEmail:string;
   voiceSettings:TutorVoiceSettings;
   onVoiceSettingsChange:(prefs:TutorVoiceSettings)=>void;
   onOpenTutorSettings:()=>void;
+  initialOpen?:boolean;
+  openRequest?:number;
+  onOpen?:()=>void;
   placementRequested:boolean;
   onPlacementCompleted:()=>void;
 }) {
-  const [open,setOpen] = useState(true);
+  const [open,setOpen] = useState(initialOpen);
+  useEffect(()=>{if(openRequest>0)setOpen(true);},[openRequest]);
   const [messages,setMessages] = useState<Message[]>(()=>[{id:0,role:"assistant",text:greeting(profile),source:"local"}]);
   const [consent,setConsent] = useState(false);
   const [termsAccepted,setTermsAccepted] = useState(false);
@@ -650,8 +654,8 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
     if(!next)void confirmRevocation();
   }
 
-  if(!open)return <button type="button" onClick={()=>setOpen(true)} aria-label={"Conversar com "+profile.tutorName}
-    className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink px-5 py-4 text-white shadow-lg">
+  if(!open)return <button type="button" onClick={()=>{onOpen?.();setOpen(true);}} aria-label={"Conversar com "+profile.tutorName}
+    className="academy-tutor-trigger fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full bg-ink px-5 py-4 text-white shadow-lg">
     <MessageCircle size={21}/><Mic size={15}/><span className="max-w-40 truncate text-sm font-semibold">{profile.tutorName}</span>
   </button>;
 
@@ -662,9 +666,9 @@ export default function TutorChat({profile,accountEmail,voiceSettings,onVoiceSet
   const recoveryWithoutMessage=Boolean(recoveredCatalogTask&&recoveredMessageId===undefined&&
     !messages.some(m=>m.catalogTask?.deliveryId===recoveredCatalogTask.deliveryId));
   return <aside ref={audioRoot} aria-label={"Chat com "+profile.tutorName}
-    className="fixed inset-0 z-40 flex h-[100dvh] w-screen flex-col overflow-hidden bg-white text-ink shadow-2xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100dvh-40px))] sm:w-[min(620px,calc(100vw-40px))] sm:rounded-2xl sm:border sm:border-ink/15">
-    <header className="flex shrink-0 items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
-      <div className="min-w-0"><p className="truncate font-semibold">{profile.tutorName}</p><p className="text-xs text-white/75">Converse e pratique inglês</p></div>
+    className="academy-tutor-window fixed inset-0 z-40 flex h-[100dvh] w-screen flex-col overflow-hidden bg-white text-ink shadow-2xl sm:inset-auto sm:bottom-5 sm:right-5 sm:h-[min(720px,calc(100dvh-40px))] sm:w-[min(620px,calc(100vw-40px))] sm:rounded-2xl sm:border sm:border-ink/15">
+    <header className="academy-tutor-header flex shrink-0 items-center justify-between gap-3 bg-ink px-4 py-3 text-white">
+      <div className="flex min-w-0 items-center gap-3"><span className="academy-tutor-avatar"><MessageCircle size={23} aria-hidden="true"/></span><div className="min-w-0"><p className="truncate font-semibold">{profile.tutorName}</p><p className="text-xs text-white/75">Seu tutor de inglês</p></div></div>
       <div className="flex items-center gap-1">
         <button type="button" onClick={()=>{stopSpeech();setPrivacyPrompt(false);setSettingsOpen(p=>!p);}}
           aria-label={settingsOpen?"Voltar à conversa":"Configurações de conversa e voz"}

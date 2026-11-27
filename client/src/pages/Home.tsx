@@ -32,6 +32,7 @@ import {
   Zap,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import "./academy-interior.css";
 import type { EngineDecision, EvidenceKind } from "@/lib/csle-contract";
 import { mockDecision } from "@/lib/csle-contract";
 import ReadingLab from "@/components/ReadingLab";
@@ -243,16 +244,9 @@ function Shell({
   accountEmail?: string;
 }) {
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[244px] flex-col border-r border-ink/10 bg-paper px-6 py-7 lg:flex">
-        <div className="flex items-center gap-2.5">
-          <div className="brand-mark">
-            <span />
-          </div>
-          <span className="font-display text-2xl tracking-[-0.04em]">
-            lingua<span className="text-teal">/</span>
-          </span>
-        </div>
+    <div className="academy-interior academy-demo-layout">
+      <aside className="academy-demo-sidebar academy-plain hidden w-[244px] flex-col border-r border-ink/10 px-6 py-7 lg:flex">
+        <a href="/" aria-label="Voltar à home do Lingua"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/></a>
         <p className="mt-3 max-w-[170px] text-xs leading-5 text-ink-faint">
           Inglês que acompanha o seu caminho.
         </p>
@@ -263,6 +257,7 @@ function Shell({
             <button
               key={id}
               onClick={() => onNavigate(id)}
+              aria-current={view === id ? "page" : undefined}
               className={`nav-item ${view === id ? "active" : ""}`}
             >
               <Icon size={17} strokeWidth={view === id ? 2.5 : 1.8} />
@@ -299,16 +294,9 @@ function Shell({
         </div>
       </aside>
 
-      <div className="lg:pl-[244px]">
+      <div className="academy-demo-content">
         <header className="sticky top-0 z-10 flex h-[72px] items-center justify-between border-b border-ink/10 bg-paper/95 px-5 backdrop-blur-md sm:px-8 lg:px-12">
-          <div className="flex items-center gap-3 lg:hidden">
-            <div className="brand-mark small">
-              <span />
-            </div>
-            <span className="font-display text-xl">
-              lingua<span className="text-teal">/</span>
-            </span>
-          </div>
+          <a className="lg:hidden" href="/" aria-label="Voltar à home do Lingua"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/></a>
           <div className="hidden items-center gap-2 text-xs text-ink-muted sm:flex">
             <span className="h-1.5 w-1.5 rounded-full bg-teal" /> {accountEmail ? "conta conectada · conteúdo demonstrativo" : "sessão demonstrativa · progresso local"}
           </div>
@@ -319,16 +307,17 @@ function Shell({
             {accountEmail ? <span className="text-xs text-teal" title={accountEmail}>Conta conectada</span> : <a href="/login" className="text-sm font-semibold text-teal hover:underline">Entrar / Cadastrar</a>}
           </div>
         </header>
-        <main className="mx-auto max-w-[1400px] px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
+        <main className="academy-demo-main mx-auto max-w-[1400px] px-5 py-8 sm:px-8 lg:px-12 lg:py-12">
           {children}
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-ink/10 bg-paper/95 px-3 py-2 backdrop-blur-md lg:hidden">
+      <nav className="academy-demo-mobile fixed inset-x-0 bottom-0 z-20 flex border-t border-ink/10 px-2 py-2 backdrop-blur-md lg:hidden">
         {navItems.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => onNavigate(id)}
+            aria-current={view === id ? "page" : undefined}
             className={`mobile-nav-item ${view === id ? "active" : ""}`}
           >
             <Icon size={18} />
@@ -350,7 +339,7 @@ function HomeView({ onNavigate }: { onNavigate: (view: View) => void }) {
           <h1 className="font-display text-5xl leading-[0.92] tracking-[-0.055em] sm:text-6xl">
             Bom te ver,
             <br />
-            <span className="text-teal">Welma.</span>
+            <span className="text-teal">por aqui.</span>
           </h1>
           <p className="mt-4 max-w-lg text-sm leading-6 text-ink-muted">
             Seu caminho está salvo. Hoje, vamos transformar compreensão em uso —

@@ -250,7 +250,7 @@ export const tutorRouter = router({
       const speech=await optionalSpeech(finalText,input.provider==="openai"&&input.voice);
       if(!lease.active())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Autorização revogada."});
       return {text:finalText,source:"ai" as const,memoryCandidate,catalogTask,...speech};
-    });
+    }, Date.now(), input.provider==="openai" && input.voice && speechConfigured() ? 2 : 1);
     } finally {lease.release();}
   }),
   // All memory operations are owned by the authenticated user. Optional

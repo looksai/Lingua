@@ -5,6 +5,25 @@ on:
     branches: [main]
     paths:
       - 'client/qa/**'
+      - 'client/public/academy/**'
+      - 'client/src/pages/Landing.tsx'
+      - 'client/src/pages/Login.tsx'
+      - 'client/src/pages/Onboarding.tsx'
+      - 'client/src/pages/StudentHome.tsx'
+      - 'client/src/pages/academy-landing.css'
+      - 'client/src/pages/academy-interior.css'
+      - 'client/src/pages/academy-premium.css'
+      - 'client/src/pages/academy-campus.css'
+      - 'client/src/pages/Home.tsx'
+      - 'client/src/pages/NotFound.tsx'
+      - 'client/src/pages/PartnerDashboard.tsx'
+      - 'client/src/pages/PublicLivePreview.tsx'
+      - 'client/src/components/ReadingLab.tsx'
+      - 'client/src/components/ReviewDeck.tsx'
+      - 'client/src/App.tsx'
+      - 'client/index.html'
+      - 'server/academy-admission.ts'
+      - 'server/routers.ts'
       - 'tests/browser/**'
       - 'server/cal-browser-http-synthetic.test.ts'
       - 'server/cal-browser-full-tutorchat-http.test.ts'
@@ -88,3 +107,32 @@ jobs:
             cat /tmp/lingua-full-tutorchat-vite.log
             exit 1
           }
+
+      - name: Run Academy public and learner journeys in built Chromium preview (synthetic API)
+        env:
+          LINGUA_QA_PLAYWRIGHT_DIR: /tmp/lingua-browser-tools
+          LINGUA_QA_EXPERIMENTAL_ROUTES: '1'
+          VITE_PUBLIC_LIVES_ENABLED: 'true'
+          VITE_PARTNER_DASHBOARD_ENABLED: 'true'
+        run: |
+          set -euo pipefail
+          pnpm build:static
+          pnpm exec vite preview --host 127.0.0.1 --port 4185 --strictPort > /tmp/lingua-academy-preview.log 2>&1 &
+          VITE_PID=$!
+          trap 'kill "$VITE_PID" 2>/dev/null || true' EXIT
+          node tests/browser/run-academy-qa.mjs || {
+            cat /tmp/lingua-academy-preview.log
+            exit 1
+          }
+
+      - name: Verify approved Campus art in source and compiled build
+        run: node tests/browser/verify-campus-assets.mjs
+
+      - name: Preserve Academy synthetic screenshots for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: academy-screenshots
+          path: qa-artifacts/academy/*.png
+          if-no-files-found: warn
+          retention-days: 7

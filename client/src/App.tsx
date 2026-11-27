@@ -1,11 +1,11 @@
 import { useSyncExternalStore } from "react";
+import "./pages/academy-interior.css";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Link, Route, Switch } from "wouter";
+import { Redirect, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { trpc } from "@/lib/trpc";
-import Home from "./pages/Home";
 import PublicLiveController from "./pages/PublicLiveController";
 import {lookupPublicLive} from "./pages/public-live-lookup";
 import PartnerDashboard from "./pages/PartnerDashboard";
@@ -16,17 +16,26 @@ import Onboarding from "./pages/Onboarding";
 import StudentHome from "./pages/StudentHome";
 
 function Loading({ text }: { text: string }) {
-  return <main className="flex min-h-screen items-center justify-center bg-paper px-6 text-ink" role="status">{text}</main>;
+  return <main className="academy-interior px-5 py-8" role="status"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><p>{text}</p></div></main>;
 }
 
 function PrivateExperience({ email }: { email: string }) {
+  const trial = trpc.auth.trialStatus.useQuery(undefined, { retry: false, refetchInterval: 60000 });
+  const logout = trpc.auth.logout.useMutation({onSuccess:()=>window.location.assign("/login")});
+  if (trial.isPending) return <Loading text="Confirmando seu acesso..."/>;
+  if (trial.error || !trial.data || trial.data.kind === "unavailable") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><h1 className="font-display text-3xl">Não foi possível confirmar seu acesso</h1><button className="academy-primary mt-5" onClick={()=>void trial.refetch()}>Tentar novamente</button></div></main>;
+  if (trial.data.kind === "expired") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p><button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>{logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}</div></main>;
+  return <><div className="academy-trial-strip" hidden={trial.data.kind !== "active"}>{trial.data.kind === "active" ? `Período gratuito · ${trial.data.remainingDays} dia(s) restantes` : null}</div><LearningExperience email={email}/></>;
+}
+
+function LearningExperience({ email }: { email: string }) {
   const snapshot = trpc.onboarding.me.useQuery(undefined, { retry: false });
   if (snapshot.isPending) return <Loading text="Preparando seu espaço de aprendizagem..." />;
-  if (snapshot.error || !snapshot.data) return <main className="min-h-screen bg-paper p-10 text-ink">
+  if (snapshot.error || !snapshot.data) return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/>
     <h1 className="font-display text-3xl">Seu espaço não está disponível agora</h1>
-    <p className="mt-3 text-sm">Não foi possível carregar seu perfil. Nenhum dado de demonstração será exibido no lugar do seu progresso.</p>
-    <button onClick={() => void snapshot.refetch()} className="mt-5 rounded-full bg-ink px-5 py-3 text-sm text-white">Tentar novamente</button>
-  </main>;
+    <p className="mt-3 text-sm">Não foi possível carregar seu perfil. Seu progresso permanece vinculado à sua conta.</p>
+    <button onClick={() => void snapshot.refetch()} className="academy-primary">Tentar novamente</button>
+  </div></main>;
   const profile = snapshot.data.profile;
   if (!profile || profile.onboardingStatus === "started") return <Onboarding snapshot={snapshot.data} />;
   return <StudentHome snapshot={snapshot.data} email={email} />;
@@ -38,22 +47,6 @@ function RootPage() {
   if (identity.error) return <Loading text="Não foi possível confirmar sua sessão. Verifique a conexão e recarregue a página." />;
   if (!identity.data) return <Landing />;
   return <PrivateExperience key={identity.data.id} email={identity.data.email ?? "minha conta"} />;
-}
-
-function DemoPage() {
-  const identity = trpc.auth.me.useQuery(undefined, { retry: false });
-  if (identity.isPending) return <Loading text="Carregando..." />;
-  if (identity.error) return <Loading text="Não foi possível confirmar sua sessão." />;
-  if (identity.data) return <main className="min-h-screen bg-paper p-10">
-    <p>Você já está conectado. A demonstração fictícia não faz parte do seu progresso.</p>
-    <Link href="/" className="mt-4 inline-block text-teal underline">Ir para meu espaço</Link>
-  </main>;
-  return <>
-    <div role="note" className="sticky top-0 z-50 bg-ink px-5 py-3 text-center text-xs font-semibold text-white">
-      DEMONSTRAÇÃO FICTÍCIA — Welma, percentuais e CSLE exibidos abaixo são simulados. <Link href="/login" className="ml-2 underline">Criar minha conta</Link>
-    </div>
-    <Home/>
-  </>;
 }
 
 function subscribeToInviteHash(onChange:()=>void) {
@@ -70,7 +63,7 @@ function PublicLivePage() {
 function Router() {
   return <Switch>
     <Route path="/" component={RootPage} />
-    <Route path="/demo" component={DemoPage} />
+    <Route path="/demo"><Redirect to="/login?mode=signup" replace /></Route>
     {import.meta.env.VITE_PUBLIC_LIVES_ENABLED === "true" && <Route path="/live" component={PublicLivePage} />}
     {import.meta.env.VITE_PARTNER_DASHBOARD_ENABLED === "true" && <Route path="/partners" component={PartnerDashboard} />}
     <Route path="/login" component={Login} />
