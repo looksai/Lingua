@@ -1,5 +1,5 @@
 .academy-campus .academy-exams{display:grid;gap:20px;color:#0b1f3a;padding-bottom:24px;min-width:0}
-.academy-exams .exam-hero{margin:0 -18px;padding:34px clamp(18px,4vw,50px);min-height:220px;display:flex;align-items:center;background:linear-gradient(90deg,#071425 0%,#071425e8 35%,#07142566 80%),url('/academy/study/study-hero.webp') center right/cover no-repeat,#071425;color:#fff}
+.academy-exams .exam-hero{margin:0 -18px;padding:34px clamp(18px,4vw,50px);min-height:220px;display:flex;align-items:center;background:linear-gradient(90deg,#071425 0%,#071425e8 35%,#07142566 80%),url('/academy/exams/exam-hero.webp') center right/auto 100% no-repeat,url('/academy/study/study-hero.webp') center right/cover no-repeat,#071425;color:#fff}
 .academy-exams .exam-hero>div{max-width:700px}.academy-exams .exam-eyebrow{font-size:11px;letter-spacing:.16em;font-weight:700;color:#e8c779}.academy-exams h1{font:700 clamp(32px,4vw,52px)/1.1 Georgia,serif;margin:10px 0}.academy-exams .exam-hero span{display:block;background:#e8b958;height:3px;width:72px;margin:15px 0}.academy-exams .exam-hero p:last-child{max-width:490px;line-height:1.6}
 .academy-exams .exam-tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #dce2e9;padding-bottom:8px}.academy-exams .exam-tabs button{padding:9px 12px;font-size:13px;border-radius:8px;background:#fff;border:1px solid #dce2e9}.academy-exams .exam-tabs button[aria-current=page]{background:#0b1f3a;color:#fff;border-color:#0b1f3a}
 .academy-exams .exam-access{display:flex;gap:12px;align-items:flex-start;background:#fff8e8;border:1px solid #e6d4a6;border-radius:12px;padding:12px}.academy-exams .exam-access svg,.academy-exams .exam-heading svg{flex-shrink:0;color:#9d7931}.academy-exams .exam-access p,.academy-exams .exam-heading p{font-size:13px;margin-top:4px;color:#475569}
@@ -9,3 +9,15 @@
 .academy-exams .exam-passage{padding:16px;background:#f7f6f1;border-left:3px solid #bd923e;border-radius:8px}.academy-exams .exam-passage p{margin-top:10px}.academy-exams .exam-question{display:grid;gap:8px;border:1px solid #dce2e9;border-radius:8px;padding:12px;min-width:0}.academy-exams .exam-question legend{font-weight:650;max-width:100%;padding:0 4px}.academy-exams .exam-question label{display:flex;align-items:center;gap:8px;font-size:14px;padding:4px}.academy-exams .exam-question input{accent-color:#9d7931}.academy-exams .exam-feedback{background:#f6f1e4;padding:8px;border-radius:6px}.academy-exams .exam-notice{background:#fff3dc;color:#704800;padding:12px;border-radius:8px}.academy-exams button:disabled{opacity:.55;cursor:not-allowed}.academy-exams button:focus-visible,.academy-exams a:focus-visible{outline:2px solid #bd923e;outline-offset:3px}
 @media(max-width:1000px){.academy-exams .exam-catalog,.academy-exams .exam-skills{grid-template-columns:repeat(2,minmax(0,1fr))}.academy-exams .exam-columns{grid-template-columns:minmax(0,1fr)}.academy-exams .exam-hero{margin:0 -16px}}
 @media(max-width:380px){.academy-exams .exam-catalog{grid-template-columns:minmax(0,1fr)}.academy-exams .exam-panel{padding:12px}}
+
+.academy-exams .exam-skills button{background-image:linear-gradient(0deg,#071425 0%,#071425c9 38%,#07142533 100%),var(--exam-art);background-size:cover;background-position:center;align-content:end;min-height:154px}
+.academy-exams .exam-skills button:nth-child(1){--exam-art:url('/academy/exams/exam-reading.webp')}
+.academy-exams .exam-skills button:nth-child(2){--exam-art:url('/academy/exams/exam-listening.webp')}
+.academy-exams .exam-skills button:nth-child(3){--exam-art:url('/academy/exams/exam-writing.webp')}
+.academy-exams .exam-skills button:nth-child(4){--exam-art:url('/academy/exams/exam-speaking.webp')}
+.academy-exams .exam-plan-banner{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);background:white;border:1px solid #dce2e9;border-radius:12px;overflow:hidden;min-height:120px}
+.academy-exams .exam-plan-art{background:#0b1f3a url('/academy/exams/exam-plan.webp') center/cover no-repeat}
+.academy-exams .exam-plan-banner>div:last-child{padding:18px;display:grid;gap:8px;align-content:center}
+.academy-exams .exam-plan-banner p{font-size:13px;color:#475569}
+.academy-exams .exam-plan-banner button{justify-self:start}
+@media(max-width:680px){.academy-exams .exam-hero{background-position: center,75% center,center}.academy-exams .exam-plan-banner{grid-template-columns:minmax(0,1fr)}.academy-exams .exam-plan-art{min-height:100px}}
