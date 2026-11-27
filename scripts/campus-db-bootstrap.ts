@@ -36,25 +36,37 @@ async function main(){
   const lines=grants.flatMap(row=>Object.values(row).map(String));
   const usage=(line:string)=>/^GRANT USAGE ON \*\.\* TO /i.test(line)&&!/WITH GRANT OPTION/i.test(line);
   async function verifyGrants(connection:typeof db,rows:string[]){
-   // SHOW GRANTS has provider/version-dependent formatting. Validate scope and
-   // privilege names without depending on quoting or a redundant USAGE row.
-   const allowed=new Set(tables);
-   let usageCount=0;
-   for(const line of rows){
-    const normalized=line.trim().replace(/[`']/g,"").replace(/\s+/g," ");
-    const match=/^GRANT ([A-Z, ]+) ON ([A-Za-z0-9_]+|\*)\.([A-Za-z0-9_]+|\*) TO lingua_campus_app@%$/i.exec(normalized);
-    if(!match)throw Error("unrecognized grant shape");
-    const privileges=match[1]!.split(",").map(p=>p.trim().toUpperCase()).sort().join(",");
-    if(match[2]==="*"&&match[3]==="*"&&privileges==="USAGE"){usageCount++;continue;}
-    if(match[2]!==schema||!allowed.delete(match[3]!)||privileges!=="DELETE,INSERT,SELECT,UPDATE")throw Error("unexpected grant scope or privilege");
-   }
-   if(allowed.size!==0||usageCount>1)throw Error("incomplete grant inventory");
-   const [inventory]=await connection.query<RowDataPacket[]>("SELECT TABLE_SCHEMA AS db, TABLE_NAME AS tbl, PRIVILEGE_TYPE AS privilege, IS_GRANTABLE AS grantable FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = ?",["'lingua_campus_app'@'%'"]);
+   // Use structured authorization data as the primary source, not the
+   // vendor-dependent serialization of accounts in SHOW GRANTS.
+   const grantee="'lingua_campus_app'@'%'";
+   const [inventory]=await connection.query<RowDataPacket[]>("SELECT TABLE_SCHEMA AS db, TABLE_NAME AS tbl, PRIVILEGE_TYPE AS privilege, IS_GRANTABLE AS grantable FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = ?",[grantee]);
    const required=new Set(tables.flatMap(table=>["SELECT","INSERT","UPDATE","DELETE"].map(privilege=>table+":"+privilege)));
+   let extraTables=0;
    for(const row of inventory){
-    if(row.db!==schema||row.grantable!=="NO"||!required.delete(String(row.tbl)+":"+String(row.privilege)))throw Error("unexpected structured table privilege");
+    if(row.db!==schema||row.grantable!=="NO"||!required.delete(String(row.tbl)+":"+String(row.privilege)))extraTables++;
    }
-   if(required.size!==0)throw Error("incomplete structured table privilege inventory");
+   const [global]=await connection.query<RowDataPacket[]>("SELECT PRIVILEGE_TYPE AS privilege, IS_GRANTABLE AS grantable FROM information_schema.USER_PRIVILEGES WHERE GRANTEE = ?",[grantee]);
+   const [schemas]=await connection.query<RowDataPacket[]>("SELECT PRIVILEGE_TYPE AS privilege FROM information_schema.SCHEMA_PRIVILEGES WHERE GRANTEE = ?",[grantee]);
+   const [columns]=await connection.query<RowDataPacket[]>("SELECT PRIVILEGE_TYPE AS privilege FROM information_schema.COLUMN_PRIVILEGES WHERE GRANTEE = ?",[grantee]);
+   const extraGlobal=global.filter(row=>row.privilege!=="USAGE"||row.grantable!=="NO").length;
+   console.log("Grant inventory: expected table permissions="+(40-required.size)+"/40; unexpected table permissions="+extraTables+"; unexpected global="+extraGlobal+"; schema="+schemas.length+"; column="+columns.length+".");
+   if(extraTables||required.size||extraGlobal||schemas.length||columns.length)throw Error("unexpected structured privilege inventory");
+   // SHOW GRANTS additionally covers dynamic privileges, routine grants and
+   // role assignments. Validate the privilege/scope prefix without parsing
+   // the account serialization. Never emit raw GRANT statements.
+   const seen=new Set<string>();
+   let usageCount=0,unknown=0;
+   for(const line of rows){
+    const prefix=line.trim().split(/\s+TO\s+/i)[0]??"";
+    const normalized=prefix.replace(/[`']/g,"").replace(/\\_/g,"_").replace(/\s+/g," ").trim();
+    if(/WITH\s+(GRANT|ADMIN)\s+OPTION/i.test(line)){unknown++;continue;}
+    if(/^GRANT USAGE ON \*\.\*$/i.test(normalized)){usageCount++;continue;}
+    const match=/^GRANT ([A-Z, ]+) ON (?:TABLE )?lingua_campus\.([A-Za-z0-9_]+)$/i.exec(normalized);
+    if(!match||!tables.includes(match[2]!)||seen.has(match[2]!)||match[1]!.split(",").map(p=>p.trim().toUpperCase()).sort().join(",")!=="DELETE,INSERT,SELECT,UPDATE"){unknown++;continue;}
+    seen.add(match[2]!);
+   }
+   console.log("Grant statements: scoped tables="+seen.size+"/10; USAGE="+usageCount+"; unrecognized="+unknown+".");
+   if(unknown||seen.size!==tables.length||usageCount>1)throw Error("unrecognized grant shape");
    console.log("Verified 40 explicit non-delegable table privileges.");
   }
   if(fresh){
@@ -77,6 +89,8 @@ async function main(){
    const [current]=await client.query<RowDataPacket[]>("SELECT DATABASE() AS db, CURRENT_USER() AS account, CURRENT_ROLE() AS activeRole");
    if(current[0]?.db!==schema||current[0]?.account!==appUser+"@%")throw Error("unexpected app identity");
    if(current[0]?.activeRole!=="NONE")throw Error("unexpected active role");
+   const [roles]=await client.query<RowDataPacket[]>("SELECT COUNT(*) AS total FROM information_schema.APPLICABLE_ROLES");
+   if(Number(roles[0]?.total)!==0)throw Error("unexpected applicable role");
    const [effectiveGrants]=await client.query<RowDataPacket[]>("SHOW GRANTS");
    await verifyGrants(client,effectiveGrants.flatMap(row=>Object.values(row).map(String)));
    for(const table of tables)await client.query("SELECT 1 FROM `"+table+"` LIMIT 0");
@@ -91,7 +105,7 @@ async function main(){
   console.log("Campus bootstrap complete: ten core tables and isolated app connection verified.");
  }finally{await db.end();}
 }
-const safeMessages=new Set(["missing admin URL","missing app URL","missing CA","Invalid MySQL DATABASE_URL","MySQL URL requests an insecure TLS mode","Invalid MySQL port","DATABASE_SSL_CA_BASE64 is missing; enter the Aiven CA PEM or Base64","DATABASE_SSL_CA_BASE64 is invalid: expected the full CA PEM or Base64","Invalid database CA certificate","Invalid or expired database CA certificate","unexpected target","unexpected schema","database is not empty; manual review required","app has unexpected existing privileges","missing expected core table","unexpected app identity","unexpected visible schema","unexpected visible application schema","unexpected migration history","unexpected active role","unrecognized grant shape","unexpected grant scope or privilege","incomplete grant inventory","unexpected structured table privilege","incomplete structured table privilege inventory"]);
+const safeMessages=new Set(["missing admin URL","missing app URL","missing CA","Invalid MySQL DATABASE_URL","MySQL URL requests an insecure TLS mode","Invalid MySQL port","DATABASE_SSL_CA_BASE64 is missing; enter the Aiven CA PEM or Base64","DATABASE_SSL_CA_BASE64 is invalid: expected the full CA PEM or Base64","Invalid database CA certificate","Invalid or expired database CA certificate","unexpected target","unexpected schema","database is not empty; manual review required","app has unexpected existing privileges","missing expected core table","unexpected app identity","unexpected visible schema","unexpected visible application schema","unexpected migration history","unexpected active role","unrecognized grant shape","unexpected grant scope or privilege","incomplete grant inventory","unexpected structured table privilege","incomplete structured table privilege inventory","unexpected structured privilege inventory","unexpected applicable role"]);
 const safeCodes=new Set(["ENOTFOUND","EAI_AGAIN","ETIMEDOUT","ECONNREFUSED","ECONNRESET","ER_ACCESS_DENIED_ERROR","ER_BAD_DB_ERROR","ER_DBACCESS_DENIED_ERROR","ER_TABLEACCESS_DENIED_ERROR","ER_SPECIFIC_ACCESS_DENIED_ERROR","ER_CANNOT_USER","ER_NONEXISTING_GRANT","ER_PARSE_ERROR","HANDSHAKE_SSL_ERROR","CERT_HAS_EXPIRED","UNABLE_TO_VERIFY_LEAF_SIGNATURE","SELF_SIGNED_CERT_IN_CHAIN","ERR_TLS_CERT_ALTNAME_INVALID","PROTOCOL_CONNECTION_LOST"]);
 main().catch((error:unknown)=>{
  const e=error as {message?:unknown;code?:unknown;cause?:{code?:unknown}};
