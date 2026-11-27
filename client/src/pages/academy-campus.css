@@ -102,3 +102,21 @@
 @media(max-width:1000px){
  .academy-campus .academy-premium-nav{margin:0;width:100%}
 }
+
+
+/* Study is one navigation area, with accessible nested learning tools. */
+.academy-campus .academy-study-nav-group{display:grid;min-width:0;gap:3px}
+.academy-campus .academy-study-nav-trigger{width:100%;display:flex;align-items:center}
+.academy-campus .academy-study-nav-trigger[data-active=true]{background:#f5a623;color:#0b1f3a;border-color:#f5a623}
+.academy-campus .academy-study-chevron{margin-left:auto;transition:transform .15s ease}
+.academy-campus .academy-study-nav-trigger[aria-expanded=true] .academy-study-chevron{transform:rotate(180deg)}
+.academy-campus .academy-study-subnav{display:grid;gap:2px;padding-left:10px;margin-left:12px;border-left:1px solid #ffffff45}
+.academy-campus .academy-study-subnav[hidden]{display:none}
+.academy-campus .academy-study-subnav button{display:flex;align-items:center;width:100%;min-height:36px;padding:7px 8px;font-size:11px}
+.academy-campus .academy-study-subnav button[aria-current=page]{background:#ffffff18;color:#fff;box-shadow:inset 3px 0 #f5a623;border-color:#ffffff25}
+.academy-campus .academy-study-breadcrumb{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:#475569;padding:14px 0}
+.academy-campus .academy-study-breadcrumb button{display:inline-flex;align-items:center;gap:7px;color:#0b1f3a;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+.academy-campus .academy-study-nav-group button:focus-visible,.academy-campus .academy-study-breadcrumb button:focus-visible{outline:2px solid #f5a623;outline-offset:2px}
+.academy-campus .academy-study h2[id]{scroll-margin-top:16px}
+@media(max-width:1000px){.academy-campus .academy-study-nav-group{flex:1 1 100%}.academy-campus .academy-study-subnav{grid-template-columns:repeat(auto-fit,minmax(138px,1fr));margin-left:0;padding:4px;border-left:0;border-top:1px solid #ffffff45}.academy-campus .academy-study-subnav button{justify-content:flex-start;min-height:44px}.academy-campus .academy-study-nav-trigger{justify-content:flex-start}}
+@media(prefers-reduced-motion:reduce){.academy-campus .academy-study-chevron{transition:none}}
