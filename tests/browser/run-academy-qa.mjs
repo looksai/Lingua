@@ -39,6 +39,7 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
+      if(name==="exams.overview")return {result:{data:{json:{plan:null,catalog:[],pilot:true}}}};
       if(name==="campus.sponsors")return {result:{data:{json:fixture==="sponsor"?[{id:"synthetic-campaign",sponsor:"Empresa sintética de QA",title:"Campanha sintética",description:"Apenas teste isolado.",url:"https://example.com/"}]:[]}}};
       if(name==="auth.trialStatus")return {result:{data:{json:fixture==="expired"?{kind:"expired",expiresAtMs:1700000000000,remainingDays:0}:{kind:"active",expiresAtMs:1900000000000,remainingDays:15}}}};
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
@@ -179,6 +180,18 @@ try{
         await fit(page);
         await page.screenshot({path:path.join(screenshotDir,`${fixture}-${width}.png`),fullPage:true,animations:"disabled"});
         if(fixture==="student"){
+          await page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+          await page.getByRole("heading",{name:"Exames de Proficiência",exact:true}).waitFor();
+          await page.getByText("Benefício dos planos Lingua Premium e Comunidade Premium").waitFor();
+          assert.equal(await page.locator(".exam-catalog button").count(),8);
+          await fit(page);
+          await page.screenshot({path:path.join(screenshotDir,`exams-${width}.png`),fullPage:true,animations:"disabled"});
+          await page.getByRole("button",{name:/IELTS General Training/}).click();
+          await page.getByRole("heading",{name:"Meu objetivo",exact:true}).waitFor();
+          await page.getByRole("button",{name:"Ir ao treinamento"}).click();
+          assert.equal(await page.getByRole("button",{name:"Iniciar prática",exact:true}).isEnabled(),false);
+          await page.getByRole("navigation",{name:"Centro de exames"}).getByRole("button",{name:"Simulados",exact:true}).click();
+          assert.equal(await page.getByRole("button",{name:"Iniciar miniatividade"}).isEnabled(),false);
           const studyMenu=page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:"Estudar",exact:true});
           const subnav=page.getByRole("group",{name:"Ferramentas de estudo"});
           assert.equal(await studyMenu.getAttribute("aria-expanded"),"false");
