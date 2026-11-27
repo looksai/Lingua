@@ -179,7 +179,19 @@ try{
         await fit(page);
         await page.screenshot({path:path.join(screenshotDir,`${fixture}-${width}.png`),fullPage:true,animations:"disabled"});
         if(fixture==="student"){
-          await page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:"Estudar",exact:true}).click();
+          const studyMenu=page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:"Estudar",exact:true});
+          const subnav=page.getByRole("group",{name:"Ferramentas de estudo"});
+          assert.equal(await studyMenu.getAttribute("aria-expanded"),"false");
+          await studyMenu.click();
+          await subnav.waitFor({state:"visible"});
+          assert.equal(await studyMenu.getAttribute("aria-expanded"),"true");
+          await studyMenu.click();
+          await subnav.waitFor({state:"hidden"});
+          await studyMenu.click();
+          await subnav.getByRole("button",{name:"Meu progresso",exact:true}).click();
+          await page.waitForFunction(()=>document.activeElement?.id==="study-progress-title");
+          await subnav.getByRole("button",{name:"Conversação",exact:true}).click();
+          await page.getByRole("button",{name:"Minimizar tutor"}).click();
           await page.getByRole("heading",{name:"Estudar",exact:true}).waitFor();
           assert.equal(await page.locator(".study-levels article").count(),3);
           assert.equal(await page.locator(".study-specializations button").count(),4);
@@ -190,9 +202,11 @@ try{
           await page.screenshot({path:path.join(screenshotDir,`study-${width}.png`),fullPage:true,animations:"disabled"});
           await page.getByRole("button",{name:/Leitura e vocabulário/}).click();
           await page.locator(".academy-reading-studio").waitFor();
-          for(const [label,file] of [["Ler e praticar","reading"],["Revisar","review"],["Meu tutor","settings"]]){
+          for(const [label,file] of [["Ler e praticar","reading"],["Revisões espaçadas","review"],["Meu tutor","settings"]]){
             await page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:label}).click();
             await page.locator(file==="reading"?".academy-reading-studio":file==="review"?".academy-review-studio":".academy-settings-layout").waitFor();
+            if(file!=="settings"){assert.equal(await studyMenu.getAttribute("aria-expanded"),"true");await page.locator(".academy-study-breadcrumb").waitFor();assert.equal(await subnav.getByRole("button",{name:label,exact:true}).getAttribute("aria-current"),"page");}
+            else assert.equal(await studyMenu.getAttribute("aria-expanded"),"false");
             if(file==="reading"){
               const word=page.locator(".reading-word.known").first();
               await word.click();
