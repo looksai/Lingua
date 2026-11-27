@@ -179,6 +179,17 @@ try{
         await fit(page);
         await page.screenshot({path:path.join(screenshotDir,`${fixture}-${width}.png`),fullPage:true,animations:"disabled"});
         if(fixture==="student"){
+          await page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:"Estudar",exact:true}).click();
+          await page.getByRole("heading",{name:"Estudar",exact:true}).waitFor();
+          assert.equal(await page.locator(".study-levels article").count(),3);
+          assert.equal(await page.locator(".study-specializations button").count(),4);
+          await page.getByRole("button",{name:/Inglês Profissional/}).click();
+          await page.getByRole("status").filter({hasText:"área em preparação"}).waitFor();
+          await page.getByRole("button",{name:"Fechar aviso"}).click();
+          await fit(page);
+          await page.screenshot({path:path.join(screenshotDir,`study-${width}.png`),fullPage:true,animations:"disabled"});
+          await page.getByRole("button",{name:/Leitura e vocabulário/}).click();
+          await page.locator(".academy-reading-studio").waitFor();
           for(const [label,file] of [["Ler e praticar","reading"],["Revisar","review"],["Meu tutor","settings"]]){
             await page.getByRole("navigation",{name:"Meu espaço"}).getByRole("button",{name:label}).click();
             await page.locator(file==="reading"?".academy-reading-studio":file==="review"?".academy-review-studio":".academy-settings-layout").waitFor();
