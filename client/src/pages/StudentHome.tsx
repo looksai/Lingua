@@ -8,13 +8,14 @@ import { useEffect, useState, type FormEvent } from "react";
 import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Compass, Globe2, GraduationCap, Target, ChevronRight, Trophy, BriefcaseBusiness, Plane, Users, Newspaper, Video, Search, Crown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
+import StudyCampus from "./StudyCampus";
 import ReviewDeck from "@/components/ReviewDeck";
 import TutorChat, { type TutorVoiceSettings } from "@/components/TutorChat";
 import {availableLocalVoices,selectLocalVoice} from "@/lib/tutor-speech";
 import { supportedFirstAccessLanguages, tutorPersonaLabels, interestLabels, type TutorPersona, type LearnerInterest } from "@shared/onboarding";
 
 type Snapshot = inferRouterOutputs<AppRouter>["onboarding"]["me"];
-type View = "dashboard" | "read" | "review" | "settings";
+type View = "dashboard" | "study" | "read" | "review" | "settings";
 const NEURAL_VOICES = ["troy","daniel","austin","autumn","diana","hannah"] as const;
 const DEFAULT_VOICE:TutorVoiceSettings={voiceURI:"",rate:0.95,pitch:1,neuralVoice:"troy"};
 function loadVoiceSettings():TutorVoiceSettings {
@@ -37,7 +38,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   const [search,setSearch]=useState("");
   const [notice,setNotice]=useState("");
   const sponsors=trpc.campus.sponsors.useQuery(undefined,{enabled:view==="dashboard",retry:false});
-  const areas=[{label:"Idiomas",description:"Prática real de inglês.",icon:BookOpen,asset:"idiomas",action:()=>setView("read")},{label:"Exames",description:"Preparação para exames de proficiência.",icon:Trophy,asset:"exames"},{label:"Empregos Globais",description:"Carreira e oportunidades internacionais.",icon:BriefcaseBusiness,asset:"empregos"},{label:"Imigração",description:"Planejamento da sua mudança.",icon:Plane,asset:"imigracao"},{label:"Consultorias",description:"Orientação profissional especializada.",icon:Users,asset:"consultorias"}];
+  const areas=[{label:"Idiomas",description:"Prática real de inglês.",icon:BookOpen,asset:"idiomas",action:()=>setView("study")},{label:"Exames",description:"Preparação para exames de proficiência.",icon:Trophy,asset:"exames"},{label:"Empregos Globais",description:"Carreira e oportunidades internacionais.",icon:BriefcaseBusiness,asset:"empregos"},{label:"Imigração",description:"Planejamento da sua mudança.",icon:Plane,asset:"imigracao"},{label:"Consultorias",description:"Orientação profissional especializada.",icon:Users,asset:"consultorias"}];
   const unavailable=(label:string)=>setNotice(label+" — área em preparação. Ainda não está disponível.");
   const [tutorName, setTutorName] = useState(profile.tutorName);
   const [tutorPersona, setTutorPersona] = useState<TutorPersona>(profile.tutorPersona);
@@ -132,6 +133,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
     <nav aria-label="Meu espaço" className="academy-route-nav academy-premium-nav"><div className="academy-rail-heading"><Globe2 size={19} aria-hidden="true"/> <span>MEU ESPAÇO</span></div>
       {([
         ["dashboard", Compass, "Meu início"],
+        ["study", BookOpen, "Estudar"],
         ["read", BookOpen, "Ler e praticar"],
         ["review", ListChecks, "Revisar"],
         ["settings", Settings2, "Meu tutor"],
@@ -150,7 +152,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           <div className="academy-hero-editorial"><p className="academy-kicker"><span/> BEM-VINDO(A) À LINGUA</p>
             <h1>Aprenda, conquiste oportunidades e conecte-se <em>com o mundo.</em></h1>
             <p>Idiomas, preparação para exames, empregos internacionais, imigração e consultorias em um só lugar.</p>
-            <button className="academy-primary" onClick={()=>setView("read")}>Continuar meus estudos <ArrowRight size={18} aria-hidden="true"/></button>
+            <button className="academy-primary" onClick={()=>setView("study")}>Continuar meus estudos <ArrowRight size={18} aria-hidden="true"/></button>
           </div>
           
         </section>
@@ -192,6 +194,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
 
 
       </div>}
+      {view === "study" && <StudyCampus tutorName={profile.tutorName} planTitle={placement.data?.plan?.title??plan.title} objective={plan.objective} responses={recorded} savedCount={items.isError||items.isLoading?null:items.data?.length??null} placementReady={Boolean(placement.data?.plan)} canStartPlacement={Boolean(placement.data&&!placement.data.plan)} onRead={()=>setView("read")} onReview={()=>setView("review")} onTutor={openTutor} onPlan={()=>setView("dashboard")} onPlacement={()=>{setRequestPlacement(true);openTutor();}} onUnavailable={unavailable}/>}
       {view === "read" && <>
         
         <ReadingLab/>
