@@ -1,0 +1,56 @@
+{
+  "study-hero.webp": {
+    "crop": [
+      690,
+      70,
+      1282,
+      323
+    ],
+    "sha256": "8bd9ff1a40a04b86a9e285556e86cc4c7a6957338347762747ae69154443e726"
+  },
+  "study-professional.webp": {
+    "crop": [
+      251,
+      620,
+      479,
+      707
+    ],
+    "sha256": "d710d8fc959a7dbce52c679dedb0a38a13421993a428158b75819d0b2ed9db88"
+  },
+  "study-academic.webp": {
+    "crop": [
+      492,
+      620,
+      714,
+      707
+    ],
+    "sha256": "a157fbd49332ad7f5fcfe99e3880b88036ca3e1d2ce7210a5497d16b304e377b"
+  },
+  "study-travel.webp": {
+    "crop": [
+      727,
+      620,
+      949,
+      707
+    ],
+    "sha256": "8858f4314ada059c255950453a395ae5c054d173d9de4548759adce2518803ec"
+  },
+  "study-technology.webp": {
+    "crop": [
+      962,
+      620,
+      1189,
+      707
+    ],
+    "sha256": "b9b965579167b003a35f1c3eb7909d82e976bd7473638ded60b35abee946100f"
+  },
+  "study-recommendation.webp": {
+    "crop": [
+      254,
+      873,
+      426,
+      917
+    ],
+    "sha256": "400911dea43628c91a4dc187c40465b3e2cd37873939817d09c4162a0f71dd07"
+  }
+}
