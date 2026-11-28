@@ -1,4 +1,4 @@
-import {communityPublicationAudit} from "../drizzle/community-safety-draft";
+import {communityPublicationAudit,communityPublicationReports} from "../drizzle/community-safety-draft";
 import {ACHIEVEMENTS} from "../shared/gamification-achievements";
 import {setCommunityPublicationRestriction,setCommunityRestriction} from "./community-safety-lab";
 import {readAdminReferralMetrics} from "./admin-referral-metrics-lab";
@@ -27,6 +27,25 @@ export const adminTrialRouterLab=router({
    ctx.res.setHeader("Cache-Control","private, no-store");
    await setCommunityRestriction(await labDb(),ctx.user.id,input.targetId,input.suspended);
    return {processed:true};
+ }),
+ communityReports:adminProcedure.input(z.object({status:z.enum(["pending","dismissed","actioned"]).default("pending"),beforeId:z.number().int().positive().max(2147483647).optional()}).strict()).query(async({ctx,input})=>{
+   ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-community-reports:"+ctx.user.id);
+   const db=await labDb();
+   const rows=await db.select().from(communityPublicationReports).where(and(eq(communityPublicationReports.status,input.status),input.beforeId===undefined?undefined:lt(communityPublicationReports.id,input.beforeId))).orderBy(desc(communityPublicationReports.id)).limit(51);
+   const items=rows.slice(0,50);
+   return {items,nextBeforeId:rows.length>50?items[49].id:null};
+ }),
+ dismissCommunityReport:adminProcedure.input(z.object({reportId:z.number().int().positive().max(2147483647)}).strict()).mutation(async({ctx,input})=>{
+   checkRequestOrigin(ctx.req);rateLimit("admin-community-report-resolution:"+ctx.user.id);
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   const db=await labDb();
+   await db.transaction(async tx=>{
+     const [report]=await tx.select().from(communityPublicationReports).where(eq(communityPublicationReports.id,input.reportId)).for("update");
+     if(!report)throw new TRPCError({code:"NOT_FOUND"});
+     if(report.status!=="pending")return;
+     await tx.update(communityPublicationReports).set({status:"dismissed",resolvedAtMs:Date.now(),resolvedBy:ctx.user.id}).where(eq(communityPublicationReports.id,input.reportId));
+   });
+   return {processed:true as const};
  }),
  communityPublicationAudit:adminProcedure.input(z.object({beforeId:z.number().int().positive().max(2147483647).optional()}).strict()).query(async({ctx,input})=>{
    ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-community-audit:"+ctx.user.id);
