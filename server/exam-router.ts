@@ -17,7 +17,7 @@ function requireAccess(email:string|null|undefined){
  if(!examAccess(email))throw new TRPCError({code:"FORBIDDEN",message:"Preparação disponível para contas autorizadas no piloto Premium."});
 }
 export const examRouter=router({
- overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const};}),
+ overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const,feedbackProvider:examAccess(ctx.user.email)&&writingFeedbackEnabled()&&(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email))?tutorMode():null};}),
  speakingPrompts:protectedProcedure.query(({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");return {version:SPEAKING_VERSION,prompts:SPEAKING_PROMPTS,criteria:SPEAKING_CRITERIA};}),
  writingFeedback:protectedProcedure.input(z.object({variant:z.enum(IELTS_VARIANTS),taskId:z.string().max(80),text:z.string().trim().min(1).max(8000),consent:z.literal(true)}).strict()).mutation(async({ctx,input})=>{
   checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-writing-feedback:"+ctx.user.id);
