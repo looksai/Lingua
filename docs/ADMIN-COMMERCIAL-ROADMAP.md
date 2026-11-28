@@ -20,3 +20,6 @@ Academy, integrated exams, gamification and community retain their existing prio
 5. Isolated MySQL and Chromium tests, review migration and rollback before any production activation.
 
 Existing pilot exam allowlist is not proof of a paid subscription. CSLE remains untouched. No new paid infrastructure authorized.
+
+## Coupon validity (founder requirement)
+Both promotional and trial coupons have independent redemption validity from issuance: presets 3, 7, 15, 30, 60, 90, 180 and 365 days, plus custom positive duration or explicit expiry date. Server computes issuance-relative expiry; show exact timestamp before confirmation. A 3-day redemption window may grant 180 days of access. Expiry or revocation prevents new redemptions without shortening previously granted benefits. A year preset means 365 days; custom date supports calendar anniversaries.
