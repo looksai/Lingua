@@ -1,3 +1,4 @@
+import {inspectBetaInvitations} from "./academy-beta-invite-ops";
 import {actionCommunityReport} from "./community-report-lab";
 import {communityPublicationAudit,communityPublicationReports} from "../drizzle/community-safety-draft";
 import {ACHIEVEMENTS} from "../shared/gamification-achievements";
@@ -126,6 +127,17 @@ export const adminTrialRouterLab=router({
  finance:adminProcedure.input(z.object({fromMs:timestamp,toMs:timestamp}).strict().refine(v=>v.toMs>v.fromMs&&v.toMs-v.fromMs<=366*86400000)).query(async({ctx,input})=>{
  ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-finance:"+ctx.user.id);
  return readRealizedCashLab(await labDb(),input.fromMs,input.toMs);
+ }),
+ academyInviteSummary:adminProcedure.query(async({ctx})=>{
+  ctx.res.setHeader("Cache-Control","private, no-store");
+  rateLimit("admin-academy-invite-summary:"+ctx.user.id,Date.now(),60);
+  await labDb();
+  const raw=process.env.ACADEMY_INVITATIONS_JSON;
+  if(!raw)return {configured:false as const};
+  try{
+   const {total,active,expired,availableSlots}=inspectBetaInvitations(raw);
+   return {configured:true as const,total,active,expired,availableSlots};
+  }catch{return {configured:false as const};}
  }),
  metrics:adminProcedure.query(async({ctx})=>{
  ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-commercial-metrics:"+ctx.user.id);
