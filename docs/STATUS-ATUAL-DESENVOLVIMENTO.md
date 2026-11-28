@@ -1,3 +1,33 @@
+# CHECKPOINT PRIORITÁRIO — 28/11/2026 — Moderação comunitária implementada e integrada
+
+**Ler este bloco primeiro.** PR #125 (rascunho), branch `feat/exam-writing-catalog`. O fundador autorizou execução substancial autônoma sem confirmações repetidas; não trocar de conversa nem mandar relatórios vazios. O detalhamento dos requisitos de liberação está em `docs/COMMUNITY-MODERATION-LAB-RELEASE-GATE.md`.
+
+## Implementação efetiva desta sequência
+
+1. API autenticada e privada `commercialLab.achievementFeed` com limite/cursor e proteção de plano vigente, consentimento, bloqueios, suspensões e publicações ocultas. Interface `CommunityAchievementFeed.tsx` integrada sob aba recolhida de `/community`, exibindo somente metadados autorizados e oferecendo denúncia explícita e bloqueio com confirmação.
+2. `commercialLab.reportPublication`, fila `adminLab.communityReports`, decisão de ocultação/descarte, histórico de auditoria e painel administrativo integrados. Um relatório não é sanção automática. O painel indica motivo, conquista, revisão/horário e resultado. Transações garantem auditoria e decisão idempotentes.
+3. `commercialLab.myCommunityReports` e painel pessoal de denúncias, escopados pela conta autenticada e utilizáveis após expiração comercial; não devolvem a identidade do responsável administrativo. Proteção contra relatar a própria publicação, duplicações por revisão e acesso não autorizado.
+4. `publishAchievement` agora eleva a revisão temporal em republicação mesmo com relógio idêntico ao anterior, evitando aplicar denúncia antiga à publicação nova.
+5. Testes MySQL com conexões concorrentes e chamadas reais tRPC, mudanças de privacidade e assinatura, resolução/ocultação e restauração, república na mesma unidade de tempo, conta errada e expiração; testes de autorização admin; Chromium sintético exercitando denúncias/bloqueio, histórico após expiração e fila administrativa (ocultar e descartar) em largura móvel.
+6. Limites locais diferenciados para consultas paginadas de comunidades e ações administrativas, mantendo limite estrito original para criação de denúncia. Novos testes unitários para os limites. Workflows Chromium e MySQL monitoram novos caminhos de moderação.
+
+## Evidência CI (verificada, sem extrapolar)
+
+- **Commit `25b8be41`**: P0 `46182127732`, MySQL `46182127705`, Chromium `46182127780`, lives `46182127722` — **4/4 concluídos com sucesso**. Inclui fluxo Chromium de denúncia/administrador e testes de relatório/expiração.
+- **Commit `504b6275`**: P0 `46182157306`, MySQL `46182157299`, lives `46182157319` aprovados; Chromium `46182157316` ainda em execução na última consulta.
+- Commits posteriores ajustam throttle e cobertura dos gatilhos de CI, com verificações ainda em execução. Antes de homologar, consultar o SHA atual e os quatro workflows. Não dizer que passaram sem confirmação explícita.
+
+## Ainda falta / limites de liberação
+
+- **Primeiro:** confirmar o head e quatro pipelines da última sequência; se houver falha, buscar steps/logs e corrigir no código, não apenas relatar.
+- O schema é somente *draft* experimental; antes de staging, revisar migrações, chaves e plano de rollback. Sem aplicação no banco de produção.
+- Políticas de retenção, exportação/exclusão de dados de denúncias, direito de exclusão de conta e eventuais FKs que bloqueiam exclusão continuam exigindo decisão e testes específicos.
+- `rateLimit` é local ao processo; não liberar tráfego comunitário amplo sem limitador compartilhado. Rever identificadores públicos no feed, revisão visual final e homologação com alunos convidados.
+- Academy Beta, implantação visual fiel ao material aprovado, testes do tutor com primeiros convidados e outras áreas comerciais continuam no roadmap; não declarar Lingua finalizado.
+- **Não alterar CSLE, currículo, evidências oficiais, consentimento, Stripe, produção, migrações ou flags de ativação sem os gates de projeto.** Não confundir XP com proficiência.
+
+---
+
 # Atualização de execução — 28/11/2026 (denúncias)
 
 Na PR #125, branch feat/exam-writing-catalog, testes específicos de denúncia adicionados aos testes de integração MySQL: concorrência e idempotência, checagem de identidade na API, não administrador proibido, ocultação e auditoria, revisão obsoleta não pode ser moderada, descarte com atribuição. Commits 8bd1de8 e 2b03865. Os workflows disparados pelo primeiro commit foram observados EM EXECUÇÃO, ainda não há conclusão registrada neste checkpoint. Não alegar aprovação desses novos testes até confirmar conclusão. Os quatro workflows do commit anterior bdbb8f8 passaram, mas não incluíam estes testes. 
