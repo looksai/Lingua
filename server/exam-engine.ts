@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import { EXAM_PILOT_DURATION_MS, EXAM_PRACTICE_DURATION_MS, IELTS_ADAPTER_VERSION, READING_MOCK_ID, READING_MOCK_VERSION, READING_MOCK_DURATION_MS, type ExamAttempt, type ExamMode, type ExamResult, type ExamSkill, type IeltsVariant } from "../shared/exam-contract";
+import { EXAM_PILOT_DURATION_MS, EXAM_PRACTICE_DURATION_MS, IELTS_ADAPTER_VERSION, READING_MOCK_ID, READING_MOCK_VERSION, READING_MOCK_DURATION_MS, LISTENING_EXTENDED_ID, LISTENING_EXTENDED_VERSION, type ExamAttempt, type ExamMode, type ExamResult, type ExamSkill, type IeltsVariant } from "../shared/exam-contract";
 import {additionalReading,listeningSets,type ExamSet} from "./exam-content-v2";
+import {listeningExtended} from "./exam-listening-extended";
 import {readingMock} from "./exam-reading-mock";
 type Plan="lingua"|"community";
 export function examAccess(email:string|null|undefined,env:NodeJS.ProcessEnv=process.env):Plan|null{
@@ -30,13 +31,14 @@ const sets:Record<IeltsVariant,ExamSet>={
 type Stored={owner:number;attempt:ExamAttempt;set:ExamSet;result?:ExamResult};
 export function examExercises(variant:IeltsVariant,skill:ExamSkill){return (skill==="reading"?[sets[variant],...additionalReading[variant]]:listeningSets).map(({id,title})=>({id,title}));}
 export function resolveExamSet(variant:IeltsVariant,skill:ExamSkill,exerciseId?:string,mode:ExamMode="practice"){
+ if(exerciseId===LISTENING_EXTENDED_ID){if(skill!=="listening"||mode!=="practice")throw new TRPCError({code:"BAD_REQUEST",message:"Atividade incompatível com a seleção."});return listeningExtended();}
  if(exerciseId===READING_MOCK_ID){if(skill!=="reading"||mode!=="timed")throw new TRPCError({code:"BAD_REQUEST",message:"Atividade incompatível com a seleção."});return readingMock(variant);}
  const pool=skill==="reading"?[sets[variant],...additionalReading[variant]]:listeningSets;
  const set=exerciseId?pool.find(x=>x.id===exerciseId):pool[0];
  if(!set)throw new TRPCError({code:"BAD_REQUEST",message:"Atividade incompatível com a seleção."});
  return set;
 }
-export function examVersion(set:ExamSet){return set.id===READING_MOCK_ID?READING_MOCK_VERSION:IELTS_ADAPTER_VERSION;}
+export function examVersion(set:ExamSet){return set.id===READING_MOCK_ID?READING_MOCK_VERSION:set.id===LISTENING_EXTENDED_ID?LISTENING_EXTENDED_VERSION:IELTS_ADAPTER_VERSION;}
 export function examDuration(set:ExamSet,mode:ExamMode){return set.id===READING_MOCK_ID?READING_MOCK_DURATION_MS:mode==="timed"?EXAM_PILOT_DURATION_MS:EXAM_PRACTICE_DURATION_MS;}
 export function publicExamAttempt(id:string,variant:IeltsVariant,mode:ExamMode,set:ExamSet,deadline:number):ExamAttempt{
  return {id,variant,mode,version:examVersion(set),deadline,exercise:{id:set.id,title:set.title,passage:set.passage,skill:set.skill,questions:set.questions.map(({id,prompt,options})=>({id,prompt,options})),...(set.sections?{sections:set.sections.map(({title,passage,questionIds})=>({title,passage,questionIds:[...questionIds]}))}:{})}};
