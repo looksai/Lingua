@@ -5,7 +5,7 @@ import {adminProcedure,router} from "./_core/trpc";
 import {getDb} from "./db";
 import {checkRequestOrigin,rateLimit} from "./auth-local";
 import {trialCoupons} from "../drizzle/commercial-draft";
-import {TRIAL_DAYS,type TrialDays} from "../shared/admin-coupon-policy";
+import {TRIAL_DAYS,couponExpiryFromIssuance,type TrialDays} from "../shared/admin-coupon-policy";
 const code=z.string().regex(/^[A-Z0-9_-]{4,40}$/);
 const timestamp=z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
 async function labDb(){
@@ -14,11 +14,14 @@ async function labDb(){
 }
 // Deliberately not mounted until administrative audit and isolated SQL tests exist.
 export const adminTrialRouterLab=router({
- issue:adminProcedure.input(z.object({code,plan:z.enum(["lingua-premium","community-premium"]),days:z.number().int().refine(n=>TRIAL_DAYS.includes(n as TrialDays)),redeemFromMs:timestamp,redeemUntilMs:timestamp,maxUses:z.number().int().min(1).max(100000)}).strict()).mutation(async({ctx,input})=>{
+ issue:adminProcedure.input(z.object({code,plan:z.enum(["lingua-premium","community-premium"]),days:z.number().int().refine(n=>TRIAL_DAYS.includes(n as TrialDays)),validity:z.discriminatedUnion("kind",[z.object({kind:z.literal("days"),days:z.number().int().positive().max(36500)}).strict(),z.object({kind:z.literal("date"),expiresAtMs:timestamp}).strict()]),maxUses:z.number().int().min(1).max(100000)}).strict()).mutation(async({ctx,input})=>{
  checkRequestOrigin(ctx.req);rateLimit("admin-trial-issue:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
- if(input.redeemUntilMs<=Math.max(Date.now(),input.redeemFromMs))throw new TRPCError({code:"BAD_REQUEST"});
- await (await labDb()).insert(trialCoupons).values(input);
- return {issued:true as const,code:input.code};
+ const {validity,...fields}=input;
+ const db=await labDb();const issuedAtMs=Date.now();
+ const expiry=validity.kind==="days"?couponExpiryFromIssuance(issuedAtMs,validity.days):validity.expiresAtMs;
+ if(expiry===null||expiry<=issuedAtMs)throw new TRPCError({code:"BAD_REQUEST"});
+ await db.insert(trialCoupons).values({...fields,redeemFromMs:issuedAtMs,redeemUntilMs:expiry});
+ return {issued:true as const,code:input.code,issuedAtMs,expiresAtMs:expiry};
  }),
  revoke:adminProcedure.input(z.object({code}).strict()).mutation(async({ctx,input})=>{
  checkRequestOrigin(ctx.req);rateLimit("admin-trial-revoke:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
