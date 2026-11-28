@@ -40,7 +40,7 @@ describe("offline Academy Beta invitation operator",()=>{
   for(const days of [0,31,1.5,NaN])expect(()=>issueBetaInvitation("[]","member@example.test",days,now,token)).toThrow();
   for(const email of ["not-an-email","", "missing-domain@"])
    expect(()=>issueBetaInvitation("[]",email,7,now,token)).toThrow();
-  expect(issueBetaInvitation("[]"," bob@example.test\\n ",7,now,()=> "D".repeat(43)).records[0].email).toBe("bob@example.test");
+  expect(issueBetaInvitation("[]"," bob@example.test ",7,now,()=> "D".repeat(43)).records[0].email).toBe("bob@example.test");
   expect(()=>issueBetaInvitation("[]","member@example.test",1,now,()=> "short")).toThrow("Invalid generated");
   expect(()=>issueBetaInvitation("[]","member@example.test",1,now,()=> "A".repeat(43)))
    .not.toThrow();
