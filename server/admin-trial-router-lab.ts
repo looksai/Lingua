@@ -4,12 +4,12 @@ import {readRealizedCashLab} from "./admin-finance-repository-lab";
 import {readContractedMrrLab} from "./admin-recurring-repository-lab";
 import {readAdminAdMetrics} from "./admin-ad-metrics-lab";
 import {z} from "zod";
-import {and,eq,isNull} from "drizzle-orm";
+import {and,eq,isNull,desc,lt,count} from "drizzle-orm";
 import {TRPCError} from "@trpc/server";
 import {adminProcedure,router} from "./_core/trpc";
 import {getDb} from "./db";
 import {checkRequestOrigin,rateLimit} from "./auth-local";
-import {trialCoupons,commercialAdminAudit} from "../drizzle/commercial-draft";
+import {trialCoupons,trialRedemptions,commercialAdminAudit} from "../drizzle/commercial-draft";
 import {TRIAL_DAYS,couponExpiryFromIssuance,type TrialDays} from "../shared/admin-coupon-policy";
 const code=z.string().regex(/^[A-Z0-9_-]{4,40}$/);
 const timestamp=z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -38,6 +38,18 @@ export const adminTrialRouterLab=router({
  metrics:adminProcedure.query(async({ctx})=>{
  ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-commercial-metrics:"+ctx.user.id);
  return readAdminCommercialMetrics(await labDb());
+ }),
+ coupons:adminProcedure.input(z.object({beforeId:z.number().int().positive().optional()}).strict()).query(async({ctx,input})=>{
+ ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-coupon-list:"+ctx.user.id);
+ const db=await labDb();
+ return db.transaction(async tx=>{
+ const rows=await tx.select().from(trialCoupons).where(input.beforeId===undefined?undefined:lt(trialCoupons.id,input.beforeId)).orderBy(desc(trialCoupons.id)).limit(51);
+ const items=await Promise.all(rows.slice(0,50).map(async coupon=>{
+ const [usage]=await tx.select({total:count()}).from(trialRedemptions).where(eq(trialRedemptions.couponId,coupon.id));
+ return {...coupon,uses:usage.total};
+ }));
+ return {items,nextBeforeId:rows.length>50?items[items.length-1].id:null,asOfMs:Date.now()};
+ });
  }),
  issue:adminProcedure.input(z.object({code,plan:z.enum(["lingua-premium","community-premium"]),days:z.number().int().refine(n=>TRIAL_DAYS.includes(n as TrialDays)),validity:z.discriminatedUnion("kind",[z.object({kind:z.literal("days"),days:z.number().int().positive().max(36500)}).strict(),z.object({kind:z.literal("date"),expiresAtMs:timestamp}).strict()]),maxUses:z.number().int().min(1).max(100000)}).strict()).mutation(async({ctx,input})=>{
  checkRequestOrigin(ctx.req);rateLimit("admin-trial-issue:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
