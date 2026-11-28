@@ -29,6 +29,16 @@ export const adminTrialRouterLab=router({
    await setCommunityRestriction(await labDb(),ctx.user.id,input.targetId,input.suspended);
    return {processed:true};
  }),
+ communityReportSummary:adminProcedure.query(async({ctx})=>{
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   rateLimit("admin-community-summary:"+ctx.user.id,Date.now(),60);
+   const db=await labDb();
+   const rows=await Promise.all((["pending","dismissed","actioned"] as const).map(async status=>{
+     const [result]=await db.select({total:count()}).from(communityPublicationReports).where(eq(communityPublicationReports.status,status));
+     return {status,total:result?.total??0};
+   }));
+   return {pending:rows[0].total,dismissed:rows[1].total,actioned:rows[2].total};
+ }),
  communityReports:adminProcedure.input(z.object({status:z.enum(["pending","dismissed","actioned"]).default("pending"),beforeId:z.number().int().positive().max(2147483647).optional()}).strict()).query(async({ctx,input})=>{
    ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-community-reports:"+ctx.user.id,Date.now(),60);
    const db=await labDb();
