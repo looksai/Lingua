@@ -27,12 +27,7 @@ const requireUser = t.middleware(async opts => {
 
   if (trialGatedPath(opts.path)) {
     const trial = academyTrialStatus(ctx.user.createdAt);
-    if (!(await learningAccess(opts.path,ctx.user,async(id,benefit)=>{
-      const {getDb}=await import("../db");
-      const {commercialAccessLab}=await import("../commercial-repository-lab");
-      const db=await getDb();
-      return db?commercialAccessLab(db).allows(id,benefit):false;
-    }))) throw new TRPCError({ code: "FORBIDDEN", message: trial.kind === "expired" ? "Seu período gratuito terminou." : "Não foi possível confirmar seu acesso." });
+    if (!(await learningAccess(opts.path, ctx.user))) throw new TRPCError({ code: "FORBIDDEN", message: trial.kind === "expired" ? "Seu período gratuito terminou." : "Não foi possível confirmar seu acesso." });
   }
   return next({
     ctx: {

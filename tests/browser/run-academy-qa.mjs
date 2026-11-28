@@ -104,7 +104,11 @@ async function test(name,width,mode,body,fixture="public"){
       }
       if(name==="exams.overview")return {result:{data:{json:{plan:null,catalog:[],pilot:true}}}};
       if(name==="campus.sponsors")return {result:{data:{json:fixture==="sponsor"?[{id:"synthetic-campaign",sponsor:"Empresa sintética de QA",title:"Campanha sintética",description:"Apenas teste isolado.",url:"https://example.com/"}]:[]}}};
-      if(name==="auth.trialStatus")return {result:{data:{json:fixture==="expired"?{kind:"expired",expiresAtMs:1700000000000,remainingDays:0}:{kind:"active",expiresAtMs:1900000000000,remainingDays:15}}}};
+      if(name==="auth.learningAccess"){
+        const trialEnded=["expired","community","premium"].includes(fixture);
+        const course=!trialEnded || fixture==="premium";
+        return {result:{data:{json:{trial:{kind:trialEnded?"expired":"active",expiresAtMs:1900000000000,remainingDays:trialEnded?0:15},course,tutor:course,exams:fixture!=="expired",community:fixture==="community" || fixture==="premium"}}}};
+      }
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
       if(name==="learning.gamificationPreview")return {result:{data:{json:{scope:"review-history-preview",totalXp:30,level:1,xpIntoLevel:30,xpPerLevel:250,achievements:[],missions:[]}}}};
       throw Error("Unexpected API call in public Academy fixture: "+name);
@@ -623,6 +627,19 @@ try{
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
     const link=slot.getByRole("link",{name:"Conhecer o parceiro"});assert.equal(await link.getAttribute("href"),"https://example.com/");assert.ok((await link.getAttribute("rel")).includes("sponsored"));await fit(page);
   },"sponsor");
+  for(const route of ["/","/exams"]) {
+    await test("Community Premium bypasses course onboarding at "+route,375,"closed",async(page,calls)=>{
+      await page.goto(base+route);
+      await page.getByRole("heading",{name:"Comunidade Lingua",exact:true}).waitFor();
+      await page.waitForFunction(()=>performance.getEntriesByType("resource").some(r=>r.name.includes("exams.overview")));
+      assert.ok(!calls.includes("onboarding.me") && !calls.includes("tutor.capabilities"));
+      await fit(page);
+    },"community");
+  }
+  await test("Lingua Premium reaches student home after trial",1440,"closed",async(page,calls)=>{
+    await page.goto(base);await page.locator(".academy-welcome").waitFor();
+    assert.ok(calls.includes("onboarding.me"));
+  },"premium");
   await test("expired trial does not load learner profile",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("heading",{name:"Seus 15 dias gratuitos terminaram."}).waitFor();
     assert.ok(!calls.includes("onboarding.me"));await fit(page);
