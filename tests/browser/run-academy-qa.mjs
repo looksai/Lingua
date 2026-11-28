@@ -326,6 +326,7 @@ try{
     await page.getByRole("alert").filter({hasText:"Cadastro indisponível"}).waitFor();
     assert.equal(await page.locator(".academy-onboarding-card").count(),0);
     await invite.fill("A".repeat(43));
+    assert.equal(await page.getByRole("alert").filter({hasText:"Cadastro indisponível"}).count(),0,"Correcting the invite must clear stale validation feedback");
     await page.getByRole("button",{name:"Cadastrar"}).click();
     await page.locator(".academy-onboarding-card").waitFor();
     const aiConsent=page.getByRole("checkbox",{name:/Quero feedback curto com IA/});
