@@ -95,3 +95,25 @@ export const commercialReferralConversions=mysqlTable("commercialReferralConvers
  convertedAtMs:bigint("convertedAtMs",{mode:"number"}).notNull(),
  status:mysqlEnum("status",["pending","confirmed","reversed"]).notNull(),
 });
+
+export const commercialPromotionCoupons=mysqlTable("commercialPromotionCoupons",{
+ id:int("id").autoincrement().primaryKey(),
+ code:varchar("code",{length:40}).notNull().unique(),
+ plan:mysqlEnum("plan",["lingua-premium","community-premium"]).notNull(),
+ discountKind:mysqlEnum("discountKind",["percent","fixed"]).notNull(),
+ discountValue:bigint("discountValue",{mode:"number"}).notNull(),
+ currency:mysqlEnum("currency",["BRL","USD","EUR"]),
+ redeemFromMs:bigint("redeemFromMs",{mode:"number"}).notNull(),
+ redeemUntilMs:bigint("redeemUntilMs",{mode:"number"}).notNull(),
+ maxUses:int("maxUses").notNull(),
+ revokedAtMs:bigint("revokedAtMs",{mode:"number"}),
+});
+export const commercialPromotionRedemptions=mysqlTable("commercialPromotionRedemptions",{
+ id:int("id").autoincrement().primaryKey(),
+ couponId:int("couponId").notNull().references(()=>commercialPromotionCoupons.id),
+ userId:int("userId").notNull().references(()=>users.id),
+ cashSourceKey:varchar("cashSourceKey",{length:180}).unique().references(()=>commercialCashEntries.sourceKey),
+ currency:mysqlEnum("currency",["BRL","USD","EUR"]).notNull(),
+ discountMinor:bigint("discountMinor",{mode:"number"}).notNull(),
+ redeemedAtMs:bigint("redeemedAtMs",{mode:"number"}).notNull(),
+},t=>({ownerCoupon:unique("commercial_promo_owner_coupon").on(t.couponId,t.userId)}));
