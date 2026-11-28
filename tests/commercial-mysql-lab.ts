@@ -1,3 +1,4 @@
+import {issueBetaInvitation} from "../server/academy-beta-invite-ops";
 import {inspectCommunityDeletionConstraints} from "../server/community-deletion-preflight-lab";
 import {publishAchievement,revokeAchievement} from "../server/community-achievement-share-lab";
 import {reportCommunityPublication,actionCommunityReport} from "../server/community-report-lab";
@@ -108,6 +109,13 @@ try{
    res:{setHeader(){}},
  } as unknown as TrpcContext);
  const admin=caller(ids[0],"admin").adminLab;
+ assert.deepEqual(await admin.academyInviteSummary(),{configured:false});
+ const betaInvite=issueBetaInvitation("[]","pilot-synthetic@example.test",2);
+ process.env.ACADEMY_INVITATIONS_JSON=betaInvite.json;
+ const inviteStats=await admin.academyInviteSummary();
+ assert.deepEqual(inviteStats,{configured:true,total:1,active:1,expired:0,availableSlots:19});
+ assert.equal(JSON.stringify(inviteStats).includes("pilot-synthetic"),false);
+ delete process.env.ACADEMY_INVITATIONS_JSON;
  const student=caller(ids[1],"user");
  const trial={code:"COMMUNITY30",plan:"community-premium" as const,days:30,validity:{kind:"days" as const,days:3},maxUses:2};
  await admin.issue(trial);
