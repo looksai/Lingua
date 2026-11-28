@@ -171,6 +171,11 @@ try{
  await caller(ids[0],"user").commercialLab.reportPublication({accountId:ids[0],...reportInput});
  const pending=await admin.communityReports({status:"pending"});
  assert.equal(pending.items.length,1);
+ const mine=()=>caller(ids[0],"user").commercialLab.myCommunityReports({accountId:ids[0]});
+ assert.equal((await mine()).items.length,1);
+ assert.equal((await mine()).items[0].reason,"spam");
+ assert.deepEqual((await student.commercialLab.myCommunityReports({accountId:ids[1]})).items,[]);
+ await assert.rejects(student.commercialLab.myCommunityReports({accountId:ids[0]}),{code:"FORBIDDEN"});
  const reportId=pending.items[0].id;
  await assert.rejects(student.adminLab.actionCommunityReport({reportId}),{code:"FORBIDDEN"});
  await assert.rejects(student.adminLab.dismissCommunityReport({reportId}),{code:"FORBIDDEN"});
@@ -178,6 +183,7 @@ try{
  assert.equal((await feed()).items.length,0);
  assert.equal((await admin.communityReports({status:"pending"})).items.length,0);
  assert.equal((await admin.communityReports({status:"actioned"})).items[0].resolvedBy,ids[0]);
+ assert.equal((await mine()).items[0].status,"actioned");
  assert.equal((await admin.communityPublicationAudit({})).items.length,3);
  await setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,false);
  const newerRevision=reportInput.publishedAtMs+1;
