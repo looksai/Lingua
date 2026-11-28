@@ -59,7 +59,7 @@ async function test(name,width,mode,body,fixture="public"){
       if(fixture==="writing-sequence"){
         const answer=payload=>({result:{data:{json:payload}}});
         if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true});
-        if(name==="exams.writingTasks")return answer([{id:"sequence-1",variant:"ielts-academic",kind:1,title:"First writing task",prompt:"Describe the fictional table.",minimumWords:150,recommendedMinutes:20,reviewQuestions:["Did I summarise the trends?"]},{id:"sequence-2",variant:"ielts-academic",kind:2,title:"Second writing task",prompt:"Discuss both opinions.",minimumWords:250,recommendedMinutes:40,reviewQuestions:["Did I give my opinion?"]}]);
+        if(name==="exams.writingTasks")return answer([{id:"sequence-1",variant:"ielts-academic",kind:1,title:"First writing task",prompt:"Describe the fictional table.",minimumWords:150,recommendedMinutes:20,reviewQuestions:["Did I summarise the trends?"]},{id:"sequence-2",variant:"ielts-academic",kind:2,title:"Second writing task",prompt:"Discuss both opinions.",minimumWords:250,recommendedMinutes:40,reviewQuestions:["Did I give my opinion?"]},{id:"sequence-3",variant:"ielts-academic",kind:1,setId:"set-2",title:"Alternate first task",prompt:"Describe the fictional figures.",minimumWords:150,recommendedMinutes:20,reviewQuestions:["Did I compare figures?"]},{id:"sequence-4",variant:"ielts-academic",kind:2,setId:"set-2",title:"Alternate second task",prompt:"Explain causes and responses.",minimumWords:250,recommendedMinutes:40,reviewQuestions:["Did I explain causes?"]}]);
         if(name==="exams.writingReview"||name==="exams.writingFeedback")throw Error("Local sequence must not transmit drafts");
       }
       if(fixture==="writing-authorized"){
@@ -485,9 +485,12 @@ try{
     await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
     await page.getByRole("button",{name:/Writing Produção de textos/}).click();
     await page.getByRole("button",{name:"Sequência de duas tarefas"}).click();
+    await page.getByLabel("Conjunto de tarefas").selectOption("set-2");
     await page.getByRole("button",{name:"Iniciar sequência de Writing"}).click();
+    await page.getByRole("heading",{name:"Alternate first task",exact:true}).waitFor();
     await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("First local draft");
     await page.getByRole("button",{name:"Task 2",exact:true}).click();
+    await page.getByRole("heading",{name:"Alternate second task",exact:true}).waitFor();
     await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("Second local draft");
     await page.getByRole("button",{name:"Task 1",exact:true}).click();
     assert.equal(await page.getByRole("textbox",{name:"Seu texto em inglês"}).inputValue(),"First local draft");
