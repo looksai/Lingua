@@ -314,7 +314,8 @@ try{
     await fit(page);
   });
   await test("Beta invite sign-up rejects wrong token and enters authenticated onboarding",375,"invite",async(page,calls)=>{
-    await page.goto(base+"/login?mode=signup");
+    await page.goto(base);
+    await page.getByRole("link",{name:"Começar agora"}).click();
     await page.getByRole("heading",{name:"Crie sua conta"}).waitFor();
     await page.getByLabel("E-mail").fill("qa-new@synthetic.invalid");
     await page.getByLabel("Senha",{exact:true}).fill("strong-synthetic-password");
