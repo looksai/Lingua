@@ -139,6 +139,7 @@ try{
  await pools[0].query("CREATE TABLE communityPublicationRestrictions (ownerId int NOT NULL,achievementId varchar(80) NOT NULL,hidden boolean NOT NULL,PRIMARY KEY(ownerId,achievementId),FOREIGN KEY(ownerId) REFERENCES users(id))");
  await pools[0].query("CREATE TABLE communityPublicationAudit (id int AUTO_INCREMENT PRIMARY KEY,actorId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,hidden boolean NOT NULL,occurredAtMs bigint NOT NULL)");
  const allow=async()=>true;
+ await pools[0].query("CREATE TABLE communityPublicationReports (id int AUTO_INCREMENT PRIMARY KEY,reporterId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,publishedAtMs bigint NOT NULL,reason enum('spam','harassment','inappropriate','other') NOT NULL,status enum('pending','dismissed','actioned') NOT NULL DEFAULT 'pending',createdAtMs bigint NOT NULL,resolvedAtMs bigint NULL,resolvedBy int NULL,UNIQUE(reporterId,ownerId,achievementId,publishedAtMs),INDEX(status,id))");
  const feed=()=>readCommunityAchievementFeed(b,ids[0],allow);
  const profile=()=>communityCommercialLab(b,allow).profile(ids[0],ids[1]);
  const ranking=()=>communityCommercialLab(b,allow).ranking(ids[0],now);
