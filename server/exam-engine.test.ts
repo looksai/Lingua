@@ -1,5 +1,5 @@
 import {describe,expect,it} from "vitest";
-import {createExamEngine,examAccess} from "./exam-engine";
+import {createExamEngine,examAccess,examExercises} from "./exam-engine";
 import {trialGatedPath} from "./academy-trial";
 describe("Exam pilot",()=>{
  it("denies by default and accepts only explicit known pilot plans",()=>{
@@ -37,5 +37,30 @@ describe("Exam pilot",()=>{
   const b=engine.start(1,"ielts-general","practice");
   expect(()=>engine.submit(1,a.id,{})).toThrow("Atividade indisponível");
   expect(engine.submit(1,b.id,{g1:"False",g2:"True"}).correct).toBe(2);
+ });
+});
+
+describe("Expanded original content",()=>{
+ it("lists three distinct reading sets per variant and common listening sets without answers",()=>{
+  const academic=examExercises("ielts-academic","reading"),general=examExercises("ielts-general","reading");
+  expect(academic).toHaveLength(3);expect(general).toHaveLength(3);
+  expect(new Set([...academic,...general].map(x=>x.id)).size).toBe(6);
+  expect(examExercises("ielts-academic","listening")).toEqual(examExercises("ielts-general","listening"));
+  expect(examExercises("ielts-academic","listening")).toHaveLength(2);
+  expect(academic.every(x=>Object.keys(x).length===2)).toBe(true);
+ });
+ it("grades selected content rather than default and rejects cross-variant selection",()=>{
+  const engine=createExamEngine(()=>1000);
+  expect(()=>engine.start(1,"ielts-academic","practice","reading","staff-training-02")).toThrow("Atividade incompatível");
+  const a=engine.start(1,"ielts-academic","practice","reading","library-energy-02");
+  expect(a.exercise.id).toBe("library-energy-02");
+  expect(engine.submit(1,a.id,{a21:"True",a22:"False",a23:"Not given",a24:"Lights sometimes switched off while readers were still"}).correct).toBe(4);
+ });
+ it("listening is explicitly practice only and grades the matching script",()=>{
+  const engine=createExamEngine(()=>1000);
+  expect(()=>engine.start(1,"ielts-general","timed","listening")).toThrow("Listening cronometrado");
+  const a=engine.start(1,"ielts-general","practice","listening","listening-appointment-01");
+  expect(a.exercise.skill).toBe("listening");
+  expect(engine.submit(1,a.id,{l11:"Saturday",l12:"9:30",l13:"A notebook",l14:"£12"}).correct).toBe(4);
  });
 });
