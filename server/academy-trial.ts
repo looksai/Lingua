@@ -18,6 +18,6 @@ export function academyTrialStatus(createdAt: Date|undefined, env:NodeJS.Process
 /** Gate learning operations, not login, privacy deletion/revocation or partner administration. */
 export function trialGatedPath(path:string):boolean{
   const [scope]=path.split(".");
-  if(!["onboarding","learning","placement","speech","tutor"].includes(scope))return false;
+  if(!["onboarding","learning","placement","speech","tutor","exams"].includes(scope))return false;
   return !["tutor.memoryList","tutor.memoryDelete","tutor.memoryClear","tutor.revokeCatalogConsent","placement.clear","learning.removeItem"].includes(path);
 }

@@ -9,13 +9,14 @@ import { BookOpen, ListChecks, LogOut, MessageSquare, Settings2, ArrowRight, Com
 import { trpc } from "@/lib/trpc";
 import ReadingLab from "@/components/ReadingLab";
 import StudyCampus from "./StudyCampus";
+import ExamCampus from "./ExamCampus";
 import ReviewDeck from "@/components/ReviewDeck";
 import TutorChat, { type TutorVoiceSettings } from "@/components/TutorChat";
 import {availableLocalVoices,selectLocalVoice} from "@/lib/tutor-speech";
 import { supportedFirstAccessLanguages, tutorPersonaLabels, interestLabels, type TutorPersona, type LearnerInterest } from "@shared/onboarding";
 
 type Snapshot = inferRouterOutputs<AppRouter>["onboarding"]["me"];
-type View = "dashboard" | "study" | "read" | "review" | "settings";
+type View = "dashboard" | "exams" | "study" | "read" | "review" | "settings";
 const NEURAL_VOICES = ["troy","daniel","austin","autumn","diana","hannah"] as const;
 const DEFAULT_VOICE:TutorVoiceSettings={voiceURI:"",rate:0.95,pitch:1,neuralVoice:"troy"};
 function loadVoiceSettings():TutorVoiceSettings {
@@ -48,7 +49,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
   const [search,setSearch]=useState("");
   const [notice,setNotice]=useState("");
   const sponsors=trpc.campus.sponsors.useQuery(undefined,{enabled:view==="dashboard",retry:false});
-  const areas=[{label:"Idiomas",description:"Prática real de inglês.",icon:BookOpen,asset:"idiomas",action:()=>setView("study")},{label:"Exames",description:"Preparação para exames de proficiência.",icon:Trophy,asset:"exames"},{label:"Empregos Globais",description:"Carreira e oportunidades internacionais.",icon:BriefcaseBusiness,asset:"empregos"},{label:"Imigração",description:"Planejamento da sua mudança.",icon:Plane,asset:"imigracao"},{label:"Consultorias",description:"Orientação profissional especializada.",icon:Users,asset:"consultorias"}];
+  const areas=[{label:"Idiomas",description:"Prática real de inglês.",icon:BookOpen,asset:"idiomas",action:()=>setView("study")},{label:"Exames",description:"Preparação para exames de proficiência.",icon:Trophy,asset:"exames",action:()=>setView("exams")},{label:"Empregos Globais",description:"Carreira e oportunidades internacionais.",icon:BriefcaseBusiness,asset:"empregos"},{label:"Imigração",description:"Planejamento da sua mudança.",icon:Plane,asset:"imigracao"},{label:"Consultorias",description:"Orientação profissional especializada.",icon:Users,asset:"consultorias"}];
   const unavailable=(label:string)=>setNotice(label+" — área em preparação. Ainda não está disponível.");
   const [tutorName, setTutorName] = useState(profile.tutorName);
   const [tutorPersona, setTutorPersona] = useState<TutorPersona>(profile.tutorPersona);
@@ -152,7 +153,8 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
           <button type="button" onClick={()=>openStudySection("study-progress-title")}><Target size={15}/>Meu progresso</button>
         </div>
       </div>
-      {[{label:"Exames",Icon:Trophy},{label:"Empregos",Icon:BriefcaseBusiness},{label:"Imigração",Icon:Plane},{label:"Consultorias",Icon:Users},{label:"Comunidade",Icon:Users},{label:"Lives e Eventos",Icon:Video},{label:"Notícias Globais",Icon:Newspaper}].map(({label,Icon})=><button key={label} type="button" onClick={()=>unavailable(label)}><Icon size={17} aria-hidden="true"/>{label}<small>Em breve</small></button>)}
+      <button type="button" onClick={()=>setView("exams")} aria-current={view==="exams"?"page":undefined}><Trophy size={17}/>Exames de Proficiência</button>
+      {[{label:"Empregos",Icon:BriefcaseBusiness},{label:"Imigração",Icon:Plane},{label:"Consultorias",Icon:Users},{label:"Comunidade",Icon:Users},{label:"Lives e Eventos",Icon:Video},{label:"Notícias Globais",Icon:Newspaper}].map(({label,Icon})=><button key={label} type="button" onClick={()=>unavailable(label)}><Icon size={17} aria-hidden="true"/>{label}<small>Em breve</small></button>)}
       <button type="button" onClick={()=>setView("settings")} aria-current={view==="settings"?"page":undefined}><Settings2 size={16}/>Meu tutor</button>
       <button type="button" className="academy-rail-chat" onClick={openTutor}><MessageSquare size={18} aria-hidden="true"/> Conversar com o tutor</button>
       <div className="academy-campus-membership"><Crown size={23} aria-hidden="true"/><strong>Seu acesso</strong><p>Consulte seu período de acesso no aviso da conta. Planos comerciais em preparação.</p></div><div className="academy-rail-note"><Globe2 size={22} aria-hidden="true"/><span>Inglês para o seu próximo passo.</span></div>
@@ -207,6 +209,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
 
 
       </div>}
+      {view === "exams" && <ExamCampus/>}
       {view === "study" && <StudyCampus tutorName={profile.tutorName} planTitle={placement.data?.plan?.title??plan.title} objective={plan.objective} responses={recorded} savedCount={items.isError||items.isLoading?null:items.data?.length??null} placementReady={Boolean(placement.data?.plan)} canStartPlacement={Boolean(placement.data&&!placement.data.plan)} onRead={()=>setView("read")} onReview={()=>setView("review")} onTutor={openTutor} onPlan={()=>openStudySection("study-plan-title")} onPlacement={()=>{setRequestPlacement(true);openTutor();}} onUnavailable={unavailable}/>}
       {(view==="read"||view==="review")&&<div className="academy-study-breadcrumb"><button type="button" onClick={()=>setView("study")}><BookOpen size={16}/>Estudar</button><ChevronRight size={14} aria-hidden="true"/><span aria-current="page">{view==="read"?"Ler e praticar":"Revisões espaçadas"}</span></div>}
       {view === "read" && <>

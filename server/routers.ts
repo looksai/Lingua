@@ -1,3 +1,4 @@
+import {examRouter} from "./exam-router";
 import {campusSponsors} from "./campus-sponsors";
 import {createPartnerEventRouter} from "./partner-event-router";
 import {partnerInviteLabEnabled} from "./partner-invite-gate";
@@ -40,6 +41,7 @@ export const appRouter = router({
     allowRequest:createPartnerInviteLimiter(),
   }),
   campus: router({sponsors: protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return campusSponsors();})}),
+  exams: examRouter,
   onboarding: onboardingRouter,
   tutor: tutorRouter,
   placement: placementRouter,

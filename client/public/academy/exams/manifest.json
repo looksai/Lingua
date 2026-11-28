@@ -1,0 +1,56 @@
+{
+  "exam-hero.webp": {
+    "crop": [
+      750,
+      60,
+      1536,
+      221
+    ],
+    "sha256": "4ed6ec62225e799ead7ba9dea3df97d0859c00656ac208bb1d01899b46328352"
+  },
+  "exam-listening.webp": {
+    "crop": [
+      596,
+      653,
+      845,
+      713
+    ],
+    "sha256": "f8022b37802a1c66799372eca41f92f439b39a93685b02a32d5b915098e508d1"
+  },
+  "exam-reading.webp": {
+    "crop": [
+      861,
+      653,
+      1109,
+      713
+    ],
+    "sha256": "9402de0708e5b7fe261efb8cf21963c3e6366e2d6a6bbd5ff4811904734697e4"
+  },
+  "exam-writing.webp": {
+    "crop": [
+      596,
+      767,
+      845,
+      832
+    ],
+    "sha256": "95445fe10fd3e136c0461ba98f1b3521f33ed47e5aeea114bbe14657d37fe2cb"
+  },
+  "exam-speaking.webp": {
+    "crop": [
+      861,
+      767,
+      1109,
+      831
+    ],
+    "sha256": "c4b731215b2eed143cc815aa1ec1ada22283a4e015cb5e9c2509df38885f9a3a"
+  },
+  "exam-plan.webp": {
+    "crop": [
+      237,
+      904,
+      574,
+      998
+    ],
+    "sha256": "a25b38f1461800c9543644f25b40c1688c0a494208759493dee3fc8c96b1405b"
+  }
+}
