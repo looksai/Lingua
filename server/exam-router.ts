@@ -3,7 +3,7 @@ import {eq} from "drizzle-orm";
 import {learnerProfiles} from "../drizzle/schema";
 import {getDb} from "./db";
 import {createDurableExamEngine} from "./exam-durable-engine";
-import {readExamGoal,recentExamActivities} from "./exam-history-repository";
+import {readExamGoal,recentExamActivities,exportExamHistoryPage} from "./exam-history-repository";
 import {examGoalInput} from "../shared/exam-history-contract";
 import {paidTutorAllowed,freeTutorAllowed,tutorMode,withTutorBudget} from "./tutor-budget";
 import {createSelectedTutor} from "./tutor-provider-selector";
@@ -21,7 +21,12 @@ function requireAccess(email:string|null|undefined){
 }
 export function durableExamEnabled(env:NodeJS.ProcessEnv=process.env){return env.LINGUA_EXAM_DURABLE_ENABLED==="true";}
 async function historyDb(){if(!durableExamEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Histórico permanente ainda indisponível."});const db=await getDb();if(!db)throw new TRPCError({code:"PRECONDITION_FAILED",message:"Histórico temporariamente indisponível."});return db;}
+export function examPrivacyEnabled(env:NodeJS.ProcessEnv=process.env){return durableExamEnabled(env)||env.LINGUA_EXAM_PRIVACY_ENABLED==="true";}
+async function privacyDb(){if(!examPrivacyEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Dados persistentes ainda indisponíveis."});const db=await getDb();if(!db)throw new TRPCError({code:"PRECONDITION_FAILED",message:"Dados temporariamente indisponíveis."});return db;}
 export const examRouter=router({
+ privacyStatus:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {enabled:examPrivacyEnabled()};}),
+ privacyExport:protectedProcedure.input(z.object({beforeId:z.number().int().positive().max(2147483647).nullable()}).strict()).mutation(async({ctx,input})=>{checkRequestOrigin(ctx.req);rateLimit("exam-export:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");return exportExamHistoryPage(await privacyDb(),ctx.user.id,input.beforeId);}),
+ privacyClear:protectedProcedure.input(z.object({confirm:z.literal(true)}).strict()).mutation(async({ctx})=>{checkRequestOrigin(ctx.req);rateLimit("exam-privacy-clear:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");await createDurableExamEngine(await privacyDb()).clear(ctx.user.id);return {cleared:true as const};}),
  overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const,durable:Boolean(examAccess(ctx.user.email))&&durableExamEnabled(),feedbackProvider:examAccess(ctx.user.email)&&writingFeedbackEnabled()&&(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email))?tutorMode():null};}),
  history:protectedProcedure.query(async({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");const db=await historyDb();return {goal:await readExamGoal(db,ctx.user.id),activities:await recentExamActivities(db,ctx.user.id)};}),
  resume:protectedProcedure.query(async({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");return createDurableExamEngine(await historyDb()).resume(ctx.user.id);}),
