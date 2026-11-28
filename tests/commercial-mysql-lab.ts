@@ -1,0 +1,32 @@
+import assert from "node:assert/strict";
+import mysql from "mysql2/promise";
+import {drizzle} from "drizzle-orm/mysql2";
+import {eq} from "drizzle-orm";
+import {users} from "../drizzle/schema";
+import {trialCoupons,trialRedemptions,commercialSubscriptions} from "../drizzle/commercial-draft";
+import {redeemTrialLab} from "../server/trial-redemption-lab";
+import {commercialAccessLab} from "../server/commercial-repository-lab";
+const url="mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab";
+if(process.env.ACADEMY_MYSQL_LAB!=="1"||process.env.DATABASE_URL!==url||process.env.NODE_ENV!=="development"||process.env.DATABASE_SSL_CA_BASE64)throw Error("Disposable lab only");
+const pools=[mysql.createPool(url),mysql.createPool(url)];
+const [a,b]=pools.map(client=>drizzle({client}));
+try{
+ await pools[0].query("CREATE TABLE commercialSubscriptions (id int AUTO_INCREMENT PRIMARY KEY,userId int NOT NULL,plan enum('lingua-premium','community-premium') NOT NULL,status enum('active','cancelled','expired','pending','suspended') NOT NULL,source enum('paid','trial-coupon','admin-grant') NOT NULL,sourceId varchar(180) NOT NULL,startsAtMs bigint NOT NULL,endsAtMs bigint NOT NULL,UNIQUE(userId,source,sourceId),FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE)");
+ await pools[0].query("CREATE TABLE trialCoupons (id int AUTO_INCREMENT PRIMARY KEY,code varchar(40) NOT NULL UNIQUE,plan enum('lingua-premium','community-premium') NOT NULL,days int NOT NULL,redeemFromMs bigint NOT NULL,redeemUntilMs bigint NOT NULL,maxUses int NOT NULL,revokedAtMs bigint NULL)");
+ await pools[0].query("CREATE TABLE trialRedemptions (id int AUTO_INCREMENT PRIMARY KEY,couponId int NOT NULL,userId int NOT NULL,redeemedAtMs bigint NOT NULL,UNIQUE(couponId,userId),FOREIGN KEY(couponId) REFERENCES trialCoupons(id),FOREIGN KEY(userId) REFERENCES users(id))");
+ const ids:number[]=[];
+ for(const openId of ["commercial-lab-a","commercial-lab-b"]){await a.insert(users).values({openId});const [u]=await a.select().from(users).where(eq(users.openId,openId));ids.push(u.id);}
+ const now=Date.now();
+ await a.insert(trialCoupons).values({code:"LABONE",plan:"lingua-premium",days:150,redeemFromMs:now-1000,redeemUntilMs:now+86400000,maxUses:1});
+ const results=await Promise.allSettled([redeemTrialLab(a,ids[0],"LABONE",()=>now),redeemTrialLab(b,ids[1],"LABONE",()=>now)]);
+ assert.equal(results.filter(r=>r.status==="fulfilled").length,1);
+ const [receipt]=await a.select().from(trialRedemptions);
+ const [grant]=await b.select().from(commercialSubscriptions);
+ assert.equal(grant.userId,receipt.userId);assert.equal(grant.endsAtMs,now+150*86400000);
+ assert.equal((await redeemTrialLab(b,receipt.userId,"LABONE",()=>now)).status,"already-redeemed");
+ assert.equal(await commercialAccessLab(a).isActiveMember(receipt.userId),true);
+ assert.equal(await commercialAccessLab(b).isActiveMember(ids.find(id=>id!==receipt.userId)!),false);
+ await a.update(commercialSubscriptions).set({status:"cancelled"}).where(eq(commercialSubscriptions.userId,receipt.userId));
+ assert.equal(await commercialAccessLab(b).isActiveMember(receipt.userId),false);
+ console.log("PASS commercial trial concurrency, replay, duration, isolation and cancellation");
+}finally{await Promise.all(pools.map(p=>p.end()));}
