@@ -4,6 +4,7 @@
  *   pnpm exec tsx scripts/academy-beta-invites.ts issue /secure/outside-repo/invites.json learner@example.com 7
  *   pnpm exec tsx scripts/academy-beta-invites.ts revoke /secure/outside-repo/invites.json learner@example.com
  *   pnpm exec tsx scripts/academy-beta-invites.ts audit /secure/outside-repo/invites.json
+ *   pnpm exec tsx scripts/academy-beta-invites.ts prune /secure/outside-repo/invites.json
  * The clear-text token appears exactly once on stdout for secure delivery.
  * Only its SHA-256 hash is written to disk, with mode 0600.
  */
@@ -11,7 +12,7 @@ import {lstat,open,readFile,realpath,rename,stat,unlink,writeFile} from "node:fs
 import {dirname,isAbsolute,relative,resolve,sep} from "node:path";
 import {randomBytes} from "node:crypto";
 import {fileURLToPath} from "node:url";
-import {inspectBetaInvitations,issueBetaInvitation,revokeBetaInvitation} from "../server/academy-beta-invite-ops";
+import {inspectBetaInvitations,issueBetaInvitation,pruneExpiredBetaInvitations,revokeBetaInvitation} from "../server/academy-beta-invite-ops";
 
 function outsideRepo(target:string,root:string){
  const rel=relative(root,target);
@@ -71,20 +72,27 @@ async function withInvitationLock<T>(target:string,operation:()=>Promise<T>):Pro
 }
 export async function main(args:string[]){
  const [command,file,email,ttl]=args;
- if(!file||!["issue","revoke","audit"].includes(command??""))throw Error("Usage: issue FILE EMAIL DAYS | revoke FILE EMAIL | audit FILE");
+ if(!file||!["issue","revoke","audit","prune"].includes(command??""))throw Error("Usage: issue FILE EMAIL DAYS | revoke FILE EMAIL | audit FILE | prune FILE");
  const target=await resolveProtectedTarget(file);
  if(command==="audit"){
   if(email!==undefined||ttl!==undefined)throw Error("audit accepts only FILE");
   const summary=inspectBetaInvitations(await load(target,false));
   process.stdout.write(JSON.stringify(summary)+"\n");return;
  }
- if(!email)throw Error("Email is required");
+ if(command==="prune"&&(email!==undefined||ttl!==undefined))throw Error("prune accepts only FILE");
+ if(command!=="prune"&&!email)throw Error("Email is required");
  if(command==="revoke"&&ttl!==undefined)throw Error("revoke accepts FILE and EMAIL");
  if(command==="issue"&&(!ttl||!/^[0-9]+$/.test(ttl)))throw Error("Provide lifetime in whole days (1–30)");
  await withInvitationLock(target,async()=>{
   // Read only after taking the exclusive lock so the next operator cannot
   // overwrite an invitation issued by the previous one.
   const json=await load(target,command==="issue");
+  if(command==="prune"){
+   const result=pruneExpiredBetaInvitations(json);
+   if(result.removed>0)await store(target,result.json);
+   process.stdout.write(JSON.stringify({removed:result.removed,remaining:result.remaining})+"\n");
+   return;
+  }
   if(command==="revoke"){
    await store(target,revokeBetaInvitation(json,email).json);
    process.stdout.write("Invitation revoked. Update the pilot environment with the new hashed JSON store.\n");
