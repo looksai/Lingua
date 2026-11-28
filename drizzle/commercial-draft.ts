@@ -46,3 +46,14 @@ export const commercialCashEntries=mysqlTable("commercialCashEntries",{
  settledAtMs:bigint("settledAtMs",{mode:"number"}).notNull(),
  recordedAtMs:bigint("recordedAtMs",{mode:"number"}).notNull(),
 },t=>({period:index("commercial_cash_period").on(t.settledAtMs,t.id)}));
+
+export const commercialRecurringContracts=mysqlTable("commercialRecurringContracts",{
+ id:int("id").autoincrement().primaryKey(),
+ sourceKey:varchar("sourceKey",{length:180}).notNull().unique(),
+ currency:mysqlEnum("currency",["BRL","USD","EUR"]).notNull(),
+ amountMinor:bigint("amountMinor",{mode:"number"}).notNull(),
+ intervalMonths:int("intervalMonths").notNull(),
+ status:mysqlEnum("status",["active","pending","cancelled","suspended"]).notNull(),
+ startsAtMs:bigint("startsAtMs",{mode:"number"}).notNull(),
+ endsAtMs:bigint("endsAtMs",{mode:"number"}).notNull(),
+},t=>({activePeriod:index("commercial_recurring_period").on(t.status,t.endsAtMs,t.startsAtMs)}));
