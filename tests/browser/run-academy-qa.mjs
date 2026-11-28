@@ -317,6 +317,7 @@ try{
     await page.goto(base);
     await page.getByRole("link",{name:"Começar agora"}).click();
     await page.getByRole("heading",{name:"Crie sua conta"}).waitFor();
+    await page.screenshot({path:path.join(screenshotDir,"beta-invite-login-375.png"),fullPage:true,animations:"disabled"});
     await page.getByLabel("E-mail").fill("qa-new@synthetic.invalid");
     await page.getByLabel("Senha",{exact:true}).fill("strong-synthetic-password");
     const invite=page.getByLabel("Código do convite");
@@ -332,8 +333,10 @@ try{
     await page.getByRole("textbox",{name:"Como você quer chamar seu tutor?"}).fill("Nina");
     await page.getByRole("button",{name:"Conhecer meu tutor"}).click();
     await page.getByRole("heading",{name:"Uma descoberta de cada vez."}).waitFor();
+    await page.screenshot({path:path.join(screenshotDir,"beta-invite-onboarding-375.png"),fullPage:true,animations:"disabled"});
     await page.getByRole("button",{name:"Prefiro explorar o aplicativo agora"}).click();
     await page.locator(".academy-dashboard-v3").waitFor();
+    await page.screenshot({path:path.join(screenshotDir,"beta-invite-campus-375.png"),fullPage:true,animations:"disabled"});
     assert.equal(calls.filter(name=>name==="auth.signUp").length,2);
     assert.ok(calls.includes("onboarding.saveProfile")&&calls.includes("onboarding.defer"));
     assert.ok(!calls.includes("onboarding.submit"),"Skipping initial diagnostic must not create invented evidence");
