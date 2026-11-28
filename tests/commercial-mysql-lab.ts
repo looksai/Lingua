@@ -180,6 +180,7 @@ try{
   await Promise.all([reportCommunityPublication(a,ids[0],reportInput),reportCommunityPublication(b,ids[0],reportInput)]);
  await caller(ids[0],"user").commercialLab.reportPublication({accountId:ids[0],...reportInput});
  const pending=await admin.communityReports({status:"pending"});
+ assert.deepEqual(await admin.communityReportSummary(),{pending:1,dismissed:0,actioned:0});
  assert.equal(pending.items.length,1);
  assert.equal(pending.items[0].reason,"spam");
  assert.equal((await feed()).items.length,1,"A report must not hide its target without review");
@@ -195,6 +196,7 @@ try{
  assert.equal((await feed()).items.length,0);
  assert.equal((await admin.communityReports({status:"pending"})).items.length,0);
  assert.equal((await admin.communityReports({status:"actioned"})).items[0].resolvedBy,ids[0]);
+ assert.deepEqual(await admin.communityReportSummary(),{pending:0,dismissed:0,actioned:1});
  assert.equal((await mine()).items[0].status,"actioned");
  assert.equal((await admin.communityPublicationAudit({})).items.length,3);
  await admin.actionCommunityReport({reportId});
@@ -210,6 +212,7 @@ try{
  assert.equal((await feed()).items.length,1);
  await admin.dismissCommunityReport({reportId:staleId});
  assert.equal((await admin.communityReports({status:"dismissed"})).items[0].id,staleId);
+ assert.deepEqual(await admin.communityReportSummary(),{pending:0,dismissed:1,actioned:1});
  // A real revoke/re-publish within the same clock millisecond is a new revision.
  const [oldShareRows]=await pools[0].query<mysql.RowDataPacket[]>("SELECT publishedAtMs FROM gamificationShares WHERE userId=? AND achievementId=?",[ids[1],achievementId]);
  const previousPublishedAt=Number(oldShareRows[0].publishedAtMs);
