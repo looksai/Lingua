@@ -1,7 +1,7 @@
 import {readCommunityAchievementFeed} from "./community-feed-repository-lab";
 import {reportCommunityPublication} from "./community-report-lab";
-import {and,asc,eq,gt} from "drizzle-orm";
-import {communityBlocks} from "../drizzle/community-safety-draft";
+import {and,asc,desc,eq,gt,lt} from "drizzle-orm";
+import {communityBlocks,communityPublicationReports} from "../drizzle/community-safety-draft";
 import {setCommunityBlock} from "./community-safety-lab";
 import {z} from "zod";
 import {TRPCError} from "@trpc/server";
@@ -34,6 +34,27 @@ export const commercialStudentRouterLab=router({
    catch{throw new TRPCError({code:"FORBIDDEN",message:"Não foi possível consultar o feed da comunidade."});}
  }),
 
+ myCommunityReports:protectedProcedure.input(z.object({
+   accountId,beforeId:z.number().int().positive().max(2147483647).optional(),
+ }).strict()).query(async({ctx,input})=>{
+   confirmAccount(input.accountId,ctx.user.id);
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   rateLimit("community-own-reports:"+ctx.user.id);
+   const db=await dbForLab();
+   const rows=await db.select({
+     id:communityPublicationReports.id,ownerId:communityPublicationReports.ownerId,
+     achievementId:communityPublicationReports.achievementId,
+     publishedAtMs:communityPublicationReports.publishedAtMs,
+     reason:communityPublicationReports.reason,status:communityPublicationReports.status,
+     createdAtMs:communityPublicationReports.createdAtMs,
+     resolvedAtMs:communityPublicationReports.resolvedAtMs,
+   }).from(communityPublicationReports).where(and(
+     eq(communityPublicationReports.reporterId,ctx.user.id),
+     input.beforeId===undefined?undefined:lt(communityPublicationReports.id,input.beforeId),
+   )).orderBy(desc(communityPublicationReports.id)).limit(21);
+   const items=rows.slice(0,20);
+   return {items,nextBeforeId:rows.length>20?items[19]!.id:null};
+ }),
  reportPublication:protectedProcedure.input(z.object({accountId,ownerId:z.number().int().positive().max(2147483647),achievementId:z.string().min(1).max(80),publishedAtMs:z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),reason:z.enum(["spam","harassment","inappropriate","other"])}).strict()).mutation(async({ctx,input})=>{
    confirmAccount(input.accountId,ctx.user.id);checkRequestOrigin(ctx.req);
    rateLimit("community-report:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
