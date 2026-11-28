@@ -54,7 +54,7 @@ async function test(name,width,mode,body,fixture="public"){
       if(fixture==="speaking-authorized"||fixture==="speaking-sequence"){
         const answer=payload=>({result:{data:{json:payload}}});
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
-        if(name==="exams.speakingPrompts")return answer({version:"qa",prompts:fixture==="speaking-sequence"?["part1-work","part1-travel","part2-skill","part3-learning","part3-cities"].map((id,i)=>({id,part:[1,1,2,3,3][i],title:"QA "+id,question:"Question "+(i+1),preparationSeconds:i===2?60:0,practiceSeconds:120,review:["Did I give an example?"]})):[{id:"qa-speaking",part:2,title:"A useful skill",question:"Describe a useful skill.",preparationSeconds:60,practiceSeconds:120,review:["Did I give an example?"]}],criteria:[{name:"Pronúncia",description:"Escute sua gravação."}]});
+        if(name==="exams.speakingPrompts")return answer({version:"qa",prompts:fixture==="speaking-sequence"?["part1-work","part1-travel","part2-skill","part3-learning","part3-cities","part1-food","part1-reading","part2-help","part3-community","part3-habits"].map((id,i)=>({id,part:[1,1,2,3,3][i%5],title:"QA "+id,question:"Question "+(i+1),preparationSeconds:i%5===2?60:0,practiceSeconds:120,review:["Did I give an example?"]})):[{id:"qa-speaking",part:2,title:"A useful skill",question:"Describe a useful skill.",preparationSeconds:60,practiceSeconds:120,review:["Did I give an example?"]}],criteria:[{name:"Pronúncia",description:"Escute sua gravação."}]});
       }
       if(fixture==="writing-sequence"){
         const answer=payload=>({result:{data:{json:payload}}});
@@ -394,13 +394,16 @@ try{
     await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
     await page.getByRole("button",{name:/Speaking Fluência e comunicação/}).click();
     await page.getByRole("button",{name:"Sequência oral guiada"}).click();
-    for(let i=1;i<=5;i++){
+    const oralSet=page.getByLabel("Conjunto oral");
+    await oralSet.selectOption("set-2");
+    for(let i=6;i<=10;i++){
       await page.getByText("Question "+i,{exact:true}).waitFor();
       await page.getByRole("button",{name:"Gravar resposta"}).click();
       await page.getByRole("button",{name:"Encerrar gravação"}).click();
       await page.getByText("Resposta gravada. A revisão será exibida ao final.").waitFor();
       assert.equal(await page.locator("audio").count(),0);
-      await page.getByRole("button",{name:i===5?"Concluir sequência":"Próxima pergunta"}).click();
+      assert.equal(await oralSet.isDisabled(),true);
+      await page.getByRole("button",{name:i===10?"Concluir sequência":"Próxima pergunta"}).click();
     }
     await page.getByText("5 respostas gravadas. Nenhuma nota atribuída.").waitFor();
     assert.equal(await page.locator("audio").count(),5);
@@ -409,6 +412,9 @@ try{
     await page.getByRole("button",{name:"Descartar e reiniciar sequência"}).click();
     assert.equal(await page.locator("audio").count(),0);
     assert.equal(await page.evaluate(()=>window.__qaRevoked),5);
+    await page.getByText("Question 6",{exact:true}).waitFor();
+    assert.equal(await oralSet.isEnabled(),true);
+    await oralSet.selectOption("set-1");
     await page.getByText("Question 1",{exact:true}).waitFor();await fit(page);
   },"speaking-sequence");
   await test("durable exam goal, resume and history deletion (synthetic API)",375,"closed",async(page,calls)=>{
