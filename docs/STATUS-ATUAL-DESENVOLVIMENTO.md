@@ -1,3 +1,203 @@
+# ATUALIZAÇÃO IMEDIATA DE RETOMADA — Academy Beta, 28/11/2026
+
+**PR #125, branch `feat/exam-writing-catalog`.** Operação de convites em laboratório concluída no código: emissão/revogação offline de tokens seguros e hashes, validação de acesso invite-only e trial, preflight com resultado redigido, painel admin com totais e **modo de inscrição atual**. Nenhum código bruto de convite é persistido no repositório; a emissão requer arquivo externo ao checkout com permissão `0600`.
+
+**E2E do primeiro aluno:** o Chromium simula Landing → cadastro com token inválido rejeitado → token correto aceito → perfil do tutor sem consentimento de feedback de IA → triagem adiada sem forjar dados → Campus. O login agora apaga o erro antigo quando os campos são corrigidos e limpa senha/token ao alternar signin/signup. Artefatos visuais sintéticos já gerados em `academy-screenshots`, workflow `46183920930` (GitHub Actions), incluindo `beta-invite-login-375.png`, `beta-invite-onboarding-375.png`, `beta-invite-campus-375.png`.
+
+**Verificação CONFIRMADA:** commit `5b1d628` passou P0 `46183952563`, MySQL `46183952539`, Chromium `46183952545`, lives `46183952533`: **4/4 verdes**. Inclui fluxo beta e correção de mensagens; commit `7b4ccf9` também passou os quatro workflows e gerou screenshots. Último commit de código observado antes desta atualização: `52cb84b`, com testes extras de admissão admin sob HTTP real e CI ainda em fila/execução; **não extrapolar aprovação ao SHA atual sem reconsultar.**
+
+**Próxima execução:** confirmar os quatro pipelines do HEAD mais recente; inspecionar falhas de browser/MySQL se houver; revisão humana das capturas visuais vs. kit/home aprovados; obter aprovação explícita de rollout e controles distribuídos de limitação de requisições antes de convidar alunos reais. Academy Beta não equivale a plataforma concluída. CSLE permanece independente, sem alterações de currículo/certificação, pagamentos de produção, migrações ou flags ativas.
+
+---
+
+# RETOMADA MAIS RECENTE — 28/11/2026 (Academy Beta e primeiro aluno)
+
+Branch `feat/exam-writing-catalog` na PR #125. O bloco de desenvolvimento anterior integra emissão **offline** de até 20 convites com tokens aleatórios/hash-only e validade 1–30 dias, revogação, arquivo privado `0600`, leitura/auditoria redigida, preflight fail-closed, painel administrativo com capacidade de convites e testes de laboratório HTTP/MySQL. O fluxo Chromium faz Landing → convite inválido → convite correto → perfil (IA sem consentimento por padrão) → triagem adiada → Campus e gera screenshots sintéticos do percurso. O login remove erros obsoletos após correção, e alternar signin/signup elimina senha e código anterior.
+
+**Complementos após checkpoint anterior:** `adminLab.academyInviteSummary` agora informa também `admissionMode` (`invite`, `closed`, `open`); a UI mostra em linguagem clara o modo atual sem expor credenciais; MySQL e Chromium foram adaptados. `Login.tsx` limpa senha e token ao alternar modos e o Chromium valida a remoção.
+
+**Evidência conferida:** commit `20085fd` passou P0 `46183819448`, MySQL `46183819431`, Chromium `46183819550` e lives `46183819488` (4/4). Commits posteriores avançaram QA e dashboard; o último head observado antes deste checkpoint é `ad28cf1`, quatro workflows **enfileirados** e não declarados aprovados. O P0 do commit antigo `c1470b7` falhou em uma asserção de teste e foi corrigido em `20085fd`. Não confundir CI antiga com CI de HEAD.
+
+**Próximo bloco:** confirmar os quatro workflows do HEAD, corrigir qualquer falha real (foco `tests/browser/run-academy-qa.mjs`), revisar screenshots sintéticos e fidelidade visual de Academy/cadastro; só então considerar convite em staging com aprovações para implantação, acesso, custos e privacidade. A PR está em rascunho. **Nenhum deployment, migração ou ativação de produção; CSLE intacto.** Detalhes: `docs/ACADEMY-BETA-INVITATIONS-OPERATOR.md`.
+
+---
+
+# CHECKPOINT PRIORITÁRIO — 28/11/2026 — Academy Beta: operação de convites e QA de primeiro aluno
+
+**Retomada operacional:** PR #125, branch `feat/exam-writing-catalog`. Continuar desenvolvimento autônomo, com commits e testes efetivos. CSLE permanece intocado. **Nenhum deploy, migração ou ativação de flags de produção nesta sequência.** O manual seguro de operação está em `docs/ACADEMY-BETA-INVITATIONS-OPERATOR.md`.
+
+## Implementação efetivamente salva
+
+1. **Operação offline do piloto:** `server/academy-beta-invite-ops.ts` emite/revoga convites restritos a e-mail (1–30 dias, máximo 20), token aleatório de 32 bytes, JSON com somente SHA-256 e expiração; campos inválidos, repetidos ou expirados são rejeitados. `scripts/academy-beta-invites.ts` cria/atualiza arquivo privado `0600` por gravação atômica, recusa symlink e destino dentro do repositório, nunca altera servidores. `audit` devolve apenas totais.
+2. **Pré-verificação redigida:** `inspectAcademyBetaReadiness` e `scripts/academy-beta-preflight.ts` conferem mode `invite`, trial ativado, existência de segredo de sessão e banco, e ao menos um convite válido. Status contém somente códigos e contagens, não e-mails, tokens nem URLs. `ready` cobre o mínimo local, **não** implantação ou distribuição de limitação de requisições. Aviso de rate limit compartilhado permanece.
+3. **Métricas administrativas:** `adminLab.academyInviteSummary`, protegida por papel admin e flag do laboratório, informa emitidos, vigentes, expirados e vagas do limite de 20. O dashboard mostra isso separado de usuários cadastrados e pagantes, com explicação explícita para não confundir convite com inscrição.
+4. **Testes completos:** `server/academy-beta-invite-ops.test.ts`, `server/academy-beta-invite-cli.test.ts`, `server/academy-beta-readiness.test.ts`, proteção admin em `server/admin-router-access.test.ts`. `tests/academy-mysql-http-lab.ts` passou a usar os tokens reais gerados pelo operador e comprova revogação e armazenamento somente de hashes. `tests/commercial-mysql-lab.ts` verifica contadores de convites sem PII.
+5. **Fluxo visual Beta no Chromium:** `tests/browser/run-academy-qa.mjs` percorre Landing → botão Começar agora → inscrição por convite inválido (negada) → convite válido (aceito) → perfil do tutor, feedback com IA **desativado por padrão** → triagem opcional adiada sem inventar evidência → Campus. Capturas sintéticas `beta-invite-login-375.png`, `beta-invite-onboarding-375.png`, `beta-invite-campus-375.png` são geradas no artefato QA da CI.
+6. **UX de autenticação:** `Login.tsx` elimina erro antigo quando aluno corrige senha, e-mail ou código de convite; browser QA verifica desaparecimento do alerta antes de reenvio. Não há dados de estudantes nem tokens reais nos testes.
+
+## Evidência CI
+
+- Baseline desta rodada: commit `48b616d`, 4/4 pipelines aprovados.
+- Commit `39f69cf`: P0 `46183613597`, MySQL `46183613503`, Chromium `46183613526`, lives `46183613486`, 4/4 aprovados.
+- Commit `c1470b7`: Chromium `46183737167`, MySQL `46183737163` e lives `46183737185` aprovados; P0 `46183737169` falhou por uma **expectativa de teste com sequência de caracteres errada**, não uma falha de segurança. Corrigida em `20085fd`, cujo P0 `46183819448` passou.
+- As verificações das últimas alterações de UX/admin/dashboard ainda podem estar executando. **Consultar os quatro resultados do HEAD atual antes de afirmar homologação.** Não usar resultados de um SHA anterior como resultado do head.
+
+## Próximas etapas concretas
+
+1. Auditar os quatro workflows do novo HEAD e corrigir qualquer falha, especialmente Chromium com onboarding completo, screenshots e MySQL full-stack após integração de convites.
+2. Revisar as capturas de tela sintéticas e os detalhes de fidelidade visual aprovados para home/Campus antes de liberar a primeiros convidados. O material aprovado continua sendo a referência, sem reconstrução aproximada.
+3. Antes de qualquer estágio real: aprovar limitação distribuída de signup, orçamentos, políticas de privacidade e configuração segura de `ACADEMY_ADMISSION_MODE=invite`; verificar preflight no ambiente-alvo e a política de admissão autorizada.
+4. Continuar roadmap de tutor real, exames e controles comerciais, sem substituir testes pedagógicos por XP, sem permitir coleta não autorizada e **sem mudar CSLE**.
+
+---
+
+# CHECKPOINT PRIORITÁRIO — 28/11/2026 — Moderação, portabilidade e consentimento por conquista
+
+**Retomar deste bloco.** Repositório `looksai/Lingua`, PR #125, branch `feat/exam-writing-catalog`. Fundador delegou desenvolvimento e testes autônomos em blocos substanciais. Os detalhes de governança e homologação estão em `docs/COMMUNITY-MODERATION-LAB-RELEASE-GATE.md`.
+
+## Trabalho desta rodada, efetivamente salvo no GitHub
+
+- Painel de moderação: nova consulta `adminLab.communityReportSummary` separa contagens de denúncias pendentes/descartadas/com ação aplicada, atualizadas após cada decisão. UI mostra contadores e botão de atualização. Testes de autorização admin, integração MySQL e Chromium sintético verificam transições.
+- Dados próprios do membro: `commercialLab.myCommunityReportsExport` só aceita `accountId` da sessão autenticada, faz consulta paginada internamente com limite de 1.001 registros para indicar truncamento e entrega no máximo 1.000 em JSON; não revela ID do denunciante nem do administrador. UI `/community` cria download local apenas por ação explícita e avisa quando o arquivo é incompleto. Testes MySQL e Chromium cobrem isolamento entre contas, exportação após expiração comercial e truncamento.
+- Pré-verificação de exclusão de contas: `server/community-deletion-preflight-lab.ts` lê `information_schema` sem escrever. Laboratório MySQL espelha as FKs do draft de denúncias/auditorias e confirma `RESTRICT/NO ACTION` que podem bloquear exclusão de contas. É uma evidência de bloqueio jurídico/técnico, **não** uma política de eliminação de dados; nenhuma exclusão/migração de produção foi criada.
+- Correção de concorrência: `setCommunityBlock` agora bloqueia as duas contas em ordem canônica na transação. `reportCommunityPublication` usa a mesma ordenação e revalida plano ativo de ambos, bloqueios bilaterais e suspensões *dentro* da transação antes de aceitar a denúncia, além de revisão/privacidade/ocultação. Testes MySQL de bloqueio e submissão seguem no pipeline.
+- Correção crítica de consentimento/moderação: `readCommunityGamificationProfile` não pode mostrar conquista oculta administrativamente ou revogada pelo dono. Perfil agora exige preferência global habilitada **e publicação individual ativa/não revogada**, além da ausência de restrição de moderação. MySQL testa ocultação, restauração, revogação e republicação, impedindo vazamento entre feed e perfil.
+- Os workflows continuam a executar nas alterações da branch, sem flags públicas e sem alterar CSLE.
+
+## CI realmente observada
+
+- Commit `853adb11`: **4/4 concluídos com sucesso**, P0 `46182891764`, MySQL `46182891770`, Chromium `46182891773`, lives `46182891759`. Inclui exportação, truncamento no Chromium, triagem e testes anteriores.
+- Commit `41617a1a`: **4/4 concluídos com sucesso**, P0 `46182642956`, MySQL `46182642897`, Chromium `46182642867`, lives `46182642946`.
+- Commits posteriores adicionaram o preflight, locks/rechecagens transacionais e a correção de perfil; **não declarar homologação** sem conferir os 4 workflows do head atual. Último head observado antes deste checkpoint: `7b7eca5d`, com CI ainda enfileirada; conferir no GitHub.
+
+## Pendências executáveis
+
+1. Confirmar quatro pipelines no head mais recente; corrigir falhas de integração e browser caso apareçam. Se a UI de exportação ou os testes do perfil causarem erro, auditar logs dos jobs.
+2. Adicionar/aperfeiçoar teste determinístico de corrida entre bloqueio e denúncia; validar restauro/privacidade em duas conexões e UX visual móvel/desktop antes de staging.
+3. Definir governança de retenção/eliminação de registros de segurança e estratégia para FKs bloqueantes antes de autorizar migração. Não criar deleção destrutiva sem a política.
+4. Limitação local de requisições deve ser distribuída para escala real; nunca ativar o módulo público sem isso.
+5. Próxima frente de produto: homologação visual definitiva da Academy Beta, convite/tutor efetivo com conta sintética/controle, experiência final de exames e integração comercial. Roadmap histórico mantido abaixo.
+
+**Gates imutáveis:** CSLE separado e congelado, sem mudança curricular/certificadora, sem migração no banco de produção, sem flags de produção, Stripe ou deploy não autorizados. Confundir XP/conquistas com proficiência continua proibido.
+
+---
+
+# CHECKPOINT PRIORITÁRIO — 28/11/2026 — Moderação comunitária implementada e integrada
+
+**Ler este bloco primeiro.** PR #125 (rascunho), branch `feat/exam-writing-catalog`. O fundador autorizou execução substancial autônoma sem confirmações repetidas; não trocar de conversa nem mandar relatórios vazios. O detalhamento dos requisitos de liberação está em `docs/COMMUNITY-MODERATION-LAB-RELEASE-GATE.md`.
+
+## Implementação efetiva desta sequência
+
+1. API autenticada e privada `commercialLab.achievementFeed` com limite/cursor e proteção de plano vigente, consentimento, bloqueios, suspensões e publicações ocultas. Interface `CommunityAchievementFeed.tsx` integrada sob aba recolhida de `/community`, exibindo somente metadados autorizados e oferecendo denúncia explícita e bloqueio com confirmação.
+2. `commercialLab.reportPublication`, fila `adminLab.communityReports`, decisão de ocultação/descarte, histórico de auditoria e painel administrativo integrados. Um relatório não é sanção automática. O painel indica motivo, conquista, revisão/horário e resultado. Transações garantem auditoria e decisão idempotentes.
+3. `commercialLab.myCommunityReports` e painel pessoal de denúncias, escopados pela conta autenticada e utilizáveis após expiração comercial; não devolvem a identidade do responsável administrativo. Proteção contra relatar a própria publicação, duplicações por revisão e acesso não autorizado.
+4. `publishAchievement` agora eleva a revisão temporal em republicação mesmo com relógio idêntico ao anterior, evitando aplicar denúncia antiga à publicação nova.
+5. Testes MySQL com conexões concorrentes e chamadas reais tRPC, mudanças de privacidade e assinatura, resolução/ocultação e restauração, república na mesma unidade de tempo, conta errada e expiração; testes de autorização admin; Chromium sintético exercitando denúncias/bloqueio, histórico após expiração e fila administrativa (ocultar e descartar) em largura móvel.
+6. Limites locais diferenciados para consultas paginadas de comunidades e ações administrativas, mantendo limite estrito original para criação de denúncia. Novos testes unitários para os limites. Workflows Chromium e MySQL monitoram novos caminhos de moderação.
+
+## Evidência CI (verificada, sem extrapolar)
+
+- **Commit `25b8be41`**: P0 `46182127732`, MySQL `46182127705`, Chromium `46182127780`, lives `46182127722` — **4/4 concluídos com sucesso**. Inclui fluxo Chromium de denúncia/administrador e testes de relatório/expiração.
+- **Commit `504b6275`**: P0 `46182157306`, MySQL `46182157299`, lives `46182157319` aprovados; Chromium `46182157316` ainda em execução na última consulta.
+- Commits posteriores ajustam throttle e cobertura dos gatilhos de CI, com verificações ainda em execução. Antes de homologar, consultar o SHA atual e os quatro workflows. Não dizer que passaram sem confirmação explícita.
+
+## Ainda falta / limites de liberação
+
+- **Primeiro:** confirmar o head e quatro pipelines da última sequência; se houver falha, buscar steps/logs e corrigir no código, não apenas relatar.
+- O schema é somente *draft* experimental; antes de staging, revisar migrações, chaves e plano de rollback. Sem aplicação no banco de produção.
+- Políticas de retenção, exportação/exclusão de dados de denúncias, direito de exclusão de conta e eventuais FKs que bloqueiam exclusão continuam exigindo decisão e testes específicos.
+- `rateLimit` é local ao processo; não liberar tráfego comunitário amplo sem limitador compartilhado. Rever identificadores públicos no feed, revisão visual final e homologação com alunos convidados.
+- Academy Beta, implantação visual fiel ao material aprovado, testes do tutor com primeiros convidados e outras áreas comerciais continuam no roadmap; não declarar Lingua finalizado.
+- **Não alterar CSLE, currículo, evidências oficiais, consentimento, Stripe, produção, migrações ou flags de ativação sem os gates de projeto.** Não confundir XP com proficiência.
+
+---
+
+# Atualização de execução — 28/11/2026 (denúncias)
+
+Na PR #125, branch feat/exam-writing-catalog, testes específicos de denúncia adicionados aos testes de integração MySQL: concorrência e idempotência, checagem de identidade na API, não administrador proibido, ocultação e auditoria, revisão obsoleta não pode ser moderada, descarte com atribuição. Commits 8bd1de8 e 2b03865. Os workflows disparados pelo primeiro commit foram observados EM EXECUÇÃO, ainda não há conclusão registrada neste checkpoint. Não alegar aprovação desses novos testes até confirmar conclusão. Os quatro workflows do commit anterior bdbb8f8 passaram, mas não incluíam estes testes. 
+
+PENDÊNCIAS: confirmar CI atual, corrigir qualquer falha; integrar controle de denúncia à futura interface de feed (feed não está público); revisão de retenção, privacidade e migrações de laboratório; testar fluxo UI admin em Chromium. Não habilitar flags de produção nem mexer no CSLE.
+
+---
+
+# Atualização de continuidade — 28/11/2026
+
+PR #125, branch feat/exam-writing-catalog. Checkpoint validado: bdbb8f812348d841b151496b941e62237742f4f9. GitHub Actions: P0 46180846137, MySQL 46180846120, Chromium 46180846125, lives 46180846106: todos concluídos com sucesso.
+
+Implementados em laboratório: filtro de assinatura do autor no feed, ocultação persistente por publicação, auditoria administrativa paginada, estrutura e API de denúncias, fila administrativa com descarte e resolução transacional, interface administrativa e tabela de denúncias no laboratório MySQL. Não considerar homologado: testes específicos de denúncias ainda não gravados; tentativa anterior bloqueada pela ferramenta. Revisar integração visual e cobertura real, adicionar testes de duplicidade, revisão desatualizada, concorrência e autorização; botão de denúncia no feed ainda pendente. Revisar privacidade e retenção dos registros antes de qualquer liberação. CSLE congelado; sem migração, flags ou implantação em produção.
+
+---
+
+# AVISO DE RETOMADA PRIORITÁRIO — 28/11/2026
+
+Este checkpoint prevalece sobre todos os avisos históricos abaixo. Fundador autorizou desenvolvimento, auditoria e testes autônomos, em blocos substanciais, sem pedir OK repetidamente. Academy Beta e fidelidade visual continuam prioridades; administração comercial é frente complementar, não substitui Academy, exames, gamificação ou comunidade.
+
+## Continuação — proteção das interações comunitárias
+
+O laboratório agora armazena bloqueios direcionais de membros. Qualquer direção impede visibilidade entre o par no perfil, feed e ranking via serviços comunitários. Remover o próprio bloqueio preserva o do outro membro. Suspensão comunitária é aplicada por admin, distinta da assinatura ou do acesso ao curso. Cada transição efetiva gera auditoria na mesma transação. A API de privacidade permite retirar o próprio bloqueio após perder o plano. O teste MySQL usa duas conexões e verifica revogação, autorizações, suspensão, auditoria e retorno da visibilidade.
+
+As tabelas são experimentais. Feed e ranking entre membros ainda não foram liberados. A página de privacidade oferece lista paginada dos bloqueios criados pela própria conta e desbloqueio com confirmação. Pendentes botão contextual para bloquear nos futuros perfis, fila de denúncias e decisão por publicação. Bloqueios e suspensões já são filtrados antes da paginação do feed. Antes de expor o feed, estender a mesma proteção à moderação de publicações e ao vencimento da assinatura do autor. Verificar os workflows da branch para o SHA atual.
+
+## Continuação — marcador pessoal do roteiro integrado
+
+O head inicial foi `560ad674`, com P0, MySQL, Chromium isolado e lives aprovados. Na continuação, o aluno autorizado do piloto pode salvar por ação explícita um único roteiro na conta e retomá-lo após recarregar, inclusive em outra sessão. A cópia guarda variante, versão e situação das etapas, com data e revisão. Não contém acertos, textos nem gravações. Não constitui evidência pedagógica. Os resultados objetivos existentes seguem seu próprio fluxo.
+
+O recurso depende do histórico durável e da nova flag `LINGUA_EXAM_ITINERARY_ENABLED=true`, desligada por padrão. O SQL aditivo em `drizzle/manual-review/exam-itinerary-v1.sql` destina-se ao laboratório e à revisão antes de qualquer rollout. O preflight valida a extensão quando presente e a exige quando a flag estiver ativa sobre a base existente. Exportação, exclusão e limpeza por prazo incluem a cópia mesmo com a flag de gravação desligada. A UI permite rever a cópia antes de substituir. A gravação compara revisões sob lock do proprietário.
+
+A página de privacidade permite também excluir somente o roteiro, conferindo identidade e revisão. O teste HTTP atravessa a perda do benefício e desliga a gravação antes de exportar e retirar a cópia. A limpeza por prazo foi testada no limite exato com isolamento por proprietário.
+
+A cobertura inclui compatibilidade com o histórico antigo, consentimento obrigatório, rejeição de dados extras, conflito entre conexões, repetição, isolamento, exportação, exclusão e retomada no Chromium. Consultar os quatro workflows do head para confirmar a execução. Continuam prioritários homologação visual da Academy, piloto convidado, moderação e bloqueios da comunidade. A implantação e o CSLE continuam sujeitos às regras abaixo.
+
+## Atualização posterior em 28/11 — acesso do aluno, comunidade e exames
+
+Este bloco atualiza os itens 1–4 do ponto de retomada abaixo. A PR continua em draft. Em `7f43c178`, a home e o middleware passaram a usar a mesma política. O trial inicial ativo e a Academy com trial desativado conservam acesso legado independente do plano. Após vencer, Lingua Premium abre a Academy e Community Premium abre o Centro de Exames sem consultar onboarding ou tutor. A prática continua sujeita à allowlist de exames. Falha ao carregar as concessões interrompe o acesso. A visualização privada usa cache por identidade; o servidor confere a conta esperada na consulta de acesso.
+
+Em `78ef8199`, os quatro workflows da PR passaram, incluindo ciclo tRPC de emissão, resgate, replay, revogação do código, acesso por plano, vencimento, concorrência na promoção e rollback de auditoria no MySQL descartável. As identidades nesses testes são sintéticas.
+
+Em `081c7e8e`, a rota experimental /community passou a ler e gravar preferências persistentes da própria conta. A retirada integral das permissões funciona após vencer e revoga os compartilhamentos existentes. A UI de resgate também envia a identidade esperada. Chromium tem um percurso sintético de cupom até preferências. O bloco seguinte conecta a correção objetiva diretamente à próxima habilidade e devolve a tentativa expirada ao roteiro.
+
+No SHA `d32252a4`, P0 46131250313, MySQL 46131250322, Chromium 46131250474 e lives 46131250345 terminaram com sucesso. O log do Chromium confirma acesso Community nas duas rotas e resgate até a privacidade. TypeScript e build passaram; Vitest local: 654 aprovados, 13 pulados. A verificação dos dez WebP do campus passou no código e no build. A landing do build foi comparada à arte aprovada em 1672px e inspecionada em 375px. O grupo de cartões e a faixa de parceiros seguem a composição da referência; a figura central tem escala diferente, e textos e indicadores da beta divergem intencionalmente. Em 375px a imagem segue o texto. A página pública e o login seguem preservados. O Centro de Exames independente recebe cabeçalho responsivo e a largura do campus em vez de ficar contido no cartão de status. A suíte local do build passou em 42 cenários Chromium, incluindo troca de identidade na mesma aba e perda do espaço anterior. O laboratório HTTP foi estendido para atravessar convite, sessão JWT, trial, resgate Community e retirada da concessão no MySQL. Consultar o job Partner MySQL do head para verificar a execução.
+
+**Para retomar:** conferir o head e a conclusão de P0, MySQL, Chromium isolado e lives no GitHub. Na Academy, obter homologação visual final e validar a conversa do tutor com participantes convidados após a decisão de rollout. No exame integrado, persistir o roteiro somente com autorização e integrar exportação/exclusão antes de habilitar retenção. Na comunidade faltam moderação e bloqueios persistentes antes de expor feed e ranking entre membros. No comercial continuam pendentes revogação individual de concessão, conciliação por titular e regras de descontos no checkout. Flags produtivas, CSLE e serviços pagos permanecem sob as condições de rollout registradas abaixo.
+
+## Estado verificável
+- PR #125 aberta, branch feat/exam-writing-catalog. Head de código verificado: 801538f6d08c9a5e9d96f179726c5d8589fcb53a. GitHub Actions desse SHA: P0, Chromium isolado, MySQL laboratório e lives públicas, todos success. Este checkpoint acrescenta apenas documentação. Verificar novamente head, main, diffs e logs antes de trabalhar. CI verde não prova cobertura de todas as funções.
+- Não houve merge, deploy, migração produtiva, ativação de flags ou contratação de infraestrutura nesta etapa. CSLE congelado; não modificar motor, contratos pedagógicos ou custos sem autorização.
+- Roadmaps: docs/ADMIN-COMMERCIAL-ROADMAP.md e docs/ROADMAP-COMERCIAL-LINGUA.md. Preservar histórico abaixo.
+
+## Inventário do trabalho (implementação experimental, não lançamento)
+| Frente | Estado | Próxima entrega |
+|---|---|---|
+| Academy visual e piloto | Trabalho anterior preservado; fidelidade final não confirmada | Comparar assets aprovados, mobile/desktop, fluxo de convite e tutor |
+| Exames | Reading/Listening 68 questões objetivas no catálogo; Writing 12 tarefas; Speaking 12 prompts; roteiro integrado e relatório sem nota oficial | Jornada contínua das quatro etapas, persistência autorizada e acesso comercial |
+| Gamificação | XP de participação, conquistas, missões, prévia de histórico de revisão, ledger e privacidade em laboratório | Integrar evidência autorizada, testes SQL concorrentes, backfill ordenado |
+| Comunidade | Reputação, compartilhamento voluntário, feed, ranking opt-in, políticas comerciais em laboratório | API/UI, moderação e autorização persistente, testes de revogação |
+| Admin | /admin experimental: usuários, empresas, ads pagos, indicações, caixa/MRR por moeda, cupons de teste e promoção | Homologação real dos endpoints e navegador, gestão individual, exportação e auditoria |
+| Cupons de teste | Emissão/lista/revogação auditadas, resgate transacional, /redeem experimental | Integrar acesso efetivo na UI e todos os módulos; testar expiração, replay e isolamento |
+| Promoções | Percentual ou valor fixo BRL/USD/EUR, emissão/lista/revogação auditadas | Checkout, reserva/resgate atômico, confirmação de pagamento e estorno |
+| Financeiro | Caixa realizado separado de MRR contratado; indicadores de ads e referrals | Ingestão autenticada/idempotente, conciliação, vínculo pagamento-titular, comissões |
+| Acesso comercial | Middleware de aprendizagem integrado no último commit | Interface e política de exames/comunidade; validar precedência do trial e flags |
+
+## Ponto exato de retomada
+1. Inspecionar server/commercial-learning-gate.ts, server/_core/trpc.ts, server/commercial-student-router-lab.ts, client/src/App.tsx, client/src/pages/CommercialTrialRedemption.tsx, server/exam-router.ts. O middleware agora consulta benefício comercial após trial expirado/indisponível quando LINGUA_COMMERCIAL_LAB_ENABLED=true. Ainda preserva acesso legado quando trial ativo/desativado. Não tratar isso como autorização comercial universal. Revisar explicitamente a precedência para assinantes Community Premium e trial ativo, e a política quando ACADEMY_TRIAL_ENABLED=false. Não enfraquecer consentimento, orçamento, limites ou allowlist de piloto sem decisão de rollout.
+2. Integrar UI: PrivateExperience em App.tsx ainda bloqueia todos após 15 dias; aluno com cupom válido não consegue entrar pela home. Criar resolução coerente de acesso autenticado, estados de carregamento/erro fail-closed, acesso exclusivo ao centro de exames/comunidade para Community Premium (sem depender de onboarding de Academy bloqueado). Não conceder curso/tutor pelo simples fato de possuir assinatura. Invalidar cache após resgate/logout e evitar dados de conta anterior. Manter /redeem acessível a conta expirada.
+3. Integrar backend e frontend do Centro de Exames e comunidade com autoridade de benefícios, preservando piloto e controles de privacidade. Testar usuários anônimos, expirados, planos distintos, revogados, falha de banco, mudança de conta e acesso direto a rotas.
+4. Verificar testes existentes e cobertura efetiva: server/admin-router-access.test.ts, server/commercial-learning-gate.test.ts, tests/commercial-mysql-lab.ts, testes browser. Conferir que os testes são descobertos e executados, não apenas que CI está verde. Acrescentar fluxo admin issue -> aluno redeem -> acesso -> expiração/revogação, promo issue/list/revoke e concorrência, audit rollback. Corrigir falhas antes de expandir.
+5. Continuar Academy visual, jornada integrada de exames, gamificação e comunidade em blocos reais. Registrar decisões e evidências, sem relatórios de intenção repetidos.
+
+## Regras comerciais aprovadas
+- Lingua Premium: curso, tutor, exames, comunidade, conquistas sociais e ranking voluntário. Community Premium: exames, comunidade, conquistas sociais e ranking; sem curso/tutor.
+- Cupons de teste: 30/60/90/120/150/180 dias contados do resgate individual, sem cobrança automática. Validade para resgatar independente: 3/7/15/30/60/90/180/365 dias ou data personalizada; 1 ano preset = 365 dias. Revogar código impede novos resgates, não cancela concessões anteriores. Revogação individual e política de múltiplos cupons ainda pendentes.
+- Promoções: percentual ou valor fixo com moeda; validade e limite de uso; não há checkout real. Definir desconto recorrente versus compra única antes de lançamento; evitar colisão de códigos entre tipos.
+- Financeiro: BRL/USD/EUR separados; caixa não é lucro contábil; MRR não é caixa recebido. Não inventar receita. Conversões precisam comprovar pagamento e titularidade; não pagar comissão sem conciliação.
+- XP não é proficiência nem reputação. Ranking opt-in, compartilhamento voluntário, dados privados por padrão. Sem IELTS band oficial ou eficácia pedagógica não comprovada.
+- Admin usa adminProcedure, flags e auditoria transacional. Rate limit atual local; falta proteção distribuída antes de lançamento. Schemas comerciais/gamificação draft não equivalem a migrations aplicadas. Não ativar flags produtivas, db:push, Stripe, Render/Aiven ou alterar CSLE nesta retomada.
+
+## Instrução operacional
+Usar GitHub de verdade; verificar conteúdo antes de editar, preferir commits coerentes e testes reais. Não alegar trabalho em segundo plano, commits, testes ou deploy sem evidência. Se conector falhar, reportar erro específico e tentar recuperação adequada; não pedir senhas. Fundador prefere entregas substanciais e autonomia. Atualizar este checkpoint ao encerrar a próxima sessão.
+
+---
+
 # AVISO DE RETOMADA — 25/11/2026
 **Prioridade do fundador: Academy Beta visual e piloto convidado. Não retomar expansão comercial antes disso.**
 - PR #104 integrada: 94d02e470fd2d5c688cbd271bbd9a38de3cef16c; P0, MySQL e Chromium verdes. Painel empresarial experimental, flags de laboratório; sem streaming real. Roadmap em docs/ROADMAP-COMERCIAL-LINGUA.md.

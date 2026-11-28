@@ -87,3 +87,18 @@ O CSLE atual (3.18.20, com checkpoints sintéticos aprovados) é uma versão bá
 ## Fase 15 — sequência de Writing
 - Academic e General: duas tarefas existentes em sessão guiada de 60 minutos com cronômetro local, alternância entre Task 1 e Task 2, rascunhos independentes e autoavaliação conjunta somente ao encerrar ou expirar o prazo. Edição bloqueada ao fim; textos descartados ao sair, sem armazenamento local persistente, envio ao servidor ou fornecedor de IA.
 - Contagem e perguntas de revisão locais, sem nota, avaliação linguística automática, equivalência a prova supervisionada ou mecanismo antiadulteração. Reutiliza o catálogo atual, portanto não é um conjunto independente de avaliação. Testes de ordenação, variante, contagem e Chromium sintético. Sem alteração de infraestrutura, banco ou CSLE.
+
+## Fase 16 — catálogo Writing ampliado
+- 12 tarefas originais no total (6 Academic e 6 General), organizadas em três pares por variante. Novas tabelas fictícias, ensaios de vantagens/desvantagens, causas/soluções e opinião, cartas com diferentes destinatários. Prática individual ou seleção de um par antes de iniciar a sequência; conteúdo copiado para a sessão, sem trocar conjunto durante a tentativa. Autoavaliação específica por enunciado, sem nota. A escolha de conjunto não garante que o aluno nunca o tenha praticado.
+- Catálogo v2, IDs existentes preservados, sem dados pessoais, persistência, alteração de CSLE ou infraestrutura. Validação editorial humana e qualidade de avaliação ainda pendentes.
+
+## Fase 17 — catálogo Speaking ampliado
+- 12 prompts originais, quatro por parte, IDs anteriores preservados. Seis novas atividades sobre alimentação, leitura, ajuda, mudanças pessoais, voluntariado e hábitos. Preparação de 60 segundos e prática de 120 segundos na Part 2; demais tempos mantidos. Sequência oral existente permanece fixa; seleção de conjuntos e simulados integrados são próximos passos. Sem avaliação acústica, nota, envio de áudio ou alteração de infraestrutura. Revisão editorial e CI pendentes.
+
+## Roteiro integrado salvo pelo aluno
+
+O botão de salvar registra uma cópia pessoal por conta, com a variante IELTS e até quatro situações de etapa em ordem. O aluno pode substituir a cópia ou retomá-la em outro dispositivo. Reiniciar o roteiro local não altera a cópia da conta. Acertos, mídia, respostas e rascunhos não integram esse marcador.
+
+A gravação exige piloto de exames, benefício aplicável, histórico durável e `LINGUA_EXAM_ITINERARY_ENABLED=true`. A extensão aditiva está em `drizzle/manual-review/exam-itinerary-v1.sql`. Executar o preflight com a flag no ambiente de inspeção exige a extensão compatível na base de histórico. O laboratório MySQL aplica o SQL após o schema anterior e testa ambos.
+
+Com acesso a dados via histórico durável ou `LINGUA_EXAM_PRIVACY_ENABLED`, o aluno pode exportar, excluir o marcador isoladamente ou apagar todos os dados de exames em `/exam-privacy`, inclusive após sair do piloto ou perder o plano. O desligamento da gravação não elimina cópias existentes. A limpeza por proprietário usa o prazo do histórico e a data da última gravação. O laboratório não agenda a limpeza em produção.

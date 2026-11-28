@@ -186,7 +186,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
             {placement.isError&&<p className="text-sm text-ink-muted">A sondagem não está disponível neste momento.</p>}
           </section>
           <section className="campus-event"><p className="academy-kicker">LIVES & EVENTOS</p><h2>Aprenda com especialistas</h2><p>Agenda de aulas e encontros em preparação.</p></section>
-          <div className="academy-campus-editorial-stack"><section className="campus-community"><p className="academy-kicker">COMUNIDADE LINGUA</p><h2>Conecte-se com o mundo</h2><p>Comunidade exclusiva em preparação.</p></section><section className="campus-news"><p className="academy-kicker">NOTÍCIAS GLOBAIS</p><h2>O mundo em perspectiva</h2><p>Curadoria editorial em preparação.</p></section></div>
+          <div className="academy-campus-editorial-stack"><section className="campus-community"><p className="academy-kicker">COMUNIDADE LINGUA</p><h2>Conecte-se com o mundo</h2>{import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" ? <a href="/community">Privacidade da comunidade</a> : <p>Comunidade exclusiva em preparação.</p>}</section><section className="campus-news"><p className="academy-kicker">NOTÍCIAS GLOBAIS</p><h2>O mundo em perspectiva</h2><p>Curadoria editorial em preparação.</p></section></div>
           <aside className="academy-dashboard-tutor">
             <div className="academy-tutor-monogram"><MessageSquare size={30} aria-hidden="true"/><span>AI</span></div>
             <p className="academy-kicker">02 / SEU TUTOR</p>
@@ -209,7 +209,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
 
 
       </div>}
-      {view === "exams" && <ExamCampus/>}
+      {view === "exams" && <ExamCampus accountId={profile.userId}/>}
       {view === "study" && <StudyCampus tutorName={profile.tutorName} planTitle={placement.data?.plan?.title??plan.title} objective={plan.objective} responses={recorded} savedCount={items.isError||items.isLoading?null:items.data?.length??null} placementReady={Boolean(placement.data?.plan)} canStartPlacement={Boolean(placement.data&&!placement.data.plan)} onRead={()=>setView("read")} onReview={()=>setView("review")} onTutor={openTutor} onPlan={()=>openStudySection("study-plan-title")} onPlacement={()=>{setRequestPlacement(true);openTutor();}} onUnavailable={unavailable}/>}
       {(view==="read"||view==="review")&&<div className="academy-study-breadcrumb"><button type="button" onClick={()=>setView("study")}><BookOpen size={16}/>Estudar</button><ChevronRight size={14} aria-hidden="true"/><span aria-current="page">{view==="read"?"Ler e praticar":"Revisões espaçadas"}</span></div>}
       {view === "read" && <>

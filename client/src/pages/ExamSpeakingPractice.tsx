@@ -1,11 +1,12 @@
 import {useEffect,useRef,useState} from "react";
 import {Mic} from "lucide-react";
 import {trpc} from "@/lib/trpc";
-import {oralSequence,type SpeakingPrompt} from "@shared/exam-speaking-contract";
+import {oralSequence,ORAL_SEQUENCE_SETS,type SpeakingPrompt} from "@shared/exam-speaking-contract";
 
-export default function ExamSpeakingPractice({allowed}:{allowed:boolean}){
+export default function ExamSpeakingPractice({allowed,onOutcome}:{allowed:boolean;onOutcome?:()=>void}){
  const catalogue=trpc.exams.speakingPrompts.useQuery(undefined,{enabled:allowed,retry:false});
- const [mode,setMode]=useState<"practice"|"sequence">("practice");
+ const [mode,setMode]=useState<"practice"|"sequence">(onOutcome?"sequence":"practice");
+ const [oralSetId,setOralSetId]=useState("set-1");
  const [index,setIndex]=useState(0);
  const [clips,setClips]=useState<{task:SpeakingPrompt;url:string}[]>([]);
  const clipRefs=useRef<string[]>([]);
@@ -15,7 +16,7 @@ export default function ExamSpeakingPractice({allowed}:{allowed:boolean}){
  const [audioUrl,setAudioUrl]=useState("");
  const [notice,setNotice]=useState("");
  const recorder=useRef<MediaRecorder|null>(null),stream=useRef<MediaStream|null>(null),url=useRef(""),generation=useRef(0),timer=useRef<number|null>(null);
- const sequence=oralSequence(catalogue.data?.prompts??[]);
+ const sequence=oralSequence(catalogue.data?.prompts??[],oralSetId);
  const task=mode==="sequence"?sequence[index]:(catalogue.data?.prompts.find(p=>p.id===id)??catalogue.data?.prompts[0]);
  const supported=typeof navigator!=="undefined"&&Boolean(navigator.mediaDevices?.getUserMedia)&&typeof MediaRecorder!=="undefined";
  function release(){stream.current?.getTracks().forEach(t=>t.stop());stream.current=null;}
@@ -67,6 +68,7 @@ export default function ExamSpeakingPractice({allowed}:{allowed:boolean}){
  {!allowed?<p>A prática exige acesso autorizado ao piloto Premium.</p>:catalogue.isPending?<p role="status">Carregando atividades...</p>:catalogue.isError?<button className="academy-secondary" onClick={()=>void catalogue.refetch()}>Tentar novamente</button>:<>
  {catalogue.data&&<nav className="exam-tabs" aria-label="Modalidade oral"><button type="button" aria-current={mode==="practice"?"page":undefined} disabled={phase==="recording"||phase==="requesting"} onClick={()=>{if(mode!=="practice"&&(!clips.length||window.confirm("Descartar a sequência gravada?")))switchMode("practice");}}>Prática individual</button><button type="button" aria-current={mode==="sequence"?"page":undefined} disabled={!sequence.length||phase==="recording"||phase==="requesting"} onClick={()=>{if(mode!=="sequence")switchMode("sequence");}}>Sequência oral guiada</button></nav>}
  {task&&<>
+ {mode==="sequence"&&<label>Conjunto oral<select value={oralSetId} disabled={phase!=="idle"||index!==0||clips.length>0} onChange={e=>{clear();setOralSetId(e.target.value);}}>{ORAL_SEQUENCE_SETS.filter(s=>oralSequence(catalogue.data?.prompts??[],s.id).length>0).map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</select></label>}
  {mode==="sequence"&&<p className="exam-muted">Sequência original de {sequence.length} perguntas. Revisão somente após concluir todas as respostas. Não é um IELTS completo ou prova protegida contra consultas.</p>}
  {phase!=="complete"&&<>
  {mode==="practice"&&<label>Atividade<select value={task.id} disabled={phase==="recording"||phase==="requesting"} onChange={e=>{clear();setId(e.target.value);}}>{catalogue.data?.prompts.map(p=><option key={p.id} value={p.id}>Part {p.part} · {p.title}</option>)}</select></label>}
@@ -85,7 +87,7 @@ export default function ExamSpeakingPractice({allowed}:{allowed:boolean}){
  {phase==="between"&&<><p role="status">Resposta gravada. A revisão será exibida ao final.</p><button className="academy-primary" onClick={advance}>{index+1===sequence.length?"Concluir sequência":"Próxima pergunta"}</button></>}
  {phase==="review"&&audioUrl&&<div className="exam-writing-review"><h3>Escute sua resposta</h3><audio controls src={audioUrl}/><h3>Autoavaliação</h3>{task.review.map(q=><p key={q} lang="en">{q}</p>)}{catalogue.data?.criteria.map(c=><div key={c.name}><strong>{c.name}</strong><p>{c.description}</p></div>)}<button className="academy-secondary" onClick={clear}>Descartar e praticar novamente</button></div>}
  </>}
- {phase==="complete"&&<div className="exam-writing-review"><h3>Revisão da sequência oral</h3><p>{clips.length} respostas gravadas. Nenhuma nota atribuída.</p>{clips.map((clip,i)=><section key={clip.task.id}><h3>{i+1}. {clip.task.title}</h3><p lang="en">{clip.task.question}</p><audio controls src={clip.url}/>{clip.task.review.map(q=><p key={q} lang="en">{q}</p>)}</section>)}{catalogue.data?.criteria.map(c=><div key={c.name}><strong>{c.name}</strong><p>{c.description}</p></div>)}<button className="academy-secondary" onClick={()=>switchMode("sequence")}>Descartar e reiniciar sequência</button></div>}
+ {phase==="complete"&&<div className="exam-writing-review"><h3>Revisão da sequência oral</h3>{onOutcome&&clips.length===sequence.length&&<button className="academy-primary" onClick={onOutcome}>Registrar etapa no roteiro</button>}<p>{clips.length} respostas gravadas. Nenhuma nota atribuída.</p>{clips.map((clip,i)=><section key={clip.task.id}><h3>{i+1}. {clip.task.title}</h3><p lang="en">{clip.task.question}</p><audio controls src={clip.url}/>{clip.task.review.map(q=><p key={q} lang="en">{q}</p>)}</section>)}{catalogue.data?.criteria.map(c=><div key={c.name}><strong>{c.name}</strong><p>{c.description}</p></div>)}<button className="academy-secondary" onClick={()=>switchMode("sequence")}>Descartar e reiniciar sequência</button></div>}
  <p className="exam-muted">A gravação permanece apenas no navegador enquanto a atividade está aberta. Não é enviada ao servidor ou a uma IA. Nenhuma nota é atribuída. Ao sair, o áudio é descartado.</p>
  </>}
  </>}

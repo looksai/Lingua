@@ -1,4 +1,4 @@
-.academy-campus .academy-exams{display:grid;gap:20px;color:#0b1f3a;padding-bottom:24px;min-width:0}
+.academy-exams{display:grid;gap:20px;color:#0b1f3a;padding-bottom:24px;min-width:0}
 .academy-exams .exam-hero{margin:0 -18px;padding:34px clamp(18px,4vw,50px);min-height:220px;display:flex;align-items:center;background:linear-gradient(90deg,#071425 0%,#071425e8 35%,#07142566 80%),url('/academy/exams/exam-hero.webp') center right/auto 100% no-repeat,url('/academy/study/study-hero.webp') center right/cover no-repeat,#071425;color:#fff}
 .academy-exams .exam-hero>div{max-width:700px}.academy-exams .exam-eyebrow{font-size:11px;letter-spacing:.16em;font-weight:700;color:#e8c779}.academy-exams h1{font:700 clamp(32px,4vw,52px)/1.1 Georgia,serif;margin:10px 0}.academy-exams .exam-hero span{display:block;background:#e8b958;height:3px;width:72px;margin:15px 0}.academy-exams .exam-hero p:last-child{max-width:490px;line-height:1.6}
 .academy-exams .exam-tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #dce2e9;padding-bottom:8px}.academy-exams .exam-tabs button{padding:9px 12px;font-size:13px;border-radius:8px;background:#fff;border:1px solid #dce2e9}.academy-exams .exam-tabs button[aria-current=page]{background:#0b1f3a;color:#fff;border-color:#0b1f3a}
@@ -23,3 +23,13 @@
 @media(max-width:680px){.academy-exams .exam-hero{background-position: center,75% center,center}.academy-exams .exam-plan-banner{grid-template-columns:minmax(0,1fr)}.academy-exams .exam-plan-art{min-height:100px}}
 
 .academy-exams textarea{width:100%;max-width:100%;resize:vertical;border:1px solid #cbd5e1;padding:12px;border-radius:8px;font-weight:400;line-height:1.6}.academy-exams .exam-passage table{border-collapse:collapse;margin-top:12px;width:100%;font-size:13px}.academy-exams .exam-passage th,.academy-exams .exam-passage td{padding:8px;border:1px solid #cbd5e1;text-align:left}.academy-exams .exam-writing-review{display:grid;gap:10px;background:#f6f1e4;border-radius:10px;padding:14px}.academy-exams textarea:focus-visible{outline:2px solid #bd923e}
+
+.exam-standalone { padding: 0 max(18px, calc((100% - 1240px) / 2)); }
+.exam-member-header { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; padding: 16px 0; }
+.exam-member-header .academy-interior-brand { width: 122px; margin: 0; }
+.exam-member-header h2 { font-weight: 700; color: #0b1f3a; }
+.exam-member-header nav { margin-inline-start: auto; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.exam-member-header nav :is(a,button) { padding-block: 8px; text-decoration: underline; color: #193c60; }
+@media(max-width: 760px) {
+  .exam-member-header nav { margin-inline-start: 0; font-size: 14px; }
+}

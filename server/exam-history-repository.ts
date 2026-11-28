@@ -1,3 +1,5 @@
+import {examItineraries} from "../drizzle/exam-history-draft";
+import {optionalItineraryTable,readItinerary} from "./exam-itinerary-repository";
 import {and,desc,eq,lt} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
 import {examGoals as goals,examCompletedActivities as activities,examActiveAttempts as active} from "../drizzle/exam-history-draft";
@@ -33,6 +35,7 @@ export async function recentExamActivities(db:MySql2Database,owner:number,limit=
 export async function clearExamHistory(db:MySql2Database,owner:number){
  requireOwner(owner);
  await db.transaction(async tx=>{
+  await optionalItineraryTable(async()=>{await tx.delete(examItineraries).where(eq(examItineraries.userId,owner));},undefined);
   await tx.delete(activities).where(eq(activities.userId,owner));
   await tx.delete(goals).where(eq(goals.userId,owner));
  });
@@ -46,5 +49,6 @@ export async function exportExamHistoryPage(db:MySql2Database,owner:number,befor
  const [attempt]=await db.select({attemptId:active.attemptId,variant:active.variant,skill:active.skill,mode:active.mode,exerciseId:active.exerciseId,contentVersion:active.contentVersion,deadlineMs:active.deadlineMs}).from(active).where(eq(active.userId,owner)).limit(1);
  const rows=await db.select().from(activities).where(and(eq(activities.userId,owner),beforeId===null?undefined:lt(activities.id,beforeId))).orderBy(desc(activities.id)).limit(51);
  const items=rows.slice(0,50).map(({id,userId,...data})=>data);
- return {goal,activeAttempt:attempt??null,activities:items,nextCursor:rows.length>50?rows[49]!.id:null};
+ const itinerary=await optionalItineraryTable(()=>readItinerary(db,owner),null);
+ return {goal,itinerary,activeAttempt:attempt??null,activities:items,nextCursor:rows.length>50?rows[49]!.id:null};
 }

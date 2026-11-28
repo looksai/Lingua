@@ -6,6 +6,7 @@ type Foreign={tableName:string;columnName:string;referencedTable:string;referenc
 type Snapshot={tables:Table[];columns:Record<string,Column[]>;indexes:Index[];foreign:Foreign[]};
 const variants="enum('ielts-academic','ielts-general')",skills="enum('reading','listening')",modes="enum('practice','timed')";
 const specs:Record<string,[string,string,boolean?,string?][]>={
+ examItineraries:[["userId","int"],["revision","varchar(36)"],["bookmarkJson","text"],["savedAtMs","bigint"]],
  examGoals:[["userId","int"],["variant",variants],["targetBandHalfSteps","int",true],["targetDate","varchar(10)",true],["updatedAtMs","bigint"]],
  examCompletedActivities:[["id","int",false,"auto_increment"],["userId","int"],["attemptId","varchar(36)"],["variant",variants],["skill",skills],["exerciseId","varchar(80)"],["contentVersion","varchar(80)"],["mode",modes],["correct","int"],["total","int"],["receiptJson","text",true],["completedAtMs","bigint"]],
  examActiveAttempts:[["userId","int"],["attemptId","varchar(36)"],["variant",variants],["skill",skills],["mode",modes],["exerciseId","varchar(80)"],["contentVersion","varchar(80)"],["deadlineMs","bigint"]]
@@ -19,13 +20,14 @@ function hasIndex(s:Snapshot,table:string,columns:string[],unique:boolean,primar
  }
  return [...grouped.entries()].some(([name,rows])=>(!primary||name==="PRIMARY")&&rows.every(r=>Number(r.nonUnique)===(unique?0:1))&&JSON.stringify(rows.sort((a,b)=>a.position-b.position).map(r=>r.columnName))===JSON.stringify(columns));
 }
-export function assessExamSchema(s:Snapshot){
+export function assessExamSchema(s:Snapshot,requireItinerary=false){
  const issues:string[]=[];
  const user=s.columns.users?.find(c=>c.name==="id");
  if(!s.tables.some(t=>t.name==="users"&&t.engine?.toLowerCase()==="innodb")||!user||normalizeType(user.type)!=="int"||user.nullable!=="NO"||!hasIndex(s,"users",["id"],true,true))issues.push("users.id: requires signed INT primary key in InnoDB");
  const present=names.filter(n=>s.tables.some(t=>t.name===n));
  if(issues.length===0&&present.length===0)return {status:"absent" as const,issues};
- if(present.length!==names.length)issues.push("exam tables: partial or missing migration");
+ const required=names.filter(n=>n!=="examItineraries"||requireItinerary);
+ if(required.some(n=>!present.includes(n)))issues.push("exam tables: partial or missing migration");
  for(const name of present){
   if(!s.tables.some(t=>t.name===name&&t.engine?.toLowerCase()==="innodb"))issues.push(name+": requires InnoDB");
   const columns=s.columns[name]??[],expected=specs[name]!;
@@ -44,17 +46,17 @@ export function assessExamSchema(s:Snapshot){
  return {status:issues.length?"incompatible" as const:"compatible" as const,issues};
 }
 /** Only metadata in the currently selected schema. No student table reads or writes. */
-export async function inspectExamSchema(pool:Pool){
+export async function inspectExamSchema(pool:Pool,requireItinerary=false){
  const conn=await pool.getConnection();
  try{
   const args=["users",...names];
-  const filter="TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN (?,?,?,?)";
+  const filter="TABLE_SCHEMA=DATABASE() AND TABLE_NAME IN (?,?,?,?,?)";
   const [tables]=await conn.execute<RowDataPacket[]>("SELECT TABLE_NAME AS name, ENGINE AS engine FROM information_schema.TABLES WHERE "+filter,args);
   const [columns]=await conn.execute<RowDataPacket[]>("SELECT TABLE_NAME AS tableName, COLUMN_NAME AS name, COLUMN_TYPE AS type, IS_NULLABLE AS nullable, EXTRA AS extra FROM information_schema.COLUMNS WHERE "+filter,args);
   const [indexes]=await conn.execute<RowDataPacket[]>("SELECT TABLE_NAME AS tableName, INDEX_NAME AS indexName, NON_UNIQUE AS nonUnique, SEQ_IN_INDEX AS position, COLUMN_NAME AS columnName FROM information_schema.STATISTICS WHERE "+filter,args);
-  const [foreign]=await conn.execute<RowDataPacket[]>(`SELECT k.TABLE_NAME AS tableName,k.COLUMN_NAME AS columnName,k.REFERENCED_TABLE_NAME AS referencedTable,k.REFERENCED_COLUMN_NAME AS referencedColumn,r.DELETE_RULE AS deleteRule,(k.REFERENCED_TABLE_SCHEMA=DATABASE()) AS localSchema FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME AND r.TABLE_NAME=k.TABLE_NAME WHERE k.TABLE_SCHEMA=DATABASE() AND k.TABLE_NAME IN (?,?,?,?) AND k.REFERENCED_TABLE_NAME IS NOT NULL`,args);
+  const [foreign]=await conn.execute<RowDataPacket[]>(`SELECT k.TABLE_NAME AS tableName,k.COLUMN_NAME AS columnName,k.REFERENCED_TABLE_NAME AS referencedTable,k.REFERENCED_COLUMN_NAME AS referencedColumn,r.DELETE_RULE AS deleteRule,(k.REFERENCED_TABLE_SCHEMA=DATABASE()) AS localSchema FROM information_schema.KEY_COLUMN_USAGE k JOIN information_schema.REFERENTIAL_CONSTRAINTS r ON r.CONSTRAINT_SCHEMA=k.CONSTRAINT_SCHEMA AND r.CONSTRAINT_NAME=k.CONSTRAINT_NAME AND r.TABLE_NAME=k.TABLE_NAME WHERE k.TABLE_SCHEMA=DATABASE() AND k.TABLE_NAME IN (?,?,?,?,?) AND k.REFERENCED_TABLE_NAME IS NOT NULL`,args);
   const byTable:Record<string,Column[]>={};
   for(const row of columns)(byTable[row.tableName]??=[]).push({name:row.name,type:row.type,nullable:row.nullable,extra:row.extra});
-  return assessExamSchema({tables:tables as unknown as Table[],columns:byTable,indexes:indexes as unknown as Index[],foreign:foreign as unknown as Foreign[]});
+  return assessExamSchema({tables:tables as unknown as Table[],columns:byTable,indexes:indexes as unknown as Index[],foreign:foreign as unknown as Foreign[]},requireItinerary);
  }finally{conn.release();}
 }

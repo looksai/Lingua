@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
-import {mkdir} from "node:fs/promises";
+import {mkdir,readFile} from "node:fs/promises";
 import {pathToFileURL} from "node:url";
 
 const dir=process.env.LINGUA_QA_PLAYWRIGHT_DIR||"/tmp/lingua-browser-tools";
@@ -19,6 +19,14 @@ async function test(name,width,mode,body,fixture="public"){
   const context=await browser.newContext({viewport:{width,height:900}});
   const page=await context.newPage();
   const errors=[],calls=[],broken=[];
+  let accountId=9001;
+  let savedItinerary=null;
+  let blocked=true;
+  let communityBlocked=false,reportSent=false;
+  const adminDecisions={88:"pending",89:"pending"};
+  let redeemed=false;
+  let signedUp=false,betaProfile=null,betaDeferred=false;
+  let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
   page.on("pageerror",e=>errors.push(e.message));
   page.on("response",r=>{if(r.url().startsWith(base+"/academy/")&&!r.ok())broken.push(r.url());});
@@ -29,13 +37,43 @@ async function test(name,width,mode,body,fixture="public"){
     const names=url.pathname.slice("/api/trpc/".length).split(",");
     calls.push(...names);
     const reply=names.map(name=>{
-      if(name==="auth.me")return {result:{data:{json:fixture==="public"?null:{id:9001,email:"qa-visual@synthetic.invalid",name:"Aluno de teste"}}}};
+      if(name==="auth.me")return {result:{data:{json:fixture==="public"||(fixture==="signup-flow"&&!signedUp)?null:{id:accountId,email:"qa-visual@synthetic.invalid",name:"Aluno de teste",role:fixture==="admin-report"?"admin":"user"}}}};
+      if(fixture==="signup-flow"){
+        const answer=json=>({result:{data:{json}}});
+        if(name==="onboarding.me"){
+          const profile=betaProfile?{userId:accountId,tutorName:betaProfile.tutorName,tutorPersona:betaProfile.tutorPersona,interest:betaProfile.interest,allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:betaDeferred?"deferred":"started"}:null;
+          return answer({profile,responses:[],nextTask:profile&&!betaDeferred?{id:"introduce-yourself-v1",skill:"writing",message:"How would you introduce yourself?",purpose:"Introduction"}:null,plan:betaDeferred?{title:"Apresentações e perguntas",objective:"Prática inicial",context:"trabalho",reason:"Preparação",limits:"Não certifica proficiência."}:null});
+        }
+        if(name==="onboarding.saveProfile"){
+          const parsed=JSON.parse(route.request().postData()||"{}");
+          const input=(url.searchParams.has("batch")?parsed[String(names.indexOf(name))]:parsed)?.json??{};
+          assert.equal(input.allowAIFeedback,false);
+          assert.equal(input.tutorName,"Nina");
+          assert.equal(input.interfaceLocale,"pt-BR");
+          betaProfile=input;
+          return answer({saved:true});
+        }
+        if(name==="onboarding.defer"){
+          assert.ok(betaProfile,"Profile must be saved before skipping diagnostic");
+          betaDeferred=true;
+          return answer({saved:true});
+        }
+      }
       if(fixture!=="public"){
-        const profile={userId:9001,tutorName:"Alex",tutorPersona:"welcoming",interest:"work",allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:fixture==="diagnostic"?"started":"deferred"};
+        const profile={userId:9001,tutorName:"Alex",tutorPersona:"welcoming",interest:"work",allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:fixture==="diagnostic"||fixture==="signup-flow"?"started":"deferred"};
         const plan={title:"Apresentações e perguntas",objective:"Praticar mensagens curtas em inglês.",context:"comunicação profissional",reason:"Ponto de partida exploratório.",limits:"Não certifica proficiência."};
         const nextTask={id:"introduce-yourself-v1",skill:"writing",message:"Como você se apresentaria em inglês?",purpose:"Apresentação"};
-        const fixtures={"onboarding.me":{profile:fixture==="onboarding"?null:profile,responses:[],nextTask:fixture==="diagnostic"?nextTask:null,plan:fixture==="onboarding"?null:plan},"learning.listItems":[],"learning.history":[],"placement.me":{answers:[],plan:null,source:null,nextTask:null,status:"in_progress",skills:{writing:"sampled",reading:"not_assessed",listening:"not_assessed",speaking:"not_assessed"}},"tutor.capabilities":{provider:"off",chat:false,asr:false,tts:false,neuralEnglish:false,geminiDemo:false,memory:false}};
+        const fixtures={"onboarding.me":{profile:fixture==="onboarding"||fixture==="signup-flow"?null:profile,responses:[],nextTask:fixture==="diagnostic"?nextTask:null,plan:fixture==="onboarding"?null:plan},"learning.listItems":[],"learning.history":[],"placement.me":{answers:[],plan:null,source:null,nextTask:null,status:"in_progress",skills:{writing:"sampled",reading:"not_assessed",listening:"not_assessed",speaking:"not_assessed"}},"tutor.capabilities":{provider:"off",chat:false,asr:false,tts:false,neuralEnglish:false,geminiDemo:false,memory:false}};
         if(Object.hasOwn(fixtures,name))return {result:{data:{json:fixtures[name]}}};
+      }
+      if(name==="auth.signUp"&&fixture==="signup-flow"){
+        const body=JSON.parse(route.request().postData()||"{}");
+        const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body)?.json??{};
+        assert.equal(input.email,"qa-new@synthetic.invalid");
+        assert.equal(input.password,"strong-synthetic-password");
+        if(input.inviteCode!=="A".repeat(43))return {error:{json:{message:"Cadastro indisponível. Confira seu convite da Academy Beta.",code:-32003,data:{code:"FORBIDDEN",httpStatus:403}}}};
+        signedUp=true;
+        return {result:{data:{json:{success:true}}}};
       }
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
@@ -54,12 +92,12 @@ async function test(name,width,mode,body,fixture="public"){
       if(fixture==="speaking-authorized"||fixture==="speaking-sequence"){
         const answer=payload=>({result:{data:{json:payload}}});
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
-        if(name==="exams.speakingPrompts")return answer({version:"qa",prompts:fixture==="speaking-sequence"?["part1-work","part1-travel","part2-skill","part3-learning","part3-cities"].map((id,i)=>({id,part:[1,1,2,3,3][i],title:"QA "+id,question:"Question "+(i+1),preparationSeconds:i===2?60:0,practiceSeconds:120,review:["Did I give an example?"]})):[{id:"qa-speaking",part:2,title:"A useful skill",question:"Describe a useful skill.",preparationSeconds:60,practiceSeconds:120,review:["Did I give an example?"]}],criteria:[{name:"Pronúncia",description:"Escute sua gravação."}]});
+        if(name==="exams.speakingPrompts")return answer({version:"qa",prompts:fixture==="speaking-sequence"?["part1-work","part1-travel","part2-skill","part3-learning","part3-cities","part1-food","part1-reading","part2-help","part3-community","part3-habits"].map((id,i)=>({id,part:[1,1,2,3,3][i%5],title:"QA "+id,question:"Question "+(i+1),preparationSeconds:i%5===2?60:0,practiceSeconds:120,review:["Did I give an example?"]})):[{id:"qa-speaking",part:2,title:"A useful skill",question:"Describe a useful skill.",preparationSeconds:60,practiceSeconds:120,review:["Did I give an example?"]}],criteria:[{name:"Pronúncia",description:"Escute sua gravação."}]});
       }
       if(fixture==="writing-sequence"){
         const answer=payload=>({result:{data:{json:payload}}});
         if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true});
-        if(name==="exams.writingTasks")return answer([{id:"sequence-1",variant:"ielts-academic",kind:1,title:"First writing task",prompt:"Describe the fictional table.",minimumWords:150,recommendedMinutes:20,reviewQuestions:["Did I summarise the trends?"]},{id:"sequence-2",variant:"ielts-academic",kind:2,title:"Second writing task",prompt:"Discuss both opinions.",minimumWords:250,recommendedMinutes:40,reviewQuestions:["Did I give my opinion?"]}]);
+        if(name==="exams.writingTasks")return answer([{id:"sequence-1",variant:"ielts-academic",kind:1,title:"First writing task",prompt:"Describe the fictional table.",minimumWords:150,recommendedMinutes:20,reviewQuestions:["Did I summarise the trends?"]},{id:"sequence-2",variant:"ielts-academic",kind:2,title:"Second writing task",prompt:"Discuss both opinions.",minimumWords:250,recommendedMinutes:40,reviewQuestions:["Did I give my opinion?"]},{id:"sequence-3",variant:"ielts-academic",kind:1,setId:"set-2",title:"Alternate first task",prompt:"Describe the fictional figures.",minimumWords:150,recommendedMinutes:20,reviewQuestions:["Did I compare figures?"]},{id:"sequence-4",variant:"ielts-academic",kind:2,setId:"set-2",title:"Alternate second task",prompt:"Explain causes and responses.",minimumWords:250,recommendedMinutes:40,reviewQuestions:["Did I explain causes?"]}]);
         if(name==="exams.writingReview"||name==="exams.writingFeedback")throw Error("Local sequence must not transmit drafts");
       }
       if(fixture==="writing-authorized"){
@@ -80,11 +118,31 @@ async function test(name,width,mode,body,fixture="public"){
         if(name==="exams.start"){assert.equal(input.exerciseId,"listening-extended-v1");assert.equal(input.skill,"listening");assert.equal(input.mode,"practice");return answer({id:"00000000-0000-4000-8000-000000000001",variant:"ielts-academic",mode:"practice",version:"listening-qa",deadline:Date.now()+1800000,exercise:{id:"listening-extended-v1",skill:"listening",title:"Listening extended fixture",passage:"",questions,sections:[0,1,2].map(i=>({title:"Audio "+(i+1),passage:"Original fictional audio script "+(i+1),questionIds:questions.slice(i*4,i*4+4).map(q=>q.id)}))}});}
         if(name==="exams.submit"){assert.equal(Object.keys(input.answers).length,12);return answer({correct:12,total:12,mode:"practice",version:"listening-qa",items:questions.map(q=>({id:q.id,correct:true,expected:"Yes",explanation:"Synthetic correction."}))});}
       }
+      if(fixture==="bookmark"){
+        const answer=json=>({result:{data:{json}}});
+        if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true,itinerary:true});
+        if(name==="exams.privacyStatus")return answer({enabled:true,accountId,itineraryRevision:savedItinerary?.revision??null});
+        if(name==="exams.privacyRemoveItinerary"){
+          const body=JSON.parse(route.request().postData());
+          const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body).json;
+          assert.deepEqual(input,{accountId,revision:savedItinerary.revision});
+          savedItinerary=null;return answer({removed:true});
+        }
+        if(name==="exams.itinerary")return answer({accountId,saved:savedItinerary});
+        if(name==="exams.saveItinerary"){
+          const body=JSON.parse(route.request().postData());
+          const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body).json;
+          assert.deepEqual(input,{accountId,consent:true,expectedRevision:null,bookmark:{version:"ielts-integrated-practice-v1-2026-11-28",variant:"ielts-academic",statuses:["skipped"]}});
+          savedItinerary={revision:"00000000-0000-4000-8000-000000000001",savedAtMs:Date.now(),bookmark:input.bookmark};
+          return answer({revision:savedItinerary.revision});
+        }
+      }
       if(fixture==="reading-mock"){
         const answer=payload=>({result:{data:{json:payload}}});
         const input=(url.searchParams.has("batch")?JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}")[String(names.indexOf(name))]:JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}"))?.json??{};
         const questions=Array.from({length:12},(_,i)=>({id:"m"+(i+1),prompt:"Question "+(i+1),options:["Yes","No"]}));
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
+        if(name==="exams.writingTasks")return answer([]);
         if(name==="exams.start"){assert.equal(input.exerciseId,"reading-mock-v1");assert.equal(input.mode,"timed");return answer({id:"00000000-0000-4000-8000-000000000001",variant:"ielts-academic",mode:"timed",version:"mock-qa",deadline:Date.now()+900000,exercise:{id:"reading-mock-v1",skill:"reading",title:"Reading mock fixture",passage:"",questions,sections:[0,1,2].map(i=>({title:"Passage "+(i+1),passage:"Original fictional passage "+(i+1),questionIds:questions.slice(i*4,i*4+4).map(q=>q.id)}))}});}
         if(name==="exams.submit"){assert.equal(Object.keys(input.answers).length,12);return answer({correct:12,total:12,mode:"timed",version:"mock-qa",items:questions.map(q=>({id:q.id,correct:true,expected:"Yes",explanation:"Synthetic correction."}))});}
       }
@@ -104,14 +162,93 @@ async function test(name,width,mode,body,fixture="public"){
       }
       if(name==="exams.overview")return {result:{data:{json:{plan:null,catalog:[],pilot:true}}}};
       if(name==="campus.sponsors")return {result:{data:{json:fixture==="sponsor"?[{id:"synthetic-campaign",sponsor:"Empresa sintética de QA",title:"Campanha sintética",description:"Apenas teste isolado.",url:"https://example.com/"}]:[]}}};
-      if(name==="auth.trialStatus")return {result:{data:{json:fixture==="expired"?{kind:"expired",expiresAtMs:1700000000000,remainingDays:0}:{kind:"active",expiresAtMs:1900000000000,remainingDays:15}}}};
+      if(name==="commercialLab.redeemTrial" || name==="commercialLab.saveCommunityPreferences"){
+        const payload=JSON.parse(route.request().postData());
+        const input=(url.searchParams.has("batch")?payload[String(names.indexOf(name))]:payload).json;
+        assert.equal(input.accountId,9001);
+        if(name==="commercialLab.redeemTrial"){
+          assert.equal(input.code,"COMMUNITY30");redeemed=true;
+          return {result:{data:{json:{status:"granted",plan:"community-premium",endsAtMs:Date.now()+86400000}}}};
+        }
+        preferences={showLevel:input.showLevel,showAchievements:input.showAchievements,leaderboardOptIn:input.leaderboardOptIn};
+        return {result:{data:{json:{saved:true}}}};
+      }
+      if(fixture==="admin-report"){
+        const answer=json=>({result:{data:{json}}});
+        const parsed=JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}");
+        const input=(url.searchParams.has("batch")?parsed[String(names.indexOf(name))]:parsed)?.json??{};
+        if(name==="adminLab.academyInviteSummary")return answer({configured:true,admissionMode:"invite",total:3,active:2,expired:1,availableSlots:17});
+        if(name==="adminLab.metrics")return answer({registeredAccounts:2,activeMembers:1,activePaidMembers:0,activeTrialMembers:1,companies:{total:0,active:0,pending:0,suspended:0},trialCouponsIssued:0,trialRedemptions:0});
+        if(name==="adminLab.advertising")return answer({totalOrders:0,paidOrders:0,activePaidOrders:0});
+        if(name==="adminLab.referrals")return answer({codesIssued:0,attributions:0,confirmedConversions:0,reversedConversions:0});
+        if(name==="adminLab.recurring"||name==="adminLab.finance")return answer({totals:[]});
+        if(name==="adminLab.coupons"||name==="adminLab.promotions")return answer({items:[],nextBeforeId:null,asOfMs:Date.now()});
+        if(name==="adminLab.communityPublicationAudit")return answer({items:[],nextBeforeId:null});
+        if(name==="adminLab.communityReportSummary")return answer({
+          pending:Object.values(adminDecisions).filter(v=>v==="pending").length,
+          dismissed:Object.values(adminDecisions).filter(v=>v==="dismissed").length,
+          actioned:Object.values(adminDecisions).filter(v=>v==="actioned").length,
+        });
+        if(name==="adminLab.communityReports"){
+          const entries=[
+           {id:88,reporterId:9002,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"spam",createdAtMs:1764300000001},
+           {id:89,reporterId:9003,ownerId:43,achievementId:"first-lesson",publishedAtMs:1764300001000,reason:"harassment",createdAtMs:1764300001001},
+          ];
+          return answer({items:entries.filter(row=>adminDecisions[row.id]===(input.status??"pending")).map(row=>({...row,status:adminDecisions[row.id],resolvedBy:adminDecisions[row.id]==="pending"?null:accountId,resolvedAtMs:adminDecisions[row.id]==="pending"?null:1764300010000})).sort((a,b)=>b.id-a.id),nextBeforeId:null});
+        }
+        if(name==="adminLab.actionCommunityReport"||name==="adminLab.dismissCommunityReport"){
+          assert.ok([88,89].includes(input.reportId));
+          assert.equal(adminDecisions[input.reportId],"pending");
+          adminDecisions[input.reportId]=name==="adminLab.actionCommunityReport"?"actioned":"dismissed";
+          return answer({processed:true});
+        }
+      }
+      if(fixture==="community-feed" || fixture==="reports-expired" || fixture==="reports-truncated"){
+        const answer=json=>({result:{data:{json}}});
+        const parsed=JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}");
+        const input=(url.searchParams.has("batch")?parsed[String(names.indexOf(name))]:parsed)?.json??{};
+        if(name==="commercialLab.achievementFeed"){
+          assert.equal(input.accountId,9001);
+          return answer({items:communityBlocked?[]:[{ownerId:42,achievementId:"first-lesson",title:"Primeiro passo",publishedAtMs:1764300000000}],nextCursor:null});
+        }
+        if(name==="commercialLab.reportPublication"){
+          assert.deepEqual(input,{accountId:9001,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment"});
+          reportSent=true;return answer({processed:true});
+        }
+        if(name==="commercialLab.setCommunityBlock"){
+          assert.deepEqual(input,{accountId:9001,targetId:42,blocked:true});
+          communityBlocked=true;return answer({processed:true});
+        }
+        if(name==="commercialLab.blockedMembers")return answer({members:communityBlocked?[{memberId:42}]:[],next:null});
+        if(name==="commercialLab.myCommunityReports")return answer({items:reportSent||fixture==="reports-expired"||fixture==="reports-truncated"?[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]:[],nextBeforeId:null});
+        if(name==="commercialLab.myCommunityReportsExport"){
+          assert.deepEqual(input,{accountId:9001});
+          return answer({version:1,accountId:9001,exportedAtMs:1764300010000,complete:fixture!=="reports-truncated",reports:fixture==="reports-truncated"?Array.from({length:1000},(_,i)=>({id:1001-i,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000+i,reason:"harassment",status:"pending",createdAtMs:1764300000000+i,resolvedAtMs:null})):[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]});
+        }
+      }
+      if(fixture==="blocked-list"){
+        if(name==="commercialLab.blockedMembers")return {result:{data:{json:{members:blocked?[{memberId:42}]:[],next:null}}}};
+        if(name==="commercialLab.setCommunityBlock"){
+          const body=JSON.parse(route.request().postData());
+          const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body).json;
+          assert.deepEqual(input,{accountId,targetId:42,blocked:false});
+          blocked=false;return {result:{data:{json:{processed:true}}}};
+        }
+      }
+      if(name==="commercialLab.communityPreferences")return {result:{data:{json:{member:redeemed||fixture==="community-feed",preferences}}}};
+      if(name==="auth.learningAccess"){
+        const trialEnded=accountId!==9001 || ["expired","community","premium","coupon"].includes(fixture);
+        const course=!trialEnded || fixture==="premium";
+        return {result:{data:{json:{trial:{kind:trialEnded?"expired":"active",expiresAtMs:1900000000000,remainingDays:trialEnded?0:15},course,tutor:course,exams:accountId===9001 && fixture!=="expired" && (fixture!=="coupon" || redeemed),community:redeemed || fixture==="community" || fixture==="premium"}}}};
+      }
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
+      if(name==="learning.gamificationPreview")return {result:{data:{json:{scope:"review-history-preview",totalXp:30,level:1,xpIntoLevel:30,xpPerLevel:250,achievements:[],missions:[]}}}};
       throw Error("Unexpected API call in public Academy fixture: "+name);
     });
-    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(url.searchParams.has("batch")?reply:reply[0])});
+    return route.fulfill({status:reply.every(item=>item.error)?403:200,contentType:"application/json",body:JSON.stringify(url.searchParams.has("batch")?reply:reply[0])});
   });
   try{
-    await body(page,calls);
+    await body(page,calls,()=>{accountId=9002;});
     assert.deepEqual(errors,[],"uncaught browser errors");
     assert.deepEqual(broken,[],"failed approved assets");
     passed++;
@@ -174,8 +311,39 @@ try{
     await page.getByRole("button",{name:"Já tenho conta"}).click();
     await page.getByRole("button",{name:"Tenho um convite"}).click();
     assert.equal(await code.inputValue(),"");
+    assert.equal(await page.getByLabel("Senha",{exact:true}).inputValue(),"","Switching auth modes must not retain the previous password");
     await fit(page);
   });
+  await test("Beta invite sign-up rejects wrong token and enters authenticated onboarding",375,"invite",async(page,calls)=>{
+    await page.goto(base);
+    await page.getByRole("link",{name:"Começar agora"}).click();
+    await page.getByRole("heading",{name:"Crie sua conta"}).waitFor();
+    await page.screenshot({path:path.join(screenshotDir,"beta-invite-login-375.png"),fullPage:true,animations:"disabled"});
+    await page.getByLabel("E-mail").fill("qa-new@synthetic.invalid");
+    await page.getByLabel("Senha",{exact:true}).fill("strong-synthetic-password");
+    const invite=page.getByLabel("Código do convite");
+    await invite.fill("B".repeat(43));
+    await page.getByRole("button",{name:"Cadastrar"}).click();
+    await page.getByRole("alert").filter({hasText:"Cadastro indisponível"}).waitFor();
+    assert.equal(await page.locator(".academy-onboarding-card").count(),0);
+    await invite.fill("A".repeat(43));
+    assert.equal(await page.getByRole("alert").filter({hasText:"Cadastro indisponível"}).count(),0,"Correcting the invite must clear stale validation feedback");
+    await page.getByRole("button",{name:"Cadastrar"}).click();
+    await page.locator(".academy-onboarding-card").waitFor();
+    const aiConsent=page.getByRole("checkbox",{name:/Quero feedback curto com IA/});
+    assert.equal(await aiConsent.isChecked(),false,"Consent must be opt-in");
+    await page.getByRole("textbox",{name:"Como você quer chamar seu tutor?"}).fill("Nina");
+    await page.getByRole("button",{name:"Conhecer meu tutor"}).click();
+    await page.getByRole("heading",{name:"Uma descoberta de cada vez."}).waitFor();
+    await page.screenshot({path:path.join(screenshotDir,"beta-invite-onboarding-375.png"),fullPage:true,animations:"disabled"});
+    await page.getByRole("button",{name:"Prefiro explorar o aplicativo agora"}).click();
+    await page.locator(".academy-dashboard-v3").waitFor();
+    await page.screenshot({path:path.join(screenshotDir,"beta-invite-campus-375.png"),fullPage:true,animations:"disabled"});
+    assert.equal(calls.filter(name=>name==="auth.signUp").length,2);
+    assert.ok(calls.includes("onboarding.saveProfile")&&calls.includes("onboarding.defer"));
+    assert.ok(!calls.includes("onboarding.submit"),"Skipping initial diagnostic must not create invented evidence");
+    await fit(page);
+  },"signup-flow");
   await test("closed mode keeps login and hides sign-up",375,"closed",async page=>{
     await page.goto(base+"/login");
     await page.getByText("Novos cadastros estão temporariamente fechados.").waitFor();
@@ -394,13 +562,16 @@ try{
     await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
     await page.getByRole("button",{name:/Speaking Fluência e comunicação/}).click();
     await page.getByRole("button",{name:"Sequência oral guiada"}).click();
-    for(let i=1;i<=5;i++){
+    const oralSet=page.getByLabel("Conjunto oral");
+    await oralSet.selectOption("set-2");
+    for(let i=6;i<=10;i++){
       await page.getByText("Question "+i,{exact:true}).waitFor();
       await page.getByRole("button",{name:"Gravar resposta"}).click();
       await page.getByRole("button",{name:"Encerrar gravação"}).click();
       await page.getByText("Resposta gravada. A revisão será exibida ao final.").waitFor();
       assert.equal(await page.locator("audio").count(),0);
-      await page.getByRole("button",{name:i===5?"Concluir sequência":"Próxima pergunta"}).click();
+      assert.equal(await oralSet.isDisabled(),true);
+      await page.getByRole("button",{name:i===10?"Concluir sequência":"Próxima pergunta"}).click();
     }
     await page.getByText("5 respostas gravadas. Nenhuma nota atribuída.").waitFor();
     assert.equal(await page.locator("audio").count(),5);
@@ -409,7 +580,49 @@ try{
     await page.getByRole("button",{name:"Descartar e reiniciar sequência"}).click();
     assert.equal(await page.locator("audio").count(),0);
     assert.equal(await page.evaluate(()=>window.__qaRevoked),5);
+    await page.getByText("Question 6",{exact:true}).waitFor();
+    assert.equal(await oralSet.isEnabled(),true);
+    await oralSet.selectOption("set-1");
     await page.getByText("Question 1",{exact:true}).waitFor();await fit(page);
+  },"speaking-sequence");
+  await test("integrated Speaking records completion and releases local clips",375,"closed",async(page,calls)=>{
+    await page.addInitScript(()=>{
+      window.__qaMicStopped=0;
+      const revoke=URL.revokeObjectURL.bind(URL);window.__qaRevoked=0;
+      URL.revokeObjectURL=(url)=>{window.__qaRevoked++;revoke(url);};
+      Object.defineProperty(navigator.mediaDevices,"getUserMedia",{configurable:true,value:async()=>({getTracks:()=>[{stop:()=>window.__qaMicStopped++}]})});
+      Object.defineProperty(window,"MediaRecorder",{configurable:true,value:class{
+        constructor(){this.state="inactive";this.mimeType="audio/webm";}
+        start(){this.state="recording";}
+        stop(){if(this.state!=="recording")return;this.state="inactive";queueMicrotask(()=>{this.ondataavailable?.({data:new Blob(["qa audio"],{type:this.mimeType})});this.onstop?.();});}
+      }});
+    });
+    await page.goto(base);
+    await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    for(let i=0;i<3;i++)await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Speaking",exact:true}).click();
+    const oralSet=page.getByLabel("Conjunto oral");
+    await oralSet.selectOption("set-2");
+    for(let i=6;i<=10;i++){
+      await page.getByText("Question "+i,{exact:true}).waitFor();
+      await page.getByRole("button",{name:"Gravar resposta"}).click();
+      await page.getByRole("button",{name:"Encerrar gravação"}).click();
+      await page.getByText("Resposta gravada. A revisão será exibida ao final.").waitFor();
+      assert.equal(await page.locator("audio").count(),0);
+      assert.equal(await oralSet.isDisabled(),true);
+      await page.getByRole("button",{name:i===10?"Concluir sequência":"Próxima pergunta"}).click();
+    }
+    await page.getByText("5 respostas gravadas. Nenhuma nota atribuída.").waitFor();
+    assert.equal(await page.locator("audio").count(),5);
+    assert.equal(await page.evaluate(()=>window.__qaMicStopped),5);
+    assert.ok(!calls.some(c=>/transcribe|speech|speakingReview/.test(c)));
+    await page.getByRole("button",{name:"Registrar etapa no roteiro"}).click();
+    await page.getByText("Speaking: Prática concluída, sem nota",{exact:true}).waitFor();
+    assert.equal(await page.locator("audio").count(),0);
+    assert.equal(await page.evaluate(()=>window.__qaRevoked),5);
+    await fit(page);
   },"speaking-sequence");
   await test("durable exam goal, resume and history deletion (synthetic API)",375,"closed",async(page,calls)=>{
     await page.goto(base);
@@ -442,6 +655,54 @@ try{
     assert.equal(await page.locator(".exam-panel select").filter({has:page.locator('option[value="qa-new"]')}).inputValue(),"qa-new");
     assert.ok(!calls.includes("exams.start"));await fit(page);
   },"exam-proposals");
+  await test("itinerary persists only on explicit save and resumes after reload",375,"closed",async(page,calls)=>{
+    await page.goto(base+"/exams");
+    const integrated=page.getByRole("button",{name:"Prática integrada",exact:true});
+    await integrated.click();
+    await page.getByRole("button",{name:"Pular etapa"}).click();
+    assert.ok(!calls.includes("exams.saveItinerary"));
+    await page.getByRole("button",{name:"Salvar roteiro na minha conta"}).click();
+    await page.getByText("Roteiro salvo na sua conta.",{exact:true}).waitFor();
+    await page.reload();await integrated.click();
+    await page.getByRole("button",{name:"Abrir Listening"}).waitFor();
+    await page.getByRole("button",{name:"Retomar roteiro salvo"}).click();
+    await page.getByRole("button",{name:"Abrir Reading"}).waitFor();
+    assert.equal(calls.filter(name=>name==="exams.saveItinerary").length,1);
+    await page.getByRole("link",{name:"Exportar ou excluir meus dados de exames"}).click();
+    const remove=page.getByRole("button",{name:"Excluir somente meu roteiro salvo"});
+    page.once("dialog",dialog=>dialog.dismiss());
+    await remove.click();
+    assert.ok(!calls.includes("exams.privacyRemoveItinerary"));
+    page.once("dialog",dialog=>dialog.accept());
+    await remove.click();
+    await page.getByText("Roteiro salvo excluído.",{exact:true}).waitFor();
+    await remove.waitFor({state:"detached"});
+    assert.ok(!calls.includes("exams.privacyClear"));
+    await fit(page);
+  },"bookmark");
+  await test("integrated itinerary retains objective result and distinguishes skipped stages",375,"closed",async(page,calls)=>{
+    await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Reading",exact:true}).click();
+    await page.getByRole("heading",{name:"Passage 3",exact:true}).waitFor();
+    for(const q of await page.locator(".exam-question").all())await q.getByRole("radio",{name:"Yes",exact:true}).check();
+    await page.getByRole("button",{name:"Enviar respostas"}).click();
+    await page.getByText("Resultado: 12/12 acertos. Não corresponde a uma nota IELTS.").waitFor();
+    await page.getByRole("button",{name:"Continuar para Writing"}).click();
+    await page.getByRole("navigation",{name:"Centro de exames"}).getByRole("button",{name:"Writing",exact:true}).getAttribute("aria-current").then(value=>assert.equal(value,"page"));
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("heading",{name:"Relatório da prática integrada"}).waitFor();
+    await page.getByText("Reading: 12/12 acertos",{exact:true}).waitFor();
+    await page.getByText("1 de 4 etapas concluídas.",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Reiniciar roteiro"}).click();
+    await page.getByRole("button",{name:"Abrir Listening",exact:true}).waitFor();
+    assert.equal(await page.getByText("Reading: 12/12 acertos",{exact:true}).count(),0);
+    assert.ok(calls.includes("exams.submit"));await fit(page);
+  },"reading-mock");
   await test("extended reading mock shows three passages and twelve questions before correction",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
     await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
@@ -480,14 +741,64 @@ try{
     for(let i=1;i<=3;i++)await page.getByText("Original fictional audio script "+i,{exact:true}).waitFor();
     assert.ok(calls.includes("exams.submit"));await fit(page);
   },"listening-extended");
+  await test("integrated Listening advances only after objective submission",375,"closed",async(page,calls)=>{
+    await page.addInitScript(()=>{
+      const voice={name:"QA local English",lang:"en-GB",localService:true,voiceURI:"qa-local",default:true};
+      const synth=new EventTarget();
+      Object.assign(synth,{getVoices:()=>[voice],speaking:false,pending:false,speak:utterance=>{synth.speaking=true;window.__qaSpoken=utterance.text;},cancel:()=>{synth.speaking=false;}});
+      Object.defineProperty(window,"speechSynthesis",{value:synth,configurable:true});
+      Object.defineProperty(window,"SpeechSynthesisUtterance",{value:class{constructor(text){this.text=text;}},configurable:true});
+    });
+    await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Listening",exact:true}).click();
+    for(let i=1;i<=3;i++){
+      assert.equal(await page.getByText("Original fictional audio script "+i,{exact:true}).count(),0);
+      await page.getByRole("button",{name:"Ouvir áudio · Audio "+i,exact:true}).click();
+      assert.equal(await page.evaluate(()=>window.__qaSpoken),"Original fictional audio script "+i);
+      await page.getByRole("button",{name:"Parar áudio",exact:true}).click();
+    }
+    for(const q of await page.locator(".exam-question").all())await q.getByRole("radio",{name:"Yes",exact:true}).check();
+    await page.getByRole("button",{name:"Enviar respostas"}).click();
+    await page.getByText("Resultado: 12/12 acertos. Não corresponde a uma nota IELTS.").waitFor();
+    for(let i=1;i<=3;i++)await page.getByText("Original fictional audio script "+i,{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Reading",exact:true}).waitFor();
+    for(let i=0;i<3;i++)await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByText("Listening: 12/12 acertos",{exact:true}).waitFor();
+    assert.ok(calls.includes("exams.submit"));await fit(page);
+  },"listening-extended");
+  await test("integrated Writing records local sequence without uploading drafts",375,"closed",async(page,calls)=>{
+    await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Writing",exact:true}).click();
+    await page.getByRole("button",{name:"Iniciar sequência de Writing"}).click();
+    await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("First local draft");
+    await page.getByRole("button",{name:"Task 2",exact:true}).click();
+    await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("Second local draft");
+    page.once("dialog",d=>d.accept());
+    await page.getByRole("button",{name:"Encerrar sequência e revisar"}).click();
+    await page.getByRole("button",{name:"Registrar etapa no roteiro"}).click();
+    await page.getByRole("button",{name:"Abrir Speaking",exact:true}).waitFor();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByText("Writing: Prática concluída, sem nota",{exact:true}).waitFor();
+    assert.ok(!calls.includes("exams.writingReview")&&!calls.includes("exams.writingFeedback"));await fit(page);
+  },"writing-sequence");
   await test("Writing sequence keeps both texts local and defers self-review",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
     await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
     await page.getByRole("button",{name:/Writing Produção de textos/}).click();
     await page.getByRole("button",{name:"Sequência de duas tarefas"}).click();
+    await page.getByLabel("Conjunto de tarefas").selectOption("set-2");
     await page.getByRole("button",{name:"Iniciar sequência de Writing"}).click();
+    await page.getByRole("heading",{name:"Alternate first task",exact:true}).waitFor();
     await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("First local draft");
     await page.getByRole("button",{name:"Task 2",exact:true}).click();
+    await page.getByRole("heading",{name:"Alternate second task",exact:true}).waitFor();
     await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("Second local draft");
     await page.getByRole("button",{name:"Task 1",exact:true}).click();
     assert.equal(await page.getByRole("textbox",{name:"Seu texto em inglês"}).inputValue(),"First local draft");
@@ -506,11 +817,124 @@ try{
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
     const link=slot.getByRole("link",{name:"Conhecer o parceiro"});assert.equal(await link.getAttribute("href"),"https://example.com/");assert.ok((await link.getAttribute("rel")).includes("sponsored"));await fit(page);
   },"sponsor");
+  for(const route of ["/","/exams"]) {
+    await test("Community Premium bypasses course onboarding at "+route,375,"closed",async(page,calls)=>{
+      await page.goto(base+route);
+      await page.getByRole("heading",{name:"Comunidade Lingua",exact:true}).waitFor();
+      await page.waitForFunction(()=>performance.getEntriesByType("resource").some(r=>r.name.includes("exams.overview")));
+      assert.ok(!calls.includes("onboarding.me") && !calls.includes("tutor.capabilities"));
+      await fit(page);
+    },"community");
+  }
+  await test("Lingua Premium reaches student home after trial",1440,"closed",async(page,calls)=>{
+    await page.goto(base);await page.locator(".academy-welcome").waitFor();
+    assert.ok(calls.includes("onboarding.me"));
+  },"premium");
+  await test("switching identity drops the previous learner workspace",375,"closed",async(page,calls,switchAccount)=>{
+    await page.goto(base);await page.locator(".academy-welcome").waitFor();
+    switchAccount();
+    await page.evaluate(()=>window.dispatchEvent(new Event("visibilitychange")));
+    await page.getByRole("heading",{name:"Seus 15 dias gratuitos terminaram."}).waitFor();
+    assert.equal(await page.locator(".academy-welcome").count(),0);
+    assert.ok(calls.filter(name=>name==="auth.me").length>=2);
+  },"student");
   await test("expired trial does not load learner profile",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("heading",{name:"Seus 15 dias gratuitos terminaram."}).waitFor();
     assert.ok(!calls.includes("onboarding.me"));await fit(page);
   },"expired");
   if(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"){
+    await test("administrators manually resolve and dismiss separate reports",375,"closed",async(page,calls)=>{
+      await page.goto(base+"/admin");
+      await page.getByRole("heading",{name:"Visão executiva"}).waitFor();
+      await page.getByText("Convites vigentes").waitFor();
+      await page.getByText(/Modo atual de inscrições: Somente convidados/).waitFor();
+      await page.getByText("Vagas para novos convites").waitFor();
+      await page.getByRole("heading",{name:"Fila de denúncias"}).waitFor();
+      await page.getByText("Pendentes:").waitFor();
+      page.once("dialog",dialog=>dialog.accept());
+      await page.getByRole("row").filter({hasText:"Spam"}).getByRole("button",{name:"Ocultar"}).click();
+      await page.getByRole("status").filter({hasText:"Denúncia concluída"}).waitFor();
+      page.once("dialog",dialog=>dialog.accept());
+      await page.getByRole("row").filter({hasText:"Assédio"}).getByRole("button",{name:"Descartar"}).click();
+      await page.getByText("Nenhuma denúncia nesta página.").waitFor();
+      await page.getByLabel("Situação").selectOption("actioned");
+      await page.getByRole("row").filter({hasText:"Spam"}).waitFor();
+      await page.getByLabel("Situação").selectOption("dismissed");
+      await page.getByRole("row").filter({hasText:"Assédio"}).waitFor();
+      assert.equal(calls.filter(name=>name==="adminLab.actionCommunityReport").length,1);
+      assert.equal(calls.filter(name=>name==="adminLab.dismissCommunityReport").length,1);
+      await fit(page);
+      await page.screenshot({path:path.join(screenshotDir,"admin-community-375.png"),fullPage:true,animations:"disabled"});
+    },"admin-report");
+    await test("community member reports an achievement and blocks its author",375,"closed",async(page,calls)=>{
+      await page.goto(base+"/community");
+      await page.getByText("Conquistas da comunidade (laboratório)",{exact:true}).click();
+      await page.getByRole("heading",{name:"Conquistas compartilhadas"}).waitFor();
+      await page.getByRole("button",{name:"Denunciar publicação"}).click();
+      await page.getByLabel("Motivo da denúncia").selectOption("harassment");
+      await page.getByRole("button",{name:"Enviar denúncia"}).click();
+      await page.getByText("Denúncia registrada para análise. A publicação não foi removida automaticamente.").waitFor();
+      await page.getByText("Minhas denúncias",{exact:true}).click();
+      await page.getByText("Denúncia #55").waitFor();
+      page.once("dialog",dialog=>dialog.accept());
+      await page.getByRole("button",{name:"Bloquear membro"}).click();
+      await page.getByText("Ainda não há conquistas públicas disponíveis.").waitFor();
+      assert.equal(calls.filter(name=>name==="commercialLab.reportPublication").length,1);
+      assert.equal(calls.filter(name=>name==="commercialLab.setCommunityBlock").length,1);
+      await fit(page);
+    },"community-feed");
+    await test("expired member can still inspect their own reports without opening the feed",375,"closed",async(page,calls)=>{
+      await page.goto(base+"/community");
+      await page.getByText("Minhas denúncias",{exact:true}).click();
+      await page.getByText("Denúncia #55").waitFor();
+      const [download]=await Promise.all([page.waitForEvent("download"),page.getByRole("button",{name:"Exportar minhas denúncias (JSON)"}).click()]);
+      assert.equal(download.suggestedFilename(),"lingua-denuncias-9001.json");
+      const exported=JSON.parse(await readFile(await download.path(),"utf8"));
+      assert.equal(exported.accountId,9001);
+      assert.equal(exported.complete,true);
+      assert.equal(exported.reports[0].id,55);
+      assert.equal("resolvedBy" in exported.reports[0],false);
+      assert.ok(!calls.includes("commercialLab.achievementFeed"));
+      await fit(page);
+    },"reports-expired");
+    await test("member export clearly signals more than a thousand reports",375,"closed",async(page)=>{
+      await page.goto(base+"/community");
+      await page.getByText("Minhas denúncias",{exact:true}).click();
+      const [download]=await Promise.all([page.waitForEvent("download"),page.getByRole("button",{name:"Exportar minhas denúncias (JSON)"}).click()]);
+      const exported=JSON.parse(await readFile(await download.path(),"utf8"));
+      assert.equal(exported.complete,false);
+      assert.equal(exported.reports.length,1000);
+      await page.getByRole("alert").filter({hasText:"mil registros mais recentes"}).waitFor();
+      await fit(page);
+    },"reports-truncated");
+    await test("member manages their own block after subscription expiry",375,"closed",async(page,calls)=>{
+      await page.goto(base+"/community");
+      await page.getByText("Meus bloqueios",{exact:true}).click();
+      const remove=page.getByRole("button",{name:"Desbloquear membro 42"});
+      page.once("dialog",dialog=>dialog.dismiss());await remove.click();
+      assert.ok(!calls.includes("commercialLab.setCommunityBlock"));
+      page.once("dialog",dialog=>dialog.accept());await remove.click();
+      await page.getByText("Você não bloqueou nenhum membro.",{exact:true}).waitFor();
+      assert.equal(calls.filter(name=>name==="commercialLab.setCommunityBlock").length,1);
+      await fit(page);
+    },"blocked-list");
+    await test("expired student redeems and controls community privacy",375,"closed",async(page,calls)=>{
+      await page.goto(base);
+      await page.getByRole("link",{name:"Tenho um cupom de acesso"}).click();
+      await page.getByLabel("Código do cupom").fill("COMMUNITY30");
+      await page.getByRole("button",{name:"Resgatar cupom"}).click();
+      await page.getByRole("heading",{name:"Acesso registrado"}).waitFor();
+      await page.getByRole("link",{name:"Voltar ao Lingua"}).click();
+      await page.getByRole("heading",{name:"Comunidade Lingua",exact:true}).waitFor();
+      await page.getByRole("link",{name:"Privacidade da comunidade"}).click();
+      const optIn=page.getByLabel("Participar do ranking semanal");
+      assert.equal(await optIn.isChecked(),false);
+      await optIn.check();
+      await Promise.all([page.waitForResponse(r=>r.url().includes("commercialLab.saveCommunityPreferences")),page.getByRole("button",{name:"Salvar preferências"}).click()]);
+      await page.reload();await optIn.waitFor();
+      assert.equal(await optIn.isChecked(),true);
+      assert.ok(!calls.includes("onboarding.me"));
+    },"coupon");
     for(const width of [375,1440]){
       await test("synthetic corporate events "+width,width,"closed",async page=>{
         await page.goto(base+"/partners");
@@ -528,5 +952,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?33:29));
+  console.log("Academy Chromium: "+passed+" scenarios passed");
 }finally{await browser.close();}

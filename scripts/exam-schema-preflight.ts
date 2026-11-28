@@ -10,7 +10,7 @@ async function main(){
  let pool:ReturnType<typeof mysql.createPool>|undefined;
  try{
   pool=mysql.createPool(buildMysqlPoolOptions(process.env.DATABASE_URL??"",process.env.DATABASE_SSL_CA_BASE64));
-  const report=await inspectExamSchema(pool);
+  const report=await inspectExamSchema(pool,process.env.LINGUA_EXAM_ITINERARY_ENABLED==="true");
   console.log(JSON.stringify(report));
   if(report.status==="incompatible")process.exitCode=1;
  }catch{

@@ -37,3 +37,10 @@ export const examActiveAttempts=mysqlTable("examActiveAttempts",{
  contentVersion:varchar("contentVersion",{length:80}).notNull(),
  deadlineMs:bigint("deadlineMs",{mode:"number"}).notNull()
 });
+
+export const examItineraries=mysqlTable("examItineraries",{
+  userId:int("userId").primaryKey().references(()=>users.id,{onDelete:"cascade"}),
+  revision:varchar("revision",{length:36}).notNull(),
+  bookmarkJson:text("bookmarkJson").notNull(),
+  savedAtMs:bigint("savedAtMs",{mode:"number"}).notNull(),
+});

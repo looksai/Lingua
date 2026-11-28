@@ -38,14 +38,14 @@ export default function Login() {
         <h1 id="academy-auth-title">{mode === "signIn" ? "Bem-vindo ao Lingua" : "Crie sua conta"}</h1>
         <p>{mode === "signIn" ? "Acesse seu espaço de aprendizagem." : "15 dias gratuitos previstos para o lançamento. Nenhum cartão será solicitado nesta etapa."}</p>
         <label htmlFor="academy-email">E-mail</label>
-        <input id="academy-email" type="email" autoComplete="email" required maxLength={320} value={email} onChange={e => setEmail(e.target.value)} />
+        <input id="academy-email" type="email" autoComplete="email" required maxLength={320} value={email} onChange={e => {setEmail(e.target.value);signIn.reset();signUp.reset();}} />
         <label htmlFor="academy-password">Senha</label>
-        <input id="academy-password" type="password" autoComplete={mode === "signIn" ? "current-password" : "new-password"} required minLength={mode === "signUp" ? 12 : 1} maxLength={128} value={password} onChange={e => setPassword(e.target.value)} aria-describedby={mode === "signUp" ? "academy-password-help" : undefined} />
-        {mode === "signUp" && registration.data === "invite" && <><label htmlFor="academy-invite">Código do convite</label><input id="academy-invite" type="password" autoComplete="off" required minLength={43} maxLength={43} value={inviteCode} onChange={e => setInviteCode(e.target.value)} /><p className="academy-auth-help">Use o e-mail indicado no convite. Não compartilhe seu código.</p></>}
+        <input id="academy-password" type="password" autoComplete={mode === "signIn" ? "current-password" : "new-password"} required minLength={mode === "signUp" ? 12 : 1} maxLength={128} value={password} onChange={e => {setPassword(e.target.value);signIn.reset();signUp.reset();}} aria-describedby={mode === "signUp" ? "academy-password-help" : undefined} />
+        {mode === "signUp" && registration.data === "invite" && <><label htmlFor="academy-invite">Código do convite</label><input id="academy-invite" type="password" autoComplete="off" required minLength={43} maxLength={43} value={inviteCode} onChange={e => {setInviteCode(e.target.value);signUp.reset();}} /><p className="academy-auth-help">Use o e-mail indicado no convite. Não compartilhe seu código.</p></>}
         {mode === "signUp" && <p id="academy-password-help" className="academy-auth-help">Use pelo menos 12 caracteres.</p>}
         {error && <p role="alert" className="academy-auth-error">{error.message}</p>}
         <button type="submit" disabled={pending || (mode === "signUp" && !canRegister)} className="academy-gold">{pending ? "Aguarde..." : mode === "signIn" ? "Entrar" : "Cadastrar"}</button>
-        {(canRegister || mode === "signUp") && <button type="button" disabled={pending} onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); setInviteCode(""); signIn.reset(); signUp.reset(); }} className="academy-outline">{mode === "signIn" ? (registration.data === "invite" ? "Tenho um convite" : "Criar uma conta") : "Já tenho conta"}</button>}
+        {(canRegister || mode === "signUp") && <button type="button" disabled={pending} onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); setInviteCode(""); setPassword(""); signIn.reset(); signUp.reset(); }} className="academy-outline">{mode === "signIn" ? (registration.data === "invite" ? "Tenho um convite" : "Criar uma conta") : "Já tenho conta"}</button>}
         {registration.data === "closed" && <p className="academy-auth-help">Novos cadastros estão temporariamente fechados.</p>}
         {registration.isError && <p role="status" className="academy-auth-help">Não foi possível consultar a disponibilidade de cadastro. Você ainda pode entrar na sua conta.</p>}
       </form>

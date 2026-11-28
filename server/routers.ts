@@ -1,3 +1,6 @@
+import {commercialStudentRouterLab} from "./commercial-student-router-lab";
+import {adminTrialRouterLab} from "./admin-trial-router-lab";
+import {reviewGamificationPreview} from "./gamification-review-evidence";
 import {examRouter} from "./exam-router";
 import {campusSponsors} from "./campus-sponsors";
 import {createPartnerEventRouter} from "./partner-event-router";
@@ -6,6 +9,7 @@ import {createPartnerInviteRouter} from "./partner-invite-router";
 import {createPartnerInviteLimiter} from "./partner-invite-rate-limit";
 import {getDb} from "./db";
 import { academyAdmissionMode, assertAcademyAdmission } from "./academy-admission";
+import { resolveLearningAccess } from "./commercial-learning-gate";
 import { academyTrialStatus } from "./academy-trial";
 import { COOKIE_NAME } from "@shared/const";
 import { onboardingRouter } from "./onboarding-router";
@@ -28,6 +32,8 @@ import {
 } from "./db";
 
 export const appRouter = router({
+  commercialLab:commercialStudentRouterLab,
+ adminLab: adminTrialRouterLab,
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   partnerEvents: createPartnerEventRouter({
@@ -47,6 +53,11 @@ export const appRouter = router({
   placement: placementRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
+    learningAccess: protectedProcedure.input(z.object({userId: z.number().int().positive()}).strict()).query(({ctx,input}) => {
+      ctx.res.setHeader("Cache-Control", "private, no-store");
+      if (ctx.user.id !== input.userId) throw new TRPCError({code:"FORBIDDEN"});
+      return resolveLearningAccess(ctx.user);
+    }),
     trialStatus: protectedProcedure.query(({ctx}) => academyTrialStatus(ctx.user.createdAt)),
     registrationMode: publicProcedure.query(() => academyAdmissionMode()),
     signUp: publicProcedure.input(z.object({
@@ -244,6 +255,10 @@ export const appRouter = router({
           });
         }
       }),
+    gamificationPreview: protectedProcedure.query(async ({ctx}) => {
+      const records=await listReviewHistory(ctx.user.id,1000);
+      return reviewGamificationPreview(records);
+    }),
     history: protectedProcedure
       .input(
         z.object({ limit: z.number().int().min(1).max(1000).default(200) })

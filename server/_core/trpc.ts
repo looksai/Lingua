@@ -4,6 +4,8 @@ import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { academyTrialStatus, trialGatedPath } from "../academy-trial";
 
+import {learningAccess} from "../commercial-learning-gate";
+
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
@@ -25,7 +27,7 @@ const requireUser = t.middleware(async opts => {
 
   if (trialGatedPath(opts.path)) {
     const trial = academyTrialStatus(ctx.user.createdAt);
-    if (trial.kind === "expired" || trial.kind === "unavailable") throw new TRPCError({ code: "FORBIDDEN", message: trial.kind === "expired" ? "Seu período gratuito terminou." : "Não foi possível confirmar seu acesso." });
+    if (!(await learningAccess(opts.path, ctx.user))) throw new TRPCError({ code: "FORBIDDEN", message: trial.kind === "expired" ? "Seu período gratuito terminou." : "Não foi possível confirmar seu acesso." });
   }
   return next({
     ctx: {

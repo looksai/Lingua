@@ -1,3 +1,4 @@
+import {issueBetaInvitation,readBetaInvitations,revokeBetaInvitation,inspectBetaInvitations} from "../server/academy-beta-invite-ops";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
@@ -25,13 +26,19 @@ const suffix = randomBytes(8).toString("hex");
 const emailA = "academy-a-" + suffix + "@synthetic.invalid";
 const emailB = "academy-b-" + suffix + "@synthetic.invalid";
 const expiredEmail = "expired-" + suffix + "@synthetic.invalid";
-const codeA = randomBytes(32).toString("base64url");
-const codeB = randomBytes(32).toString("base64url");
+// Mint two real operator-compatible tokens. Never store their clear text in the
+// server-side invitation JSON; the expired fixture exercises revocation failure.
+const issuedA=issueBetaInvitation("[]",emailA,1);
+const issuedB=issueBetaInvitation(issuedA.json,emailB,1);
+const codeA=issuedA.code,codeB=issuedB.code;
 const expiredCode = randomBytes(32).toString("base64url");
 const password = randomBytes(24).toString("base64url");
-const entry = (email:string, code:string, delta:number) => ({email,tokenHash:createHash("sha256").update(code).digest("hex"),expiresAt:new Date(Date.now()+delta).toISOString()});
-const rows = [entry(emailA,codeA,3600000),entry(emailB,codeB,3600000),entry(expiredEmail,expiredCode,-3600000)];
-process.env.ACADEMY_INVITATIONS_JSON = JSON.stringify(rows);
+const expiredEntry={email:expiredEmail,tokenHash:createHash("sha256").update(expiredCode).digest("hex"),expiresAt:new Date(Date.now()-3600000).toISOString()};
+const rows=[...readBetaInvitations(issuedB.json),expiredEntry];
+const hashedJson=JSON.stringify(rows);
+assert.equal(inspectBetaInvitations(hashedJson).active,2);
+assert.ok(!hashedJson.includes(codeA)&&!hashedJson.includes(codeB));
+process.env.ACADEMY_INVITATIONS_JSON=hashedJson;
 
 const pool = mysql.createPool(LAB_URL);
 const app = express();
@@ -65,9 +72,9 @@ try {
   pass("invalid, missing, expired, cross-origin invites produce no database writes");
 
   // Remove an unused invite, prove it is denied, then restore for the lab.
-  process.env.ACADEMY_INVITATIONS_JSON=JSON.stringify([rows[0]]);
+  process.env.ACADEMY_INVITATIONS_JSON=revokeBetaInvitation(hashedJson,emailB).json;
   assert.equal((await sign(emailB,codeB)).status,403);
-  process.env.ACADEMY_INVITATIONS_JSON=JSON.stringify(rows);
+  process.env.ACADEMY_INVITATIONS_JSON=hashedJson;
   pass("revoked unused invitation denied");
 
   // Stay within existing rate limit (8 requests per IP) by using exactly eight
@@ -133,7 +140,67 @@ try {
   assert.deepEqual(good(await rpc("tutor.memoryList",undefined,cookieA,true)),[]);
   pass("explicit memory consent, private retrieval and owner-only deletion");
   assert.equal((await rpc("onboarding.me",undefined,"",true)).status,401);
-  console.log("Academy MySQL HTTP lab: "+passed+"/7");
+  // Continue the invited learner's real session across the end of the free period.
+  process.env.ACADEMY_TRIAL_ENABLED="true";
+  process.env.LINGUA_COMMERCIAL_LAB_ENABLED="true";
+  process.env.LINGUA_ADMIN_LAB_ENABLED="true";
+  const status=(cookie:string,userId:number)=>rpc("auth.learningAccess",{userId},cookie,true);
+  assert.equal(good(await status(cookieB,b.id)).trial.kind,"active");
+  assert.equal((await status(cookieA,b.id)).status,403);
+  assert.equal((await status("",b.id)).status,401);
+  assert.equal(good(await rpc("tutor.capabilities",undefined,cookieB,true)).chat,false);
+  await pool.execute("UPDATE users SET createdAt=DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 16 DAY) WHERE id=?",[b.id]);
+  assert.equal(good(await status(cookieB,b.id)).course,false);
+  const coupon={code:"HTTP"+suffix.toUpperCase(),plan:"community-premium",days:30,validity:{kind:"days",days:3},maxUses:1};
+  assert.equal((await rpc("adminLab.issue",coupon,cookieB)).status,403);
+  await pool.execute("UPDATE users SET role='admin' WHERE id=?",[a.id]);
+  assert.equal((await rpc("adminLab.academyInviteSummary",undefined,cookieB,true)).status,403);
+  const invitationSummary=good(await rpc("adminLab.academyInviteSummary",undefined,cookieA,true));
+  assert.deepEqual(invitationSummary,{configured:true,admissionMode:"closed",total:3,active:2,expired:1,availableSlots:17});
+  assert.ok(!JSON.stringify(invitationSummary).includes(emailA)&&!JSON.stringify(invitationSummary).includes(codeA));
+  pass("admin HTTP session sees redacted invitation inventory while registration remains closed");
+  good(await rpc("adminLab.issue",coupon,cookieA));
+  const redeem=(cookie:string,accountId:number)=>rpc("commercialLab.redeemTrial",{code:coupon.code,accountId},cookie);
+  assert.equal((await redeem(cookieB,a.id)).status,403);
+  assert.equal(good(await redeem(cookieB,b.id)).status,"granted");
+  const activated=good(await status(cookieB,b.id));
+  assert.equal(activated.exams,true);assert.equal(activated.course,false);
+  assert.equal(good(await rpc("exams.overview",undefined,cookieB,true)).plan,null);
+  assert.equal((await rpc("tutor.capabilities",undefined,cookieB,true)).status,403);
+  assert.equal((await rpc("onboarding.me",undefined,cookieB,true)).status,403);
+  good(await rpc("adminLab.revoke",{code:coupon.code},cookieA));
+  assert.equal(good(await status(cookieB,b.id)).community,true);
+  process.env.LINGUA_EXAM_DURABLE_ENABLED="true";
+  process.env.LINGUA_EXAM_ITINERARY_ENABLED="true";
+  const bookmark={version:"ielts-integrated-practice-v1-2026-11-28",variant:"ielts-general",statuses:["skipped","completed"]};
+  const save={accountId:b.id,consent:true,expectedRevision:null,bookmark};
+  assert.equal((await rpc("exams.saveItinerary",save,cookieB)).status,403);
+  process.env.LINGUA_EXAM_PILOT_ENABLED="true";
+  process.env.LINGUA_EXAM_PILOT_ACCOUNTS=JSON.stringify({[emailB]:"community"});
+  assert.equal((await rpc("exams.saveItinerary",{...save,consent:false},cookieB)).status,400);
+  const receipt=good(await rpc("exams.saveItinerary",save,cookieB));
+  assert.equal((await rpc("exams.itinerary",{accountId:a.id},cookieB,true)).status,403);
+  assert.equal(good(await rpc("exams.itinerary",{accountId:b.id},cookieB,true)).saved.revision,receipt.revision);
+  process.env.LINGUA_EXAM_ITINERARY_ENABLED="false";
+  assert.equal((await rpc("exams.saveItinerary",save,cookieB)).status,412);
+  await pool.execute("UPDATE commercialSubscriptions SET status='cancelled' WHERE userId=?",[b.id]);
+  assert.equal(good(await status(cookieB,b.id)).exams,false);
+  assert.equal((await rpc("exams.overview",undefined,cookieB,true)).status,403);
+  good(await rpc("exams.privacyStatus",undefined,cookieB,true));
+  const exportB={accountId:b.id,beforeId:null};
+  assert.equal((await rpc("exams.privacyExport",exportB,cookieA)).status,403);
+  assert.equal((await rpc("exams.privacyClear",{accountId:b.id,confirm:true},cookieA)).status,403);
+  assert.deepEqual(good(await rpc("exams.privacyExport",exportB,cookieB)).itinerary.bookmark,bookmark);
+  assert.equal(good(await rpc("exams.privacyStatus",undefined,cookieB,true)).itineraryRevision,receipt.revision);
+  assert.equal((await rpc("exams.privacyRemoveItinerary",{accountId:b.id,revision:receipt.revision},cookieA)).status,403);
+  good(await rpc("exams.privacyRemoveItinerary",{accountId:b.id,revision:receipt.revision},cookieB));
+  good(await rpc("exams.privacyRemoveItinerary",{accountId:b.id,revision:receipt.revision},cookieB));
+  assert.equal(good(await rpc("exams.privacyExport",exportB,cookieB)).itinerary,null);
+  good(await rpc("exams.privacyClear",{accountId:b.id,confirm:true},cookieB));
+  assert.equal(good(await rpc("exams.privacyExport",exportB,cookieB)).itinerary,null);
+  pass("explicit itinerary consent, pilot boundary, account switch, post-expiry export and erasure with writes disabled");
+  pass("invitation and real session through trial, commercial redemption, pilot boundaries and withdrawal");
+  console.log("Academy MySQL HTTP lab: "+passed+" scenarios passed");
 } finally {
   await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));
   await pool.end();

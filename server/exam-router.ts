@@ -1,3 +1,5 @@
+import {saveItineraryInput} from "../shared/exam-itinerary";
+import {optionalItineraryTable,readItinerary,removeItinerary,saveItinerary} from "./exam-itinerary-repository";
 import { z } from "zod";
 import {eq} from "drizzle-orm";
 import {learnerProfiles} from "../drizzle/schema";
@@ -24,11 +26,41 @@ export function durableExamEnabled(env:NodeJS.ProcessEnv=process.env){return env
 async function historyDb(){if(!durableExamEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Histórico permanente ainda indisponível."});const db=await getDb();if(!db)throw new TRPCError({code:"PRECONDITION_FAILED",message:"Histórico temporariamente indisponível."});return db;}
 export function examPrivacyEnabled(env:NodeJS.ProcessEnv=process.env){return durableExamEnabled(env)||env.LINGUA_EXAM_PRIVACY_ENABLED==="true";}
 async function privacyDb(){if(!examPrivacyEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Dados persistentes ainda indisponíveis."});const db=await getDb();if(!db)throw new TRPCError({code:"PRECONDITION_FAILED",message:"Dados temporariamente indisponíveis."});return db;}
+const expectedAccount=z.number().int().positive().optional();
+function verifyAccount(expected:number|undefined,actual:number){
+ if(expected!==undefined && expected!==actual)throw new TRPCError({code:"FORBIDDEN",message:"Sua sessão mudou. Recarregue a página."});
+}
 export const examRouter=router({
- privacyStatus:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {enabled:examPrivacyEnabled()};}),
- privacyExport:protectedProcedure.input(z.object({beforeId:z.number().int().positive().max(2147483647).nullable()}).strict()).mutation(async({ctx,input})=>{checkRequestOrigin(ctx.req);rateLimit("exam-export:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");return exportExamHistoryPage(await privacyDb(),ctx.user.id,input.beforeId);}),
- privacyClear:protectedProcedure.input(z.object({confirm:z.literal(true)}).strict()).mutation(async({ctx})=>{checkRequestOrigin(ctx.req);rateLimit("exam-privacy-clear:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");await createDurableExamEngine(await privacyDb()).clear(ctx.user.id);return {cleared:true as const};}),
- overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const,durable:Boolean(examAccess(ctx.user.email))&&durableExamEnabled(),proposals:Boolean(examAccess(ctx.user.email))&&durableExamEnabled()&&examProposalsEnabled(),feedbackProvider:examAccess(ctx.user.email)&&writingFeedbackEnabled()&&(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email))?tutorMode():null};}),
+ itinerary:protectedProcedure.input(z.object({accountId:z.number().int().positive()}).strict()).query(async({ctx,input})=>{
+   verifyAccount(input.accountId,ctx.user.id);
+   requireAccess(ctx.user.email);
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   if(process.env.LINGUA_EXAM_ITINERARY_ENABLED!=="true")throw new TRPCError({code:"PRECONDITION_FAILED"});
+   return {saved:await readItinerary(await historyDb(),ctx.user.id)};
+ }),
+ saveItinerary:protectedProcedure.input(saveItineraryInput).mutation(async({ctx,input})=>{
+   checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   if(process.env.LINGUA_EXAM_ITINERARY_ENABLED!=="true")throw new TRPCError({code:"PRECONDITION_FAILED"});
+   rateLimit("exam-itinerary:"+ctx.user.id);
+   return saveItinerary(await historyDb(),ctx.user.id,input);
+ }),
+ privacyStatus:protectedProcedure.query(async({ctx})=>{
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   if(!examPrivacyEnabled())return {enabled:false,itineraryRevision:null};
+   const db=await privacyDb();
+   const saved=await optionalItineraryTable(()=>readItinerary(db,ctx.user.id),null);
+   return {enabled:true,itineraryRevision:saved?.revision??null,accountId:ctx.user.id};
+ }),
+ privacyRemoveItinerary:protectedProcedure.input(z.object({accountId:z.number().int().positive(),revision:z.uuid()}).strict()).mutation(async({ctx,input})=>{
+   checkRequestOrigin(ctx.req);verifyAccount(input.accountId,ctx.user.id);
+   rateLimit("exam-bookmark-delete:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
+   await removeItinerary(await privacyDb(),ctx.user.id,input.revision);
+   return {removed:true};
+ }),
+ privacyExport:protectedProcedure.input(z.object({accountId:expectedAccount,beforeId:z.number().int().positive().max(2147483647).nullable()}).strict()).mutation(async({ctx,input})=>{checkRequestOrigin(ctx.req);verifyAccount(input.accountId,ctx.user.id);rateLimit("exam-export:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");return exportExamHistoryPage(await privacyDb(),ctx.user.id,input.beforeId);}),
+ privacyClear:protectedProcedure.input(z.object({accountId:expectedAccount,confirm:z.literal(true)}).strict()).mutation(async({ctx,input})=>{checkRequestOrigin(ctx.req);verifyAccount(input.accountId,ctx.user.id);rateLimit("exam-privacy-clear:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");await createDurableExamEngine(await privacyDb()).clear(ctx.user.id);return {cleared:true as const};}),
+ overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const,itinerary:Boolean(examAccess(ctx.user.email))&&durableExamEnabled()&&process.env.LINGUA_EXAM_ITINERARY_ENABLED==="true",durable:Boolean(examAccess(ctx.user.email))&&durableExamEnabled(),proposals:Boolean(examAccess(ctx.user.email))&&durableExamEnabled()&&examProposalsEnabled(),feedbackProvider:examAccess(ctx.user.email)&&writingFeedbackEnabled()&&(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email))?tutorMode():null};}),
  practiceProposals:protectedProcedure.input(z.object({variant:z.enum(IELTS_VARIANTS)}).strict()).query(async({ctx,input})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");if(!examProposalsEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Recomendações ainda indisponíveis."});return proposeExamPractice(input.variant,await recentExamActivities(await historyDb(),ctx.user.id));}),
  history:protectedProcedure.query(async({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");const db=await historyDb();return {goal:await readExamGoal(db,ctx.user.id),activities:await recentExamActivities(db,ctx.user.id)};}),
  resume:protectedProcedure.query(async({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");return createDurableExamEngine(await historyDb()).resume(ctx.user.id);}),

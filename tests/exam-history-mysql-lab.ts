@@ -1,3 +1,5 @@
+import {readItinerary,removeItinerary,saveItinerary} from "../server/exam-itinerary-repository";
+import {INTEGRATED_VERSION} from "../shared/exam-integrated-contract";
 import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {readFile} from "node:fs/promises";
@@ -32,6 +34,28 @@ try{
   assert.ok(row);ids.push(row.id);
  }
  const [one,two]=ids;
+ // Export and clear must still work on the previous three-table schema.
+ assert.equal((await exportExamHistoryPage(a,one,null)).itinerary,null);
+ await createDurableExamEngine(a).clear(one);
+ const bookmarkSql=await readFile(new URL("../drizzle/manual-review/exam-itinerary-v1.sql",import.meta.url),"utf8");
+ assert.equal((await inspectExamSchema(pools[0],true)).status,"incompatible");
+ await pools[0].query(bookmarkSql);
+ assert.equal((await inspectExamSchema(pools[0],true)).status,"compatible");
+ const request={accountId:one,consent:true as const,expectedRevision:null,bookmark:{version:INTEGRATED_VERSION,variant:"ielts-academic",statuses:["completed"]}} as const;
+ const initialBookmark=await saveItinerary(a,one,{...request,bookmark:{...request.bookmark,statuses:["completed"]}});
+ const write=(db:typeof a,status:"expired"|"skipped")=>saveItinerary(db,one,{...request,expectedRevision:initialBookmark.revision,bookmark:{...request.bookmark,statuses:["completed",status]}});
+ const race=await Promise.allSettled([write(a,"expired"),write(b,"skipped")]);
+ assert.equal(race.filter(r=>r.status==="fulfilled").length,1);
+ const saved=await readItinerary(b,one);
+ await assert.rejects(removeItinerary(b,one,initialBookmark.revision));
+ assert.ok(saved);assert.equal(saved.bookmark.statuses.length,2);
+ assert.deepEqual(await saveItinerary(a,one,{...request,expectedRevision:initialBookmark.revision,bookmark:saved.bookmark}),{revision:saved.revision});
+ assert.equal(await readItinerary(a,two),null);
+ assert.equal((await exportExamHistoryPage(a,one,null)).itinerary?.revision,saved.revision);
+ await createDurableExamEngine(b).clear(one);
+ assert.equal(await readItinerary(a,one),null);
+ await assert.rejects(write(a,"skipped"));
+ console.log("PASS consented itinerary, owner isolation, concurrent writes, replay, export, deletion and stale retry");
  assert.equal(await readExamGoal(a,one),null);
  await saveExamGoal(a,one,{variant:"ielts-academic",targetBandHalfSteps:14,targetDate:"2027-05-15"});
  assert.equal((await readExamGoal(b,one))?.targetBandHalfSteps,14);
@@ -89,10 +113,15 @@ try{
  await recordCompletedExamActivity(a,one,{...activity,attemptId:randomUUID(),completedAtMs:cutoff.history});
  await recordCompletedExamActivity(a,one,{...activity,attemptId:randomUUID(),completedAtMs:cutoff.history+1});
  await saveExamGoal(a,one,{variant:"ielts-general",targetBandHalfSteps:14,targetDate:null},cutoff.history);
+ await saveItinerary(a,one,{...request,bookmark:{...request.bookmark,statuses:["completed"]}});
+ await saveItinerary(b,two,{...request,accountId:two,bookmark:{...request.bookmark,statuses:["skipped"]}});
+ await pools[0].execute("UPDATE examItineraries SET savedAtMs=? WHERE userId IN (?,?)",[cutoff.history,one,two]);
  const old=createDurableExamEngine(a,()=>retentionNow-2*86400000);
  const oldAttempt=await old.start(one,"ielts-academic","practice");
  await purgeExpiredExamDataForOwner(b,one,retentionNow);
  assert.equal((await recentExamActivities(a,one)).length,1);
+ assert.equal(await readItinerary(a,one),null);
+ assert.ok(await readItinerary(a,two));
  assert.equal(await readExamGoal(a,one),null);
  await assert.rejects(first.submit(one,oldAttempt.id,{}));
  assert.equal((await recentExamActivities(a,two)).length,1);
