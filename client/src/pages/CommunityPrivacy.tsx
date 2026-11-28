@@ -1,3 +1,4 @@
+import {ACHIEVEMENTS} from "../../../shared/gamification-achievements";
 import {CommunityAchievementFeed} from "./CommunityAchievementFeed";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
@@ -12,6 +13,7 @@ const labels = {
 export default function CommunityPrivacy({accountId}:{accountId:number}) {
   const [blocksOpen,setBlocksOpen]=useState(false);
   const [feedOpen,setFeedOpen]=useState(false);
+  const [reportsOpen,setReportsOpen]=useState(false);
   const query = trpc.commercialLab.communityPreferences.useQuery({accountId}, { retry:false });
   return <main className="academy-interior px-5 py-8"><section className="academy-state-card">
     <h1 className="font-display text-3xl">Privacidade da comunidade</h1>
@@ -21,6 +23,10 @@ export default function CommunityPrivacy({accountId}:{accountId:number}) {
     <details onToggle={event=>setBlocksOpen(event.currentTarget.open)}>
       <summary>Meus bloqueios</summary>
       {blocksOpen && <BlockedMembers accountId={accountId}/>}
+    </details>
+    <details onToggle={event=>setReportsOpen(event.currentTarget.open)}>
+      <summary>Minhas denúncias</summary>
+      {reportsOpen && <MyCommunityReports accountId={accountId}/>}
     </details>
     <details onToggle={event=>setFeedOpen(event.currentTarget.open)}>
       <summary>Conquistas da comunidade (laboratório)</summary>
@@ -83,4 +89,32 @@ function BlockedMembers({accountId}:{accountId:number}){
     {remove.error && <p role="alert">Não foi possível remover o bloqueio.</p>}
     {notice && <p role="status">{notice}</p>}
   </div>;
+}
+
+
+function MyCommunityReports({accountId}:{accountId:number}){
+ const [beforeId,setBeforeId]=useState<number>();
+ const reports=trpc.commercialLab.myCommunityReports.useQuery({accountId,beforeId},{retry:false,gcTime:0});
+ return <div className="my-4 grid gap-3">
+  <p className="text-sm">Consulte apenas as denúncias enviadas pela sua conta, inclusive após o término do acesso à comunidade. A moderação é realizada pela equipe.</p>
+  {reports.isPending&&<p role="status">Consultando suas denúncias...</p>}
+  {reports.isError&&<p role="alert">Não foi possível consultar suas denúncias. <button type="button" onClick={()=>void reports.refetch()}>Tentar novamente</button></p>}
+  {reports.data&&!reports.isError&&<>
+   {reports.data.items.length===0&&<p>{beforeId===undefined?"Nenhuma denúncia enviada.":"Nenhuma denúncia adicional nesta página."}</p>}
+   <ul className="grid gap-3">
+    {reports.data.items.map(item=><li className="rounded border p-3" key={item.id}>
+      <p className="font-semibold">{ACHIEVEMENTS.find(a=>a.id===item.achievementId)?.title??"Conquista compartilhada"}</p>
+      <p className="text-sm">Publicação do membro #{item.ownerId} · Denúncia #{item.id}</p>
+      <p className="text-sm">Motivo: {{spam:"Spam",harassment:"Assédio",inappropriate:"Conteúdo inadequado",other:"Outro"}[item.reason]}</p>
+      <p className="text-sm">Situação: {{pending:"Aguardando análise",dismissed:"Encerrada sem ação",actioned:"Moderação aplicada"}[item.status]}</p>
+      <p className="text-sm">Enviada: {new Date(item.createdAtMs).toLocaleDateString("pt-BR")}</p>
+    </li>)}
+   </ul>
+   <div className="flex flex-wrap gap-2">
+    <button type="button" className="academy-secondary" disabled={beforeId===undefined} onClick={()=>setBeforeId(undefined)}>Primeira página</button>
+    <button type="button" className="academy-secondary" disabled={reports.data.nextBeforeId===null} onClick={()=>setBeforeId(reports.data?.nextBeforeId??undefined)}>Próxima página</button>
+    <button type="button" className="academy-secondary" onClick={()=>void reports.refetch()}>Atualizar</button>
+   </div>
+  </>}
+ </div>;
 }
