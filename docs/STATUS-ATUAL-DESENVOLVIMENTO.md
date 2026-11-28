@@ -1,3 +1,11 @@
+# Atualização de continuidade — 28/11/2026
+
+PR #125, branch feat/exam-writing-catalog. Checkpoint validado: bdbb8f812348d841b151496b941e62237742f4f9. GitHub Actions: P0 46180846137, MySQL 46180846120, Chromium 46180846125, lives 46180846106: todos concluídos com sucesso.
+
+Implementados em laboratório: filtro de assinatura do autor no feed, ocultação persistente por publicação, auditoria administrativa paginada, estrutura e API de denúncias, fila administrativa com descarte e resolução transacional, interface administrativa e tabela de denúncias no laboratório MySQL. Não considerar homologado: testes específicos de denúncias ainda não gravados; tentativa anterior bloqueada pela ferramenta. Revisar integração visual e cobertura real, adicionar testes de duplicidade, revisão desatualizada, concorrência e autorização; botão de denúncia no feed ainda pendente. Revisar privacidade e retenção dos registros antes de qualquer liberação. CSLE congelado; sem migração, flags ou implantação em produção.
+
+---
+
 # AVISO DE RETOMADA PRIORITÁRIO — 28/11/2026
 
 Este checkpoint prevalece sobre todos os avisos históricos abaixo. Fundador autorizou desenvolvimento, auditoria e testes autônomos, em blocos substanciais, sem pedir OK repetidamente. Academy Beta e fidelidade visual continuam prioridades; administração comercial é frente complementar, não substitui Academy, exames, gamificação ou comunidade.
