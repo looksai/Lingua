@@ -1,3 +1,4 @@
+import {publishAchievement,revokeAchievement} from "../server/community-achievement-share-lab";
 import {reportCommunityPublication,actionCommunityReport} from "../server/community-report-lab";
 import {GAMIFICATION_POLICY_VERSION} from "../shared/gamification-contract";
 import {setCommunityPublicationRestriction,communityInteractionAllowed,setCommunityBlock} from "../server/community-safety-lab";
@@ -184,6 +185,20 @@ try{
  assert.equal((await feed()).items.length,1);
  await admin.dismissCommunityReport({reportId:staleId});
  assert.equal((await admin.communityReports({status:"dismissed"})).items[0].id,staleId);
+ // A real revoke/re-publish within the same clock millisecond is a new revision.
+ const [oldShareRows]=await pools[0].query<mysql.RowDataPacket[]>("SELECT publishedAtMs FROM gamificationShares WHERE userId=? AND achievementId=?",[ids[1],achievementId]);
+ const previousPublishedAt=Number(oldShareRows[0].publishedAtMs);
+ await reportCommunityPublication(a,ids[0],{...reportInput,publishedAtMs:previousPublishedAt});
+ const previousReportId=(await admin.communityReports({status:"pending"})).items[0].id;
+ await revokeAchievement(a,ids[1],achievementId,previousPublishedAt);
+ await publishAchievement(b,ids[1],achievementId,previousPublishedAt);
+ const [repostedRows]=await pools[0].query<mysql.RowDataPacket[]>("SELECT publishedAtMs,revokedAtMs FROM gamificationShares WHERE userId=? AND achievementId=?",[ids[1],achievementId]);
+ assert.ok(Number(repostedRows[0].publishedAtMs)>previousPublishedAt);
+ assert.equal(repostedRows[0].revokedAtMs,null);
+ await assert.rejects(admin.actionCommunityReport({reportId:previousReportId}));
+ assert.equal((await feed()).items.length,1);
+ await admin.dismissCommunityReport({reportId:previousReportId});
+ assert.equal((await admin.communityReports({status:"pending"})).items.length,0);
  console.log("PASS report deduplication, authorization, atomic moderation and stale revision protection");
 
  await Promise.all([setCommunityBlock(a,ids[1],ids[0],true),setCommunityBlock(b,ids[1],ids[0],true)]);
