@@ -171,7 +171,7 @@ async function test(name,width,mode,body,fixture="public"){
           return answer({processed:true});
         }
       }
-      if(fixture==="community-feed" || fixture==="reports-expired"){
+      if(fixture==="community-feed" || fixture==="reports-expired" || fixture==="reports-truncated"){
         const answer=json=>({result:{data:{json}}});
         const parsed=JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}");
         const input=(url.searchParams.has("batch")?parsed[String(names.indexOf(name))]:parsed)?.json??{};
@@ -188,10 +188,10 @@ async function test(name,width,mode,body,fixture="public"){
           communityBlocked=true;return answer({processed:true});
         }
         if(name==="commercialLab.blockedMembers")return answer({members:communityBlocked?[{memberId:42}]:[],next:null});
-        if(name==="commercialLab.myCommunityReports")return answer({items:reportSent||fixture==="reports-expired"?[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]:[],nextBeforeId:null});
+        if(name==="commercialLab.myCommunityReports")return answer({items:reportSent||fixture==="reports-expired"||fixture==="reports-truncated"?[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]:[],nextBeforeId:null});
         if(name==="commercialLab.myCommunityReportsExport"){
           assert.deepEqual(input,{accountId:9001});
-          return answer({version:1,accountId:9001,exportedAtMs:1764300010000,complete:true,reports:[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]});
+          return answer({version:1,accountId:9001,exportedAtMs:1764300010000,complete:fixture!=="reports-truncated",reports:fixture==="reports-truncated"?Array.from({length:1000},(_,i)=>({id:1001-i,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000+i,reason:"harassment",status:"pending",createdAtMs:1764300000000+i,resolvedAtMs:null})):[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]});
         }
       }
       if(fixture==="blocked-list"){
@@ -831,6 +831,16 @@ try{
       assert.ok(!calls.includes("commercialLab.achievementFeed"));
       await fit(page);
     },"reports-expired");
+    await test("member export clearly signals more than a thousand reports",375,"closed",async(page)=>{
+      await page.goto(base+"/community");
+      await page.getByText("Minhas denúncias",{exact:true}).click();
+      const [download]=await Promise.all([page.waitForEvent("download"),page.getByRole("button",{name:"Exportar minhas denúncias (JSON)"}).click()]);
+      const exported=JSON.parse(await readFile(await download.path(),"utf8"));
+      assert.equal(exported.complete,false);
+      assert.equal(exported.reports.length,1000);
+      await page.getByRole("alert").filter({hasText:"mil registros mais recentes"}).waitFor();
+      await fit(page);
+    },"reports-truncated");
     await test("member manages their own block after subscription expiry",375,"closed",async(page,calls)=>{
       await page.goto(base+"/community");
       await page.getByText("Meus bloqueios",{exact:true}).click();
