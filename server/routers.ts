@@ -1,3 +1,4 @@
+import {reviewGamificationPreview} from "./gamification-review-evidence";
 import {examRouter} from "./exam-router";
 import {campusSponsors} from "./campus-sponsors";
 import {createPartnerEventRouter} from "./partner-event-router";
@@ -244,6 +245,10 @@ export const appRouter = router({
           });
         }
       }),
+    gamificationPreview: protectedProcedure.query(async ({ctx}) => {
+      const records=await listReviewHistory(ctx.user.id,1000);
+      return reviewGamificationPreview(records);
+    }),
     history: protectedProcedure
       .input(
         z.object({ limit: z.number().int().min(1).max(1000).default(200) })
