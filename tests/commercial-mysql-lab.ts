@@ -1,6 +1,7 @@
 import {readRealizedCashLab} from "../server/admin-finance-repository-lab";
 import {readContractedMrrLab} from "../server/admin-recurring-repository-lab";
 import {partnersDraft} from "../drizzle/partner-foundation-draft";
+import {readAdminAdMetrics} from "../server/admin-ad-metrics-lab";
 import assert from "node:assert/strict";
 import mysql from "mysql2/promise";
 import {drizzle} from "drizzle-orm/mysql2";
@@ -55,6 +56,19 @@ try{
  const recurring=await readContractedMrrLab(b,now);
  assert.equal(recurring.totals[0].mrrMinor,18298);assert.equal(recurring.totals[1].mrrMinor,14900);
  assert.equal((await readContractedMrrLab(b,now+1000)).totals[0].mrrMinor,0);
+ await pools[0].query("CREATE TABLE commercialAdOrders (id int AUTO_INCREMENT PRIMARY KEY,partnerId int NOT NULL,orderKey varchar(180) NOT NULL UNIQUE,currency enum('BRL','USD','EUR') NOT NULL,amountMinor bigint NOT NULL,paymentStatus enum('pending','paid','refunded','cancelled') NOT NULL,deliveryStatus enum('draft','scheduled','active','ended','cancelled') NOT NULL,startsAtMs bigint NOT NULL,endsAtMs bigint NOT NULL,cashSourceKey varchar(180) UNIQUE,FOREIGN KEY(partnerId) REFERENCES partners(id),FOREIGN KEY(cashSourceKey) REFERENCES commercialCashEntries(sourceKey))");
+ await a.insert(partnersDraft).values({name:"Advertising QA",status:"active"});
+ const [advertiser]=await a.select().from(partnersDraft).where(eq(partnersDraft.name,"Advertising QA"));
+ await pools[0].query("INSERT INTO commercialCashEntries (sourceKey,currency,kind,minorUnits,settledAtMs,recordedAtMs) VALUES ('ad-paid','USD','advertising',5000,?,?)",[now,now]);
+ await pools[0].query("INSERT INTO commercialAdOrders (partnerId,orderKey,currency,amountMinor,paymentStatus,deliveryStatus,startsAtMs,endsAtMs,cashSourceKey) VALUES (?,'paid','USD',5000,'paid','active',?,?,'ad-paid'),(?,'unverified','USD',5000,'paid','active',?,?,NULL),(?,'wrong-kind','USD',14900,'paid','active',?,?,'partner')",[advertiser.id,now,now+1000,advertiser.id,now,now+1000,advertiser.id,now,now+1000]);
+ const adMetrics=await readAdminAdMetrics(b,now);
+ assert.equal(adMetrics.totalOrders,3);assert.equal(adMetrics.paidOrders,1);assert.equal(adMetrics.activePaidOrders,1);
+ assert.equal((await readAdminAdMetrics(b,now+1000)).activePaidOrders,0);
+ await pools[0].query("UPDATE commercialAdOrders SET paymentStatus='refunded' WHERE orderKey='paid'");
+ assert.equal((await readAdminAdMetrics(b,now)).paidOrders,0);
+ await pools[0].query("DELETE FROM commercialAdOrders WHERE partnerId=?",[advertiser.id]);
+ await a.delete(partnersDraft).where(eq(partnersDraft.id,advertiser.id));
+ console.log("PASS advertising settlement evidence, expiry and refund exclusion");
  console.log("PASS financial cash and recurring reporting, currency isolation and period boundaries");
  console.log("PASS commercial trial concurrency, replay, duration, isolation and cancellation");
 }finally{await Promise.all(pools.map(p=>p.end()));}
