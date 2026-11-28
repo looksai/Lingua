@@ -9,7 +9,7 @@ import {TRPCError} from "@trpc/server";
 import {adminProcedure,router} from "./_core/trpc";
 import {getDb} from "./db";
 import {checkRequestOrigin,rateLimit} from "./auth-local";
-import {trialCoupons,trialRedemptions,commercialAdminAudit,commercialPromotionCoupons} from "../drizzle/commercial-draft";
+import {trialCoupons,trialRedemptions,commercialAdminAudit,commercialPromotionCoupons,commercialPromotionRedemptions} from "../drizzle/commercial-draft";
 import {TRIAL_DAYS,couponExpiryFromIssuance,type TrialDays} from "../shared/admin-coupon-policy";
 const code=z.string().regex(/^[A-Z0-9_-]{4,40}$/);
 const timestamp=z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -19,6 +19,18 @@ async function labDb(){
 }
 // Deliberately not mounted until administrative audit and isolated SQL tests exist.
 export const adminTrialRouterLab=router({
+ promotions:adminProcedure.input(z.object({beforeId:z.number().int().positive().optional()}).strict()).query(async({ctx,input})=>{
+ ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-promotion-list:"+ctx.user.id);
+ return (await labDb()).transaction(async tx=>{
+ const rows=await tx.select().from(commercialPromotionCoupons).where(input.beforeId===undefined?undefined:lt(commercialPromotionCoupons.id,input.beforeId)).orderBy(desc(commercialPromotionCoupons.id)).limit(51);
+ const items=[];
+ for(const coupon of rows.slice(0,50)){
+ const [usage]=await tx.select({total:count()}).from(commercialPromotionRedemptions).where(eq(commercialPromotionRedemptions.couponId,coupon.id));
+ items.push({...coupon,uses:usage.total});
+ }
+ return {items,nextBeforeId:rows.length>50?items[49].id:null,asOfMs:Date.now()};
+ });
+ }),
  issuePromotion:adminProcedure.input(z.object({code,plan:z.enum(["lingua-premium","community-premium"]),discount:z.discriminatedUnion("kind",[z.object({kind:z.literal("percent"),basisPoints:z.number().int().min(1).max(10000)}).strict(),z.object({kind:z.literal("fixed"),currency:z.enum(["BRL","USD","EUR"]),minorUnits:z.number().int().positive().max(Number.MAX_SAFE_INTEGER)}).strict()]),validity:z.discriminatedUnion("kind",[z.object({kind:z.literal("days"),days:z.number().int().positive().max(36500)}).strict(),z.object({kind:z.literal("date"),expiresAtMs:timestamp}).strict()]),maxUses:z.number().int().min(1).max(100000)}).strict()).mutation(async({ctx,input})=>{
  checkRequestOrigin(ctx.req);rateLimit("admin-promo-issue:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
  const db=await labDb(),now=Date.now();
