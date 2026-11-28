@@ -142,12 +142,22 @@ try{
  await pools[0].query("CREATE TABLE communityPublicationAudit (id int AUTO_INCREMENT PRIMARY KEY,actorId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,hidden boolean NOT NULL,occurredAtMs bigint NOT NULL)");
  const allow=async()=>true;
  await pools[0].query("CREATE TABLE communityPublicationReports (id int AUTO_INCREMENT PRIMARY KEY,reporterId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,publishedAtMs bigint NOT NULL,reason enum('spam','harassment','inappropriate','other') NOT NULL,status enum('pending','dismissed','actioned') NOT NULL DEFAULT 'pending',createdAtMs bigint NOT NULL,resolvedAtMs bigint NULL,resolvedBy int NULL,UNIQUE(reporterId,ownerId,achievementId,publishedAtMs),INDEX(status,id))");
+ // A newer but hidden author must not consume a page or leak a cursor.
+ await a.insert(users).values({openId:"commercial-lab-hidden-feed-author"});
+ const [hiddenAuthor]=await a.select({id:users.id}).from(users).where(eq(users.openId,"commercial-lab-hidden-feed-author"));
+ await a.insert(commercialSubscriptions).values({userId:hiddenAuthor.id,plan:"community-premium",status:"active",source:"admin-grant",sourceId:"hidden-feed-lab",startsAtMs:now,endsAtMs:now+86400000});
+ await pools[0].execute("INSERT INTO gamificationPrivacy(userId,showLevel,showAchievements,leaderboardOptIn,updatedAtMs) VALUES (?,0,1,0,?)",[hiddenAuthor.id,now]);
+ await pools[0].execute("INSERT INTO gamificationShares(userId,achievementId,publishedAtMs) VALUES (?,?,?)",[hiddenAuthor.id,ACHIEVEMENTS[0].id,now+60000]);
+ await pools[0].execute("INSERT INTO communityPublicationRestrictions(ownerId,achievementId,hidden) VALUES (?,?,1)",[hiddenAuthor.id,ACHIEVEMENTS[0].id]);
  const feed=()=>readCommunityAchievementFeed(b,ids[0],allow);
  const profile=()=>communityCommercialLab(b,allow).profile(ids[0],ids[1]);
  const ranking=()=>communityCommercialLab(b,allow).ranking(ids[0],now);
  assert.deepEqual((await ranking()).ranking.map(row=>row.memberId),[ids[1]]);
  assert.ok("achievements" in await profile());
  assert.equal((await feed()).items.length,1);
+ const hiddenBeforeCursor=await readCommunityAchievementFeed(b,ids[0],allow,1);
+ assert.deepEqual(hiddenBeforeCursor.items.map(x=>x.ownerId),[ids[1]]);
+ assert.equal(hiddenBeforeCursor.nextCursor,null);
  const authorizedFeed=()=>caller(ids[0],"user").commercialLab.achievementFeed({accountId:ids[0],limit:1});
  assert.equal((await authorizedFeed()).items.length,1);
  await assert.rejects(student.commercialLab.achievementFeed({accountId:ids[0],limit:1}),{code:"FORBIDDEN"});
