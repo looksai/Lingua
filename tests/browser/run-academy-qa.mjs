@@ -50,7 +50,7 @@ async function test(name,width,mode,body,fixture="public"){
         const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body)?.json??{};
         assert.equal(input.email,"qa-new@synthetic.invalid");
         assert.equal(input.password,"strong-synthetic-password");
-        if(input.inviteCode!=="A".repeat(43))return {error:{message:"Cadastro indisponível. Confira seu convite da Academy Beta.",code:-32003,data:{code:"FORBIDDEN",httpStatus:403}}};
+        if(input.inviteCode!=="A".repeat(43))return {error:{json:{message:"Cadastro indisponível. Confira seu convite da Academy Beta.",code:-32003,data:{code:"FORBIDDEN",httpStatus:403}}}};
         signedUp=true;
         return {result:{data:{json:{success:true}}}};
       }
@@ -223,7 +223,7 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="learning.gamificationPreview")return {result:{data:{json:{scope:"review-history-preview",totalXp:30,level:1,xpIntoLevel:30,xpPerLevel:250,achievements:[],missions:[]}}}};
       throw Error("Unexpected API call in public Academy fixture: "+name);
     });
-    return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(url.searchParams.has("batch")?reply:reply[0])});
+    return route.fulfill({status:reply.every(item=>item.error)?403:200,contentType:"application/json",body:JSON.stringify(url.searchParams.has("batch")?reply:reply[0])});
   });
   try{
     await body(page,calls,()=>{accountId=9002;});
