@@ -23,8 +23,11 @@ export const SPEAKING_CRITERIA=[
 
 export const ORAL_SEQUENCE_VERSION="ielts-oral-sequence-v1-2026-11-28";
 export const ORAL_SEQUENCE_IDS=["part1-work","part1-travel","part2-skill","part3-learning","part3-cities"] as const;
-export function oralSequence(prompts:readonly SpeakingPrompt[]):SpeakingPrompt[]{
- const ordered=ORAL_SEQUENCE_IDS.map(id=>prompts.find(p=>p.id===id));
+export const ORAL_SEQUENCE_SETS=[{id:"set-1",title:"Trabalho e aprendizagem",ids:ORAL_SEQUENCE_IDS},{id:"set-2",title:"Hábitos e comunidade",ids:["part1-food","part1-reading","part2-help","part3-community","part3-habits"]}] as const;
+export function oralSequence(prompts:readonly SpeakingPrompt[],setId:string="set-1"):SpeakingPrompt[]{
+ const set=ORAL_SEQUENCE_SETS.find(s=>s.id===setId);
+ if(!set)return [];
+ const ordered=set.ids.map(id=>prompts.find(p=>p.id===id));
  if(ordered.some(p=>!p))return [];
  return ordered as SpeakingPrompt[];
 }
