@@ -19,6 +19,7 @@ async function test(name,width,mode,body,fixture="public"){
   const context=await browser.newContext({viewport:{width,height:900}});
   const page=await context.newPage();
   const errors=[],calls=[],broken=[];
+  let examGoal=null,examCleared=false;
   page.on("pageerror",e=>errors.push(e.message));
   page.on("response",r=>{if(r.url().startsWith(base+"/academy/")&&!r.ok())broken.push(r.url());});
   await page.route("**/*",async route=>{
@@ -39,6 +40,16 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
+      if(fixture==="durable-exam"){
+        const answer=payload=>({result:{data:{json:payload}}});
+        const input=(url.searchParams.has("batch")?JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}")[String(names.indexOf(name))]:JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}"))?.json??{};
+        if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true,durable:true});
+        if(name==="exams.history")return answer({goal:examGoal,activities:examCleared?[]:[{attemptId:"00000000-0000-4000-8000-000000000001",variant:"ielts-general",skill:"reading",mode:"practice",exerciseId:"qa-reading",contentVersion:"qa-v1",correct:3,total:4,completedAtMs:Date.now()}]});
+        if(name==="exams.saveGoal"){assert.equal(input.targetBandHalfSteps,14);examGoal={...input,updatedAtMs:Date.now()};return answer({saved:true});}
+        if(name==="exams.exercises")return answer([]);
+        if(name==="exams.resume")return answer(examCleared?null:{id:"00000000-0000-4000-8000-000000000002",variant:"ielts-general",mode:"practice",version:"qa-v1",deadline:Date.now()+60000,exercise:{id:"qa-reading",skill:"reading",title:"Resumed original reading",passage:"A short notice.",questions:[{id:"qa1",prompt:"Read the notice.",options:["Yes","No"]}]}});
+        if(name==="exams.clearHistory"){assert.equal(input.confirm,true);examGoal=null;examCleared=true;return answer({cleared:true});}
+      }
       if(fixture==="speaking-authorized"||fixture==="speaking-sequence"){
         const answer=payload=>({result:{data:{json:payload}}});
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
@@ -377,6 +388,26 @@ try{
     assert.equal(await page.evaluate(()=>window.__qaRevoked),5);
     await page.getByText("Question 1",{exact:true}).waitFor();await fit(page);
   },"speaking-sequence");
+  await test("durable exam goal, resume and history deletion (synthetic API)",375,"closed",async(page,calls)=>{
+    await page.goto(base);
+    await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
+    await page.getByRole("button",{name:"Meu objetivo",exact:true}).click();
+    await page.locator(".exam-panel select").filter({has:page.locator('option[value="ielts-general"]')}).selectOption("ielts-general");
+    await page.locator(".exam-panel select").filter({has:page.locator('option[value="7.0"]')}).selectOption("7.0");
+    await page.getByRole("button",{name:"Salvar objetivo"}).click();
+    await page.getByText("Objetivo salvo.",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Carregar objetivo salvo"}).click();
+    await page.getByRole("button",{name:"Ir ao treinamento"}).click();
+    await page.getByRole("button",{name:"Retomar tentativa ativa"}).click();
+    await page.getByText("Resumed original reading",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Minha evolução",exact:true}).click();
+    await page.getByText("Reading · 3/4",{exact:true}).waitFor();
+    page.once("dialog",dialog=>dialog.accept());
+    await page.getByRole("button",{name:"Excluir histórico e objetivo"}).click();
+    await page.getByText("Nenhuma atividade objetiva registrada.",{exact:true}).waitFor();
+    assert.ok(calls.includes("exams.clearHistory"));await fit(page);
+  },"durable-exam");
   await test("approved sponsor placement clearly identified",1440,"closed",async(page)=>{
     await page.goto(base);const slot=page.getByRole("region",{name:"Destaques patrocinados"});
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
@@ -404,5 +435,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?28:24));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?29:25));
 }finally{await browser.close();}
