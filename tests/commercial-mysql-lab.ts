@@ -1,3 +1,4 @@
+import {reportCommunityPublication,actionCommunityReport} from "../server/community-report-lab";
 import {GAMIFICATION_POLICY_VERSION} from "../shared/gamification-contract";
 import {setCommunityPublicationRestriction,communityInteractionAllowed,setCommunityBlock} from "../server/community-safety-lab";
 import {communityCommercialLab} from "../server/community-commercial-lab";
@@ -155,6 +156,33 @@ try{
  assert.equal((await feed()).items.length,1);
  const [publicationAudit]=await pools[0].query<mysql.RowDataPacket[]>("SELECT hidden FROM communityPublicationAudit ORDER BY id");
  assert.deepEqual(publicationAudit.map(row=>row.hidden),[1,0]);
+ const [revisionRows]=await pools[0].query<mysql.RowDataPacket[]>("SELECT publishedAtMs FROM gamificationShares WHERE userId=? AND achievementId=?",[ids[1],achievementId]);
+ const reportInput={ownerId:ids[1],achievementId,publishedAtMs:Number(revisionRows[0].publishedAtMs),reason:"spam" as const};
+ await assert.rejects(reportCommunityPublication(a,ids[1],reportInput));
+ await assert.rejects(reportCommunityPublication(a,ids[0],{...reportInput,publishedAtMs:reportInput.publishedAtMs-1}));
+ await Promise.all([reportCommunityPublication(a,ids[0],reportInput),reportCommunityPublication(b,ids[0],reportInput)]);
+ const pending=await admin.communityReports({status:"pending"});
+ assert.equal(pending.items.length,1);
+ const reportId=pending.items[0].id;
+ await assert.rejects(student.adminLab.actionCommunityReport({reportId}),{code:"FORBIDDEN"});
+ await assert.rejects(student.adminLab.dismissCommunityReport({reportId}),{code:"FORBIDDEN"});
+ await Promise.all([actionCommunityReport(a,ids[0],reportId),actionCommunityReport(b,ids[0],reportId)]);
+ assert.equal((await feed()).items.length,0);
+ assert.equal((await admin.communityReports({status:"pending"})).items.length,0);
+ assert.equal((await admin.communityReports({status:"actioned"})).items[0].resolvedBy,ids[0]);
+ assert.equal((await admin.communityPublicationAudit({})).items.length,3);
+ await setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,false);
+ const newerRevision=reportInput.publishedAtMs+1;
+ await pools[0].execute("UPDATE gamificationShares SET publishedAtMs=? WHERE userId=? AND achievementId=?",[newerRevision,ids[1],achievementId]);
+ await reportCommunityPublication(a,ids[0],{...reportInput,publishedAtMs:newerRevision});
+ const staleId=(await admin.communityReports({status:"pending"})).items[0].id;
+ await pools[0].execute("UPDATE gamificationShares SET publishedAtMs=? WHERE userId=? AND achievementId=?",[newerRevision+1,ids[1],achievementId]);
+ await assert.rejects(actionCommunityReport(a,ids[0],staleId));
+ assert.equal((await feed()).items.length,1);
+ await admin.dismissCommunityReport({reportId:staleId});
+ assert.equal((await admin.communityReports({status:"dismissed"})).items[0].id,staleId);
+ console.log("PASS report deduplication, authorization, atomic moderation and stale revision protection");
+
  await Promise.all([setCommunityBlock(a,ids[1],ids[0],true),setCommunityBlock(b,ids[1],ids[0],true)]);
  assert.equal(await communityInteractionAllowed(b,ids[0],ids[1]),false);
  assert.equal((await feed()).items.length,0);
