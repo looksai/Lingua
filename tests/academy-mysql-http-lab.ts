@@ -1,3 +1,4 @@
+import {issueBetaInvitation,readBetaInvitations,revokeBetaInvitation,inspectBetaInvitations} from "../server/academy-beta-invite-ops";
 import assert from "node:assert/strict";
 import { createHash, randomBytes } from "node:crypto";
 import type { AddressInfo } from "node:net";
@@ -25,13 +26,19 @@ const suffix = randomBytes(8).toString("hex");
 const emailA = "academy-a-" + suffix + "@synthetic.invalid";
 const emailB = "academy-b-" + suffix + "@synthetic.invalid";
 const expiredEmail = "expired-" + suffix + "@synthetic.invalid";
-const codeA = randomBytes(32).toString("base64url");
-const codeB = randomBytes(32).toString("base64url");
+// Mint two real operator-compatible tokens. Never store their clear text in the
+// server-side invitation JSON; the expired fixture exercises revocation failure.
+const issuedA=issueBetaInvitation("[]",emailA,1);
+const issuedB=issueBetaInvitation(issuedA.json,emailB,1);
+const codeA=issuedA.code,codeB=issuedB.code;
 const expiredCode = randomBytes(32).toString("base64url");
 const password = randomBytes(24).toString("base64url");
-const entry = (email:string, code:string, delta:number) => ({email,tokenHash:createHash("sha256").update(code).digest("hex"),expiresAt:new Date(Date.now()+delta).toISOString()});
-const rows = [entry(emailA,codeA,3600000),entry(emailB,codeB,3600000),entry(expiredEmail,expiredCode,-3600000)];
-process.env.ACADEMY_INVITATIONS_JSON = JSON.stringify(rows);
+const expiredEntry={email:expiredEmail,tokenHash:createHash("sha256").update(expiredCode).digest("hex"),expiresAt:new Date(Date.now()-3600000).toISOString()};
+const rows=[...readBetaInvitations(issuedB.json),expiredEntry];
+const hashedJson=JSON.stringify(rows);
+assert.equal(inspectBetaInvitations(hashedJson).active,2);
+assert.ok(!hashedJson.includes(codeA)&&!hashedJson.includes(codeB));
+process.env.ACADEMY_INVITATIONS_JSON=hashedJson;
 
 const pool = mysql.createPool(LAB_URL);
 const app = express();
@@ -65,9 +72,9 @@ try {
   pass("invalid, missing, expired, cross-origin invites produce no database writes");
 
   // Remove an unused invite, prove it is denied, then restore for the lab.
-  process.env.ACADEMY_INVITATIONS_JSON=JSON.stringify([rows[0]]);
+  process.env.ACADEMY_INVITATIONS_JSON=revokeBetaInvitation(hashedJson,emailB).json;
   assert.equal((await sign(emailB,codeB)).status,403);
-  process.env.ACADEMY_INVITATIONS_JSON=JSON.stringify(rows);
+  process.env.ACADEMY_INVITATIONS_JSON=hashedJson;
   pass("revoked unused invitation denied");
 
   // Stay within existing rate limit (8 requests per IP) by using exactly eight
