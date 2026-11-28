@@ -8,6 +8,10 @@ on:
       - 'server/academy-budget-repository.ts'
       - 'tests/academy-budget-mysql-lab.ts'
       - 'drizzle/schema.ts'
+      - 'drizzle/exam-history-draft.ts'
+      - 'server/exam-history-repository.ts'
+      - 'shared/exam-history-contract.ts'
+      - 'tests/exam-history-mysql-lab.ts'
       - 'drizzle.partner-lab.config.ts'
       - 'tests/partner-mysql-lab.mjs'
       - 'tests/academy-mysql-http-lab.ts'
@@ -62,6 +66,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec drizzle-kit generate --config=drizzle.partner-lab.config.ts
       - run: pnpm exec drizzle-kit migrate --config=drizzle.partner-lab.config.ts
+      - name: Durable exam history (disposable MySQL)
+        env:
+          ACADEMY_MYSQL_LAB: '1'
+          DATABASE_URL: mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab
+          NODE_ENV: development
+        run: pnpm exec tsx tests/exam-history-mysql-lab.ts
       - name: Durable Academy quota (disposable MySQL)
         env:
           ACADEMY_MYSQL_LAB: '1'
