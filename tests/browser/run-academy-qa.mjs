@@ -39,6 +39,11 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
+      if(fixture==="speaking-authorized"){
+        const answer=payload=>({result:{data:{json:payload}}});
+        if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
+        if(name==="exams.speakingPrompts")return answer({version:"qa",prompts:[{id:"qa-speaking",part:2,title:"A useful skill",question:"Describe a useful skill.",preparationSeconds:60,practiceSeconds:120,review:["Did I give an example?"]}],criteria:[{name:"Pronúncia",description:"Escute sua gravação."}]});
+      }
       if(fixture==="writing-authorized"){
         const answer=payload=>({result:{data:{json:payload}}});
         if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true});
@@ -311,6 +316,33 @@ try{
     await page.getByText("Did I include an overview?").waitFor();
     assert.ok(calls.includes("exams.writingReview"));await fit(page);
   },"writing-authorized");
+  await test("authorized speaking practice, local recording and cleanup (synthetic microphone)",375,"closed",async(page,calls)=>{
+    await page.addInitScript(()=>{
+      window.__qaMicStopped=0;
+      Object.defineProperty(navigator.mediaDevices,"getUserMedia",{configurable:true,value:async()=>({getTracks:()=>[{stop:()=>window.__qaMicStopped++}]})});
+      Object.defineProperty(window,"MediaRecorder",{configurable:true,value:class{
+        constructor(){this.state="inactive";this.mimeType="audio/webm";}
+        start(){this.state="recording";}
+        stop(){if(this.state!=="recording")return;this.state="inactive";queueMicrotask(()=>{this.ondataavailable?.({data:new Blob(["qa audio"],{type:this.mimeType})});this.onstop?.();});}
+      }});
+    });
+    await page.goto(base);
+    await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:/Speaking Fluência e comunicação/}).click();
+    await page.getByText("Describe a useful skill.").waitFor();
+    await page.getByRole("button",{name:"Preparar por 1 minuto"}).click();
+    await page.getByText(/Preparação: \d+ s/).last().waitFor();
+    await page.getByRole("button",{name:"Gravar resposta"}).click();
+    await page.getByRole("button",{name:"Encerrar gravação"}).click();
+    await page.getByText("Escute sua resposta").waitFor();
+    assert.ok((await page.locator("audio").getAttribute("src")).startsWith("blob:"));
+    assert.equal(await page.evaluate(()=>window.__qaMicStopped),1);
+    assert.ok(!calls.some(c=>/transcribe|speech|speakingReview/.test(c)));
+    await page.getByRole("button",{name:"Descartar e praticar novamente"}).click();
+    assert.equal(await page.locator("audio").count(),0);
+    await fit(page);
+  },"speaking-authorized");
   await test("approved sponsor placement clearly identified",1440,"closed",async(page)=>{
     await page.goto(base);const slot=page.getByRole("region",{name:"Destaques patrocinados"});
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
@@ -338,5 +370,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?26:22));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?27:23));
 }finally{await browser.close();}
