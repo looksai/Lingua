@@ -3,6 +3,10 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'drizzle/commercial-draft.ts'
+      - 'server/commercial-*.ts'
+      - 'server/trial-redemption-lab.ts'
+      - 'tests/commercial-mysql-lab.ts'
       - 'drizzle/partner-foundation-draft.ts'
       - 'drizzle/academy-budget-draft.ts'
       - 'server/academy-budget-repository.ts'
@@ -70,6 +74,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec drizzle-kit generate --config=drizzle.partner-lab.config.ts
       - run: pnpm exec drizzle-kit migrate --config=drizzle.partner-lab.config.ts
+      - name: Commercial trials (disposable MySQL)
+        env:
+          ACADEMY_MYSQL_LAB: '1'
+          DATABASE_URL: mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab
+          NODE_ENV: development
+        run: pnpm exec tsx tests/commercial-mysql-lab.ts
       - name: Durable exam history (disposable MySQL)
         env:
           ACADEMY_MYSQL_LAB: '1'
