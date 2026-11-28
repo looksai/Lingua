@@ -45,7 +45,7 @@ export default function Login() {
         {mode === "signUp" && <p id="academy-password-help" className="academy-auth-help">Use pelo menos 12 caracteres.</p>}
         {error && <p role="alert" className="academy-auth-error">{error.message}</p>}
         <button type="submit" disabled={pending || (mode === "signUp" && !canRegister)} className="academy-gold">{pending ? "Aguarde..." : mode === "signIn" ? "Entrar" : "Cadastrar"}</button>
-        {(canRegister || mode === "signUp") && <button type="button" disabled={pending} onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); setInviteCode(""); signIn.reset(); signUp.reset(); }} className="academy-outline">{mode === "signIn" ? (registration.data === "invite" ? "Tenho um convite" : "Criar uma conta") : "Já tenho conta"}</button>}
+        {(canRegister || mode === "signUp") && <button type="button" disabled={pending} onClick={() => { setMode(mode === "signIn" ? "signUp" : "signIn"); setInviteCode(""); setPassword(""); signIn.reset(); signUp.reset(); }} className="academy-outline">{mode === "signIn" ? (registration.data === "invite" ? "Tenho um convite" : "Criar uma conta") : "Já tenho conta"}</button>}
         {registration.data === "closed" && <p className="academy-auth-help">Novos cadastros estão temporariamente fechados.</p>}
         {registration.isError && <p role="status" className="academy-auth-help">Não foi possível consultar a disponibilidade de cadastro. Você ainda pode entrar na sua conta.</p>}
       </form>
