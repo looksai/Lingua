@@ -1,3 +1,4 @@
+import {AdminCommunityModeration} from "./AdminCommunityModeration";
 import {AdminPromotions} from "./AdminPromotions";
 import {AdminTrialCoupons} from "./AdminTrialCoupons";
 import {AdminFinance} from "./AdminFinance";
@@ -20,5 +21,5 @@ function AuthorizedDashboard(){
  {title:"Publicidade",metrics:[{label:"Contratações",value:a?.totalOrders},{label:"Pagas",value:a?.paidOrders},{label:"Pagas em veiculação",value:a?.activePaidOrders}]},
  {title:"Indicações",metrics:[{label:"Códigos emitidos",value:r?.codesIssued},{label:"Indicações registradas",value:r?.attributions},{label:"Conversões confirmadas",value:r?.confirmedConversions},{label:"Estornadas",value:r?.reversedConversions}]},
  {title:"Cupons de teste",metrics:[{label:"Emitidos",value:m?.trialCouponsIssued},{label:"Resgatados",value:m?.trialRedemptions}]}
- ]}>{(metrics.isError||ads.isError||referrals.isError)&&<p role="alert">Alguns indicadores estão indisponíveis. Verifique a configuração administrativa.</p>}<AdminFinance/><AdminTrialCoupons/><AdminPromotions/><a href="/">Voltar ao Lingua</a></AdminOverview>;
+ ]}>{(metrics.isError||ads.isError||referrals.isError)&&<p role="alert">Alguns indicadores estão indisponíveis. Verifique a configuração administrativa.</p>}<AdminFinance/><AdminTrialCoupons/><AdminPromotions/><AdminCommunityModeration/><a href="/">Voltar ao Lingua</a></AdminOverview>;
 }
