@@ -23,6 +23,7 @@ async function test(name,width,mode,body,fixture="public"){
   let savedItinerary=null;
   let blocked=true;
   let communityBlocked=false,reportSent=false;
+  const adminDecisions={88:"pending",89:"pending"};
   let redeemed=false;
   let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
@@ -35,7 +36,7 @@ async function test(name,width,mode,body,fixture="public"){
     const names=url.pathname.slice("/api/trpc/".length).split(",");
     calls.push(...names);
     const reply=names.map(name=>{
-      if(name==="auth.me")return {result:{data:{json:fixture==="public"?null:{id:accountId,email:"qa-visual@synthetic.invalid",name:"Aluno de teste"}}}};
+      if(name==="auth.me")return {result:{data:{json:fixture==="public"?null:{id:accountId,email:"qa-visual@synthetic.invalid",name:"Aluno de teste",role:fixture==="admin-report"?"admin":"user"}}}};
       if(fixture!=="public"){
         const profile={userId:9001,tutorName:"Alex",tutorPersona:"welcoming",interest:"work",allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:fixture==="diagnostic"?"started":"deferred"};
         const plan={title:"Apresentações e perguntas",objective:"Praticar mensagens curtas em inglês.",context:"comunicação profissional",reason:"Ponto de partida exploratório.",limits:"Não certifica proficiência."};
@@ -140,6 +141,30 @@ async function test(name,width,mode,body,fixture="public"){
         }
         preferences={showLevel:input.showLevel,showAchievements:input.showAchievements,leaderboardOptIn:input.leaderboardOptIn};
         return {result:{data:{json:{saved:true}}}};
+      }
+      if(fixture==="admin-report"){
+        const answer=json=>({result:{data:{json}}});
+        const parsed=JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}");
+        const input=(url.searchParams.has("batch")?parsed[String(names.indexOf(name))]:parsed)?.json??{};
+        if(name==="adminLab.metrics")return answer({registeredAccounts:2,activeMembers:1,activePaidMembers:0,activeTrialMembers:1,companies:{total:0,active:0,pending:0,suspended:0},trialCouponsIssued:0,trialRedemptions:0});
+        if(name==="adminLab.advertising")return answer({totalOrders:0,paidOrders:0,activePaidOrders:0});
+        if(name==="adminLab.referrals")return answer({codesIssued:0,attributions:0,confirmedConversions:0,reversedConversions:0});
+        if(name==="adminLab.recurring"||name==="adminLab.finance")return answer({totals:[]});
+        if(name==="adminLab.coupons"||name==="adminLab.promotions")return answer({items:[],nextBeforeId:null,asOfMs:Date.now()});
+        if(name==="adminLab.communityPublicationAudit")return answer({items:[],nextBeforeId:null});
+        if(name==="adminLab.communityReports"){
+          const entries=[
+           {id:88,reporterId:9002,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"spam",createdAtMs:1764300000001},
+           {id:89,reporterId:9003,ownerId:43,achievementId:"first-lesson",publishedAtMs:1764300001000,reason:"harassment",createdAtMs:1764300001001},
+          ];
+          return answer({items:entries.filter(row=>adminDecisions[row.id]===(input.status??"pending")).map(row=>({...row,status:adminDecisions[row.id],resolvedBy:adminDecisions[row.id]==="pending"?null:accountId,resolvedAtMs:adminDecisions[row.id]==="pending"?null:1764300010000})).sort((a,b)=>b.id-a.id),nextBeforeId:null});
+        }
+        if(name==="adminLab.actionCommunityReport"||name==="adminLab.dismissCommunityReport"){
+          assert.ok([88,89].includes(input.reportId));
+          assert.equal(adminDecisions[input.reportId],"pending");
+          adminDecisions[input.reportId]=name==="adminLab.actionCommunityReport"?"actioned":"dismissed";
+          return answer({processed:true});
+        }
       }
       if(fixture==="community-feed" || fixture==="reports-expired"){
         const answer=json=>({result:{data:{json}}});
@@ -746,6 +771,25 @@ try{
     assert.ok(!calls.includes("onboarding.me"));await fit(page);
   },"expired");
   if(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"){
+    await test("administrators manually resolve and dismiss separate reports",375,"closed",async(page,calls)=>{
+      await page.goto(base+"/admin");
+      await page.getByRole("heading",{name:"Visão executiva"}).waitFor();
+      await page.getByRole("heading",{name:"Fila de denúncias"}).waitFor();
+      page.once("dialog",dialog=>dialog.accept());
+      await page.getByRole("row").filter({hasText:"Spam"}).getByRole("button",{name:"Ocultar"}).click();
+      await page.getByRole("status").filter({hasText:"Denúncia concluída"}).waitFor();
+      page.once("dialog",dialog=>dialog.accept());
+      await page.getByRole("row").filter({hasText:"Assédio"}).getByRole("button",{name:"Descartar"}).click();
+      await page.getByText("Nenhuma denúncia nesta página.").waitFor();
+      await page.getByLabel("Situação").selectOption("actioned");
+      await page.getByRole("row").filter({hasText:"Spam"}).waitFor();
+      await page.getByLabel("Situação").selectOption("dismissed");
+      await page.getByRole("row").filter({hasText:"Assédio"}).waitFor();
+      assert.equal(calls.filter(name=>name==="adminLab.actionCommunityReport").length,1);
+      assert.equal(calls.filter(name=>name==="adminLab.dismissCommunityReport").length,1);
+      await fit(page);
+      await page.screenshot({path:path.join(screenshotDir,"admin-community-375.png"),fullPage:true,animations:"disabled"});
+    },"admin-report");
     await test("community member reports an achievement and blocks its author",375,"closed",async(page,calls)=>{
       await page.goto(base+"/community");
       await page.getByText("Conquistas da comunidade (laboratório)",{exact:true}).click();
