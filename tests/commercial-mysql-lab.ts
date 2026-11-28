@@ -1,3 +1,4 @@
+import {GAMIFICATION_POLICY_VERSION} from "../shared/gamification-contract";
 import {communityInteractionAllowed,setCommunityBlock} from "../server/community-safety-lab";
 import {communityCommercialLab} from "../server/community-commercial-lab";
 import {readCommunityAchievementFeed} from "../server/community-feed-repository-lab";
@@ -133,14 +134,23 @@ try{
  await pools[0].query("CREATE TABLE communityModerationAudit (id int AUTO_INCREMENT PRIMARY KEY,actorId int NOT NULL,targetId int NOT NULL,suspended boolean NOT NULL,occurredAtMs bigint NOT NULL,FOREIGN KEY(actorId) REFERENCES users(id),FOREIGN KEY(targetId) REFERENCES users(id))");
  await a.insert(commercialSubscriptions).values({userId:ids[0],plan:"community-premium",status:"active",source:"admin-grant",sourceId:"safety-lab",startsAtMs:now,endsAtMs:now+86400000});
  await pools[0].execute("UPDATE gamificationShares SET achievementId=? WHERE userId=?",[ACHIEVEMENTS[0].id,ids[1]]);
+ await pools[0].query("CREATE TABLE gamificationEvidence (id int AUTO_INCREMENT PRIMARY KEY,userId int NOT NULL,kind varchar(50) NOT NULL,sourceId varchar(180) NOT NULL,occurredAtMs bigint NOT NULL,policyVersion varchar(40) NOT NULL,awardedXp int NOT NULL,FOREIGN KEY(userId) REFERENCES users(id))");
+ await pools[0].execute("INSERT INTO gamificationEvidence(userId,kind,sourceId,occurredAtMs,policyVersion,awardedXp) VALUES (?,'lesson_completed','safety-lab',?,?,10)",[ids[1],now,GAMIFICATION_POLICY_VERSION]);
  const allow=async()=>true;
  const feed=()=>readCommunityAchievementFeed(b,ids[0],allow);
  const profile=()=>communityCommercialLab(b,allow).profile(ids[0],ids[1]);
+ const ranking=()=>communityCommercialLab(b,allow).ranking(ids[0],now);
+ assert.deepEqual((await ranking()).ranking.map(row=>row.memberId),[ids[1]]);
+ assert.ok("achievements" in await profile());
  assert.equal((await feed()).items.length,1);
  await Promise.all([setCommunityBlock(a,ids[1],ids[0],true),setCommunityBlock(b,ids[1],ids[0],true)]);
  assert.equal(await communityInteractionAllowed(b,ids[0],ids[1]),false);
  assert.equal((await feed()).items.length,0);
+ assert.deepEqual((await ranking()).ranking,[]);
  await assert.rejects(profile());
+ assert.deepEqual(await student.commercialLab.blockedMembers({accountId:ids[1]}),{members:[{memberId:ids[0]}],next:null});
+ assert.deepEqual(await caller(ids[0],"user").commercialLab.blockedMembers({accountId:ids[0]}),{members:[],next:null});
+ await assert.rejects(student.commercialLab.blockedMembers({accountId:ids[0]}),{code:"FORBIDDEN"});
  await setCommunityBlock(a,ids[0],ids[1],true);
  await assert.rejects(student.commercialLab.setCommunityBlock({accountId:ids[0],targetId:ids[1],blocked:false}),{code:"FORBIDDEN"});
  await student.commercialLab.setCommunityBlock({accountId:ids[1],targetId:ids[0],blocked:false});

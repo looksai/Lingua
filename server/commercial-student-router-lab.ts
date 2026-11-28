@@ -1,3 +1,5 @@
+import {and,asc,eq,gt} from "drizzle-orm";
+import {communityBlocks} from "../drizzle/community-safety-draft";
 import {setCommunityBlock} from "./community-safety-lab";
 import {z} from "zod";
 import {TRPCError} from "@trpc/server";
@@ -17,6 +19,15 @@ function confirmAccount(accountId:number|undefined, userId:number) {
 const accountId=z.number().int().positive();
 
 export const commercialStudentRouterLab=router({
+ blockedMembers:protectedProcedure.input(z.object({accountId,afterId:z.number().int().positive().optional()}).strict()).query(async({ctx,input})=>{
+   confirmAccount(input.accountId,ctx.user.id);
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   const db=await dbForLab();
+   const rows=await db.select({memberId:communityBlocks.targetId}).from(communityBlocks)
+     .where(and(eq(communityBlocks.ownerId,ctx.user.id),input.afterId ? gt(communityBlocks.targetId,input.afterId) : undefined))
+     .orderBy(asc(communityBlocks.targetId)).limit(21);
+   return {members:rows.slice(0,20),next:rows.length>20?rows[19]!.memberId:null};
+ }),
  setCommunityBlock:protectedProcedure.input(z.object({accountId,targetId:z.number().int().positive().max(2147483647),blocked:z.boolean()}).strict()).mutation(async({ctx,input})=>{
    confirmAccount(input.accountId,ctx.user.id);checkRequestOrigin(ctx.req);
    rateLimit("community-block:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");

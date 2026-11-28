@@ -6,7 +6,7 @@ Este checkpoint prevalece sobre todos os avisos históricos abaixo. Fundador aut
 
 O laboratório agora armazena bloqueios direcionais de membros. Qualquer direção impede visibilidade entre o par no perfil, feed e ranking via serviços comunitários. Remover o próprio bloqueio preserva o do outro membro. Suspensão comunitária é aplicada por admin, distinta da assinatura ou do acesso ao curso. Cada transição efetiva gera auditoria na mesma transação. A API de privacidade permite retirar o próprio bloqueio após perder o plano. O teste MySQL usa duas conexões e verifica revogação, autorizações, suspensão, auditoria e retorno da visibilidade.
 
-As tabelas são experimentais. Feed e ranking entre membros ainda não foram liberados. Pendentes UI contextual para bloquear/desbloquear, lista privada de bloqueios, fila de denúncias e decisão por publicação. Bloqueios e suspensões já são filtrados antes da paginação do feed. Antes de expor o feed, estender a mesma proteção à moderação de publicações e ao vencimento da assinatura do autor. Verificar os workflows da branch para o SHA atual.
+As tabelas são experimentais. Feed e ranking entre membros ainda não foram liberados. A página de privacidade oferece lista paginada dos bloqueios criados pela própria conta e desbloqueio com confirmação. Pendentes botão contextual para bloquear nos futuros perfis, fila de denúncias e decisão por publicação. Bloqueios e suspensões já são filtrados antes da paginação do feed. Antes de expor o feed, estender a mesma proteção à moderação de publicações e ao vencimento da assinatura do autor. Verificar os workflows da branch para o SHA atual.
 
 ## Continuação — marcador pessoal do roteiro integrado
 

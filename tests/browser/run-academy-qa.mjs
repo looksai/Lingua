@@ -21,6 +21,7 @@ async function test(name,width,mode,body,fixture="public"){
   const errors=[],calls=[],broken=[];
   let accountId=9001;
   let savedItinerary=null;
+  let blocked=true;
   let redeemed=false;
   let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
@@ -138,6 +139,15 @@ async function test(name,width,mode,body,fixture="public"){
         }
         preferences={showLevel:input.showLevel,showAchievements:input.showAchievements,leaderboardOptIn:input.leaderboardOptIn};
         return {result:{data:{json:{saved:true}}}};
+      }
+      if(fixture==="blocked-list"){
+        if(name==="commercialLab.blockedMembers")return {result:{data:{json:{members:blocked?[{memberId:42}]:[],next:null}}}};
+        if(name==="commercialLab.setCommunityBlock"){
+          const body=JSON.parse(route.request().postData());
+          const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body).json;
+          assert.deepEqual(input,{accountId,targetId:42,blocked:false});
+          blocked=false;return {result:{data:{json:{processed:true}}}};
+        }
       }
       if(name==="commercialLab.communityPreferences")return {result:{data:{json:{member:redeemed,preferences}}}};
       if(name==="auth.learningAccess"){
@@ -716,6 +726,17 @@ try{
     assert.ok(!calls.includes("onboarding.me"));await fit(page);
   },"expired");
   if(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"){
+    await test("member manages their own block after subscription expiry",375,"closed",async(page,calls)=>{
+      await page.goto(base+"/community");
+      await page.getByText("Meus bloqueios",{exact:true}).click();
+      const remove=page.getByRole("button",{name:"Desbloquear membro 42"});
+      page.once("dialog",dialog=>dialog.dismiss());await remove.click();
+      assert.ok(!calls.includes("commercialLab.setCommunityBlock"));
+      page.once("dialog",dialog=>dialog.accept());await remove.click();
+      await page.getByText("Você não bloqueou nenhum membro.",{exact:true}).waitFor();
+      assert.equal(calls.filter(name=>name==="commercialLab.setCommunityBlock").length,1);
+      await fit(page);
+    },"blocked-list");
     await test("expired student redeems and controls community privacy",375,"closed",async(page,calls)=>{
       await page.goto(base);
       await page.getByRole("link",{name:"Tenho um cupom de acesso"}).click();
