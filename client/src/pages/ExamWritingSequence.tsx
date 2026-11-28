@@ -11,16 +11,17 @@ export default function ExamWritingSequence({tasks,allowed,onOutcome}:{tasks:rea
  const [now,setNow]=useState(Date.now);
  const [index,setIndex]=useState(0);
  const [drafts,setDrafts]=useState<Record<string,string>>({});
- const [finished,setFinished]=useState(false);
+ const [outcome,setOutcome]=useState<"completed"|"expired"|"skipped"|null>(null);
+ const finished=outcome!==null;
  useEffect(()=>{
   if(!allowed||deadline===null||finished)return;
-  const tick=()=>{const time=Date.now();setNow(time);if(time>=deadline)setFinished(true);};
+  const tick=()=>{const time=Date.now();setNow(time);if(time>=deadline)setOutcome(old=>old??"expired");};
   tick();const timer=window.setInterval(tick,500);return()=>window.clearInterval(timer);
  },[deadline,finished,allowed]);
- useEffect(()=>{if(!allowed){setDeadline(null);setDrafts({});setFinished(false);setIndex(0);setLockedTasks(null);}},[allowed]);
+ useEffect(()=>{if(!allowed){setDeadline(null);setDrafts({});setOutcome(null);setIndex(0);setLockedTasks(null);}},[allowed]);
  const task=sequence[index],remaining=deadline===null?0:Math.max(0,Math.ceil((deadline-now)/1000));
- function reset(){setDeadline(null);setDrafts({});setFinished(false);setIndex(0);setLockedTasks(null);}
- function finish(){if(window.confirm("Encerrar a sequência e abrir a autoavaliação? Os textos não poderão ser editados nesta tentativa."))setFinished(true);}
+ function reset(){setDeadline(null);setDrafts({});setOutcome(null);setIndex(0);setLockedTasks(null);}
+ function finish(){if(window.confirm("Encerrar a sequência e abrir a autoavaliação? Os textos não poderão ser editados nesta tentativa.")){const status=deadline===null||Date.now()>=deadline?"expired":sequence.every(t=>Boolean(drafts[t.id]?.trim()))?"completed":"skipped";setOutcome(old=>old??status);}}
  if(!allowed||sequence.length!==2||!task)return <p>Sequência indisponível.</p>;
  return <div className="exam-writing-review">
   <h3>Sequência de Writing · 60 minutos</h3>
@@ -33,7 +34,7 @@ export default function ExamWritingSequence({tasks,allowed,onOutcome}:{tasks:rea
     <label>Seu texto em inglês<textarea lang="en" rows={12} maxLength={20000} value={drafts[task.id]??""} disabled={remaining===0} onChange={e=>{if(Date.now()<deadline)setDrafts(old=>({...old,[task.id]:e.target.value}));}}/></label>
     <p>{countWritingWords(drafts[task.id]??"")} / {task.minimumWords} palavras</p>
     <button className="academy-primary" onClick={finish}>Encerrar sequência e revisar</button>
-   </>:<><h3>Autoavaliação das duas tarefas</h3>{onOutcome&&<button className="academy-primary" onClick={()=>onOutcome(Date.now()>=deadline?"expired":sequence.every(t=>Boolean(drafts[t.id]?.trim()))?"completed":"skipped")}>Registrar etapa no roteiro</button>}<p>Nenhuma nota atribuída. Contagem de palavras não mede qualidade linguística.</p>{reviewWritingSequence(sequence,drafts,setId).map(r=><article key={r.taskId}><h4>Task {r.kind} · {r.title}</h4><p>{r.words} palavras · {r.minimumMet?"Mínimo atingido":"Abaixo do mínimo"}</p><label>Seu texto<textarea lang="en" readOnly rows={6} value={drafts[r.taskId]??""}/></label>{r.questions.map(q=><p key={q} lang="en">{q}</p>)}</article>)}<h4>Critérios de referência</h4>{reviewWritingSequence(sequence,drafts,setId)[0]?.criteria.map(c=><p key={c.id}><strong>{c.name}</strong> — {c.description}</p>)}</>}
+   </>:<><h3>Autoavaliação das duas tarefas</h3>{onOutcome&&<button className="academy-primary" onClick={()=>{if(outcome)onOutcome(outcome);}}>Registrar etapa no roteiro</button>}<p>Nenhuma nota atribuída. Contagem de palavras não mede qualidade linguística.</p>{reviewWritingSequence(sequence,drafts,setId).map(r=><article key={r.taskId}><h4>Task {r.kind} · {r.title}</h4><p>{r.words} palavras · {r.minimumMet?"Mínimo atingido":"Abaixo do mínimo"}</p><label>Seu texto<textarea lang="en" readOnly rows={6} value={drafts[r.taskId]??""}/></label>{r.questions.map(q=><p key={q} lang="en">{q}</p>)}</article>)}<h4>Critérios de referência</h4>{reviewWritingSequence(sequence,drafts,setId)[0]?.criteria.map(c=><p key={c.id}><strong>{c.name}</strong> — {c.description}</p>)}</>}
    <button className="academy-secondary" onClick={()=>{if(window.confirm("Descartar os dois textos desta sessão?"))reset();}}>Descartar sequência</button>
   </>}
  </div>;
