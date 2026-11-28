@@ -1,3 +1,4 @@
+import {readAdminCommercialMetrics} from "./admin-commercial-metrics-lab";
 import {z} from "zod";
 import {and,eq,isNull} from "drizzle-orm";
 import {TRPCError} from "@trpc/server";
@@ -14,6 +15,10 @@ async function labDb(){
 }
 // Deliberately not mounted until administrative audit and isolated SQL tests exist.
 export const adminTrialRouterLab=router({
+ metrics:adminProcedure.query(async({ctx})=>{
+ ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-commercial-metrics:"+ctx.user.id);
+ return readAdminCommercialMetrics(await labDb());
+ }),
  issue:adminProcedure.input(z.object({code,plan:z.enum(["lingua-premium","community-premium"]),days:z.number().int().refine(n=>TRIAL_DAYS.includes(n as TrialDays)),validity:z.discriminatedUnion("kind",[z.object({kind:z.literal("days"),days:z.number().int().positive().max(36500)}).strict(),z.object({kind:z.literal("date"),expiresAtMs:timestamp}).strict()]),maxUses:z.number().int().min(1).max(100000)}).strict()).mutation(async({ctx,input})=>{
  checkRequestOrigin(ctx.req);rateLimit("admin-trial-issue:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
  const {validity,...fields}=input;
