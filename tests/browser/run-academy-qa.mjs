@@ -483,7 +483,7 @@ try{
   await test("Writing sequence keeps both texts local and defers self-review",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
     await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
-    await page.getByRole("button",{name:/Writing Produção escrita/}).click();
+    await page.getByRole("button",{name:/Writing Produção de textos/}).click();
     await page.getByRole("button",{name:"Sequência de duas tarefas"}).click();
     await page.getByRole("button",{name:"Iniciar sequência de Writing"}).click();
     await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("First local draft");
