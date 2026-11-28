@@ -40,13 +40,14 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
-      if(fixture==="durable-exam"){
+      if(fixture==="durable-exam"||fixture==="exam-proposals"){
         const answer=payload=>({result:{data:{json:payload}}});
         const input=(url.searchParams.has("batch")?JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}")[String(names.indexOf(name))]:JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}"))?.json??{};
-        if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true,durable:true});
+        if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true,durable:true,proposals:fixture==="exam-proposals"});
+        if(name==="exams.practiceProposals")return answer([{version:"exam-practice-proposals-v1",source:"lingua-local-rule",variant:input.variant,skill:"reading",exerciseId:"qa-new",reason:"practice-more-contexts",observedDistinctSets:1,authority:"practice-only"}]);
         if(name==="exams.history")return answer({goal:examGoal,activities:examCleared?[]:[{attemptId:"00000000-0000-4000-8000-000000000001",variant:"ielts-general",skill:"reading",mode:"practice",exerciseId:"qa-reading",contentVersion:"qa-v1",correct:3,total:4,completedAtMs:Date.now()}]});
         if(name==="exams.saveGoal"){assert.equal(input.targetBandHalfSteps,14);examGoal={...input,updatedAtMs:Date.now()};return answer({saved:true});}
-        if(name==="exams.exercises")return answer([]);
+        if(name==="exams.exercises")return answer(fixture==="exam-proposals"?[{id:"qa-new",title:"Suggested original reading"}]:[]);
         if(name==="exams.resume")return answer(examCleared?null:{id:"00000000-0000-4000-8000-000000000002",variant:"ielts-general",mode:"practice",version:"qa-v1",deadline:Date.now()+60000,exercise:{id:"qa-reading",skill:"reading",title:"Resumed original reading",passage:"A short notice.",questions:[{id:"qa1",prompt:"Read the notice.",options:["Yes","No"]}]}});
         if(name==="exams.clearHistory"){assert.equal(input.confirm,true);examGoal=null;examCleared=true;return answer({cleared:true});}
       }
@@ -408,6 +409,17 @@ try{
     await page.getByText("Nenhuma atividade objetiva registrada.",{exact:true}).waitFor();
     assert.ok(calls.includes("exams.clearHistory"));await fit(page);
   },"durable-exam");
+  await test("local practice proposal selects a new context without starting automatically",375,"closed",async(page,calls)=>{
+    await page.goto(base);
+    await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
+    await page.getByRole("button",{name:"Minha evolução",exact:true}).click();
+    await page.getByText("Pratique um contexto ainda não observado.",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Selecionar prática sugerida"}).click();
+    await page.locator(".exam-panel select").filter({has:page.locator('option[value="qa-new"]')}).waitFor();
+    assert.equal(await page.locator(".exam-panel select").filter({has:page.locator('option[value="qa-new"]')}).inputValue(),"qa-new");
+    assert.ok(!calls.includes("exams.start"));await fit(page);
+  },"exam-proposals");
   await test("approved sponsor placement clearly identified",1440,"closed",async(page)=>{
     await page.goto(base);const slot=page.getByRole("region",{name:"Destaques patrocinados"});
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
@@ -435,5 +447,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?29:25));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?30:26));
 }finally{await browser.close();}
