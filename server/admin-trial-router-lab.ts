@@ -4,7 +4,7 @@ import {TRPCError} from "@trpc/server";
 import {adminProcedure,router} from "./_core/trpc";
 import {getDb} from "./db";
 import {checkRequestOrigin,rateLimit} from "./auth-local";
-import {trialCoupons} from "../drizzle/commercial-draft";
+import {trialCoupons,commercialAdminAudit} from "../drizzle/commercial-draft";
 import {TRIAL_DAYS,couponExpiryFromIssuance,type TrialDays} from "../shared/admin-coupon-policy";
 const code=z.string().regex(/^[A-Z0-9_-]{4,40}$/);
 const timestamp=z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -20,12 +20,21 @@ export const adminTrialRouterLab=router({
  const db=await labDb();const issuedAtMs=Date.now();
  const expiry=validity.kind==="days"?couponExpiryFromIssuance(issuedAtMs,validity.days):validity.expiresAtMs;
  if(expiry===null||expiry<=issuedAtMs)throw new TRPCError({code:"BAD_REQUEST"});
- await db.insert(trialCoupons).values({...fields,redeemFromMs:issuedAtMs,redeemUntilMs:expiry});
+ await db.transaction(async tx=>{
+ await tx.insert(trialCoupons).values({...fields,redeemFromMs:issuedAtMs,redeemUntilMs:expiry});
+ await tx.insert(commercialAdminAudit).values({actorId:ctx.user.id,action:"trial-issued",targetCode:input.code,occurredAtMs:issuedAtMs});
+ });
  return {issued:true as const,code:input.code,issuedAtMs,expiresAtMs:expiry};
  }),
  revoke:adminProcedure.input(z.object({code}).strict()).mutation(async({ctx,input})=>{
  checkRequestOrigin(ctx.req);rateLimit("admin-trial-revoke:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
- await (await labDb()).update(trialCoupons).set({revokedAtMs:Date.now()}).where(and(eq(trialCoupons.code,input.code),isNull(trialCoupons.revokedAtMs)));
+ await (await labDb()).transaction(async tx=>{
+ const [coupon]=await tx.select().from(trialCoupons).where(eq(trialCoupons.code,input.code)).for("update");
+ if(!coupon||coupon.revokedAtMs!==null)return;
+ const now=Date.now();
+ await tx.update(trialCoupons).set({revokedAtMs:now}).where(and(eq(trialCoupons.code,input.code),isNull(trialCoupons.revokedAtMs)));
+ await tx.insert(commercialAdminAudit).values({actorId:ctx.user.id,action:"trial-revoked",targetCode:input.code,occurredAtMs:now});
+ });
  return {processed:true as const};
  })
 });
