@@ -11,6 +11,8 @@ on:
       - 'drizzle/exam-history-draft.ts'
       - 'server/exam-history-repository.ts'
       - 'server/exam-retention-repository.ts'
+      - 'server/exam-schema-preflight.ts'
+      - 'scripts/exam-schema-preflight.ts'
       - 'shared/exam-retention.ts'
       - 'shared/exam-history-contract.ts'
       - 'tests/exam-history-mysql-lab.ts'
