@@ -174,10 +174,12 @@ try{
  const achievementId=ACHIEVEMENTS[0].id;
  await Promise.all([setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,true),setCommunityPublicationRestriction(b,ids[0],ids[1],achievementId,true)]);
  assert.deepEqual(await readCommunityAchievementFeed(b,ids[0],allow,1),{items:[],nextCursor:null});
+ assert.deepEqual((await profile()).achievements,[],"Admin-hidden achievement must also be absent from member profile");
  assert.deepEqual(await authorizedFeed(),{items:[],nextCursor:null});
  await pools[0].execute("UPDATE gamificationShares SET publishedAtMs=? WHERE userId=?",[Date.now(),ids[1]]);
  assert.equal((await feed()).items.length,0);
  await setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,false);
+ assert.deepEqual((await profile()).achievements,[{id:achievementId,title:ACHIEVEMENTS[0].title}],"Restoration should restore permitted profile achievement");
  assert.equal((await feed()).items.length,1);
  const [publicationAudit]=await pools[0].query<mysql.RowDataPacket[]>("SELECT hidden FROM communityPublicationAudit ORDER BY id");
  assert.deepEqual(publicationAudit.map(row=>row.hidden),[1,0]);
@@ -212,6 +214,7 @@ try{
  await assert.rejects(student.adminLab.dismissCommunityReport({reportId}),{code:"FORBIDDEN"});
  await Promise.all([actionCommunityReport(a,ids[0],reportId),actionCommunityReport(b,ids[0],reportId)]);
  assert.equal((await feed()).items.length,0);
+ assert.deepEqual((await profile()).achievements,[],"Report-based moderation must hide profile achievement too");
  assert.equal((await admin.communityReports({status:"pending"})).items.length,0);
  assert.equal((await admin.communityReports({status:"actioned"})).items[0].resolvedBy,ids[0]);
  assert.deepEqual(await admin.communityReportSummary(),{pending:0,dismissed:0,actioned:1});
