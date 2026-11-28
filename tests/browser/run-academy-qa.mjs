@@ -22,6 +22,7 @@ async function test(name,width,mode,body,fixture="public"){
   let accountId=9001;
   let savedItinerary=null;
   let blocked=true;
+  let communityBlocked=false,reportSent=false;
   let redeemed=false;
   let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
@@ -140,6 +141,25 @@ async function test(name,width,mode,body,fixture="public"){
         preferences={showLevel:input.showLevel,showAchievements:input.showAchievements,leaderboardOptIn:input.leaderboardOptIn};
         return {result:{data:{json:{saved:true}}}};
       }
+      if(fixture==="community-feed" || fixture==="reports-expired"){
+        const answer=json=>({result:{data:{json}}});
+        const parsed=JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}");
+        const input=(url.searchParams.has("batch")?parsed[String(names.indexOf(name))]:parsed)?.json??{};
+        if(name==="commercialLab.achievementFeed"){
+          assert.equal(input.accountId,9001);
+          return answer({items:communityBlocked?[]:[{ownerId:42,achievementId:"first-lesson",title:"Primeiro passo",publishedAtMs:1764300000000}],nextCursor:null});
+        }
+        if(name==="commercialLab.reportPublication"){
+          assert.deepEqual(input,{accountId:9001,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment"});
+          reportSent=true;return answer({processed:true});
+        }
+        if(name==="commercialLab.setCommunityBlock"){
+          assert.deepEqual(input,{accountId:9001,targetId:42,blocked:true});
+          communityBlocked=true;return answer({processed:true});
+        }
+        if(name==="commercialLab.blockedMembers")return answer({members:communityBlocked?[{memberId:42}]:[],next:null});
+        if(name==="commercialLab.myCommunityReports")return answer({items:reportSent||fixture==="reports-expired"?[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]:[],nextBeforeId:null});
+      }
       if(fixture==="blocked-list"){
         if(name==="commercialLab.blockedMembers")return {result:{data:{json:{members:blocked?[{memberId:42}]:[],next:null}}}};
         if(name==="commercialLab.setCommunityBlock"){
@@ -149,7 +169,7 @@ async function test(name,width,mode,body,fixture="public"){
           blocked=false;return {result:{data:{json:{processed:true}}}};
         }
       }
-      if(name==="commercialLab.communityPreferences")return {result:{data:{json:{member:redeemed,preferences}}}};
+      if(name==="commercialLab.communityPreferences")return {result:{data:{json:{member:redeemed||fixture==="community-feed",preferences}}}};
       if(name==="auth.learningAccess"){
         const trialEnded=accountId!==9001 || ["expired","community","premium","coupon"].includes(fixture);
         const course=!trialEnded || fixture==="premium";
@@ -726,6 +746,30 @@ try{
     assert.ok(!calls.includes("onboarding.me"));await fit(page);
   },"expired");
   if(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"){
+    await test("community member reports an achievement and blocks its author",375,"closed",async(page,calls)=>{
+      await page.goto(base+"/community");
+      await page.getByText("Conquistas da comunidade (laboratório)",{exact:true}).click();
+      await page.getByRole("heading",{name:"Conquistas compartilhadas"}).waitFor();
+      await page.getByRole("button",{name:"Denunciar publicação"}).click();
+      await page.getByLabel("Motivo da denúncia").selectOption("harassment");
+      await page.getByRole("button",{name:"Enviar denúncia"}).click();
+      await page.getByText("Denúncia registrada para análise. A publicação não foi removida automaticamente.").waitFor();
+      await page.getByText("Minhas denúncias",{exact:true}).click();
+      await page.getByText("Denúncia #55").waitFor();
+      page.once("dialog",dialog=>dialog.accept());
+      await page.getByRole("button",{name:"Bloquear membro"}).click();
+      await page.getByText("Ainda não há conquistas públicas disponíveis.").waitFor();
+      assert.equal(calls.filter(name=>name==="commercialLab.reportPublication").length,1);
+      assert.equal(calls.filter(name=>name==="commercialLab.setCommunityBlock").length,1);
+      await fit(page);
+    },"community-feed");
+    await test("expired member can still inspect their own reports without opening the feed",375,"closed",async(page,calls)=>{
+      await page.goto(base+"/community");
+      await page.getByText("Minhas denúncias",{exact:true}).click();
+      await page.getByText("Denúncia #55").waitFor();
+      assert.ok(!calls.includes("commercialLab.achievementFeed"));
+      await fit(page);
+    },"reports-expired");
     await test("member manages their own block after subscription expiry",375,"closed",async(page,calls)=>{
       await page.goto(base+"/community");
       await page.getByText("Meus bloqueios",{exact:true}).click();
