@@ -508,6 +508,25 @@ try{
     for(let i=1;i<=3;i++)await page.getByText("Original fictional audio script "+i,{exact:true}).waitFor();
     assert.ok(calls.includes("exams.submit"));await fit(page);
   },"listening-extended");
+  await test("integrated Writing records local sequence without uploading drafts",375,"closed",async(page,calls)=>{
+    await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Writing",exact:true}).click();
+    await page.getByRole("button",{name:"Iniciar sequência de Writing"}).click();
+    await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("First local draft");
+    await page.getByRole("button",{name:"Task 2",exact:true}).click();
+    await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("Second local draft");
+    page.once("dialog",d=>d.accept());
+    await page.getByRole("button",{name:"Encerrar sequência e revisar"}).click();
+    await page.getByRole("button",{name:"Registrar etapa no roteiro"}).click();
+    await page.getByRole("button",{name:"Abrir Speaking",exact:true}).waitFor();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByText("Writing: Prática concluída, sem nota",{exact:true}).waitFor();
+    assert.ok(!calls.includes("exams.writingReview")&&!calls.includes("exams.writingFeedback"));await fit(page);
+  },"writing-sequence");
   await test("Writing sequence keeps both texts local and defers self-review",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
     await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
