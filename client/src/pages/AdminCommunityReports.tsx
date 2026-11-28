@@ -13,6 +13,7 @@ export function AdminCommunityReports(){
  const busy=dismiss.isPending||action.isPending;
  return <section className="academy-state-card !m-0 !p-5">
  <h2 className="text-xl font-semibold">Fila de denúncias</h2>{summary.data&&<p role="status">Pendentes: <strong>{summary.data.pending}</strong> · Encerradas sem ação: {summary.data.dismissed} · Moderação aplicada: {summary.data.actioned}</p>}{summary.isError&&<p role="alert">Resumo de denúncias indisponível.</p>}<p className="text-sm">A moderação é manual: receber uma denúncia não oculta a conquista.</p>
+ <button type="button" className="academy-secondary justify-self-start" disabled={busy||queue.isFetching||summary.isFetching} onClick={()=>{void summary.refetch();void queue.refetch();}}>Atualizar denúncias</button>
  <label>Situação<select className="block border rounded p-2" value={status} disabled={busy} onChange={e=>{setStatus(e.target.value==="dismissed"?"dismissed":e.target.value==="actioned"?"actioned":"pending");setBeforeId(undefined);dismiss.reset();action.reset();setNotice("");}}><option value="pending">Pendentes</option><option value="dismissed">Descartadas</option><option value="actioned">Com ação aplicada</option></select></label>
  {notice&&<p role="status">{notice}</p>}
  {queue.isPending&&<p role="status">Carregando denúncias...</p>}
