@@ -2,6 +2,7 @@ import { z } from "zod";
 import {eq} from "drizzle-orm";
 import {learnerProfiles} from "../drizzle/schema";
 import {getDb} from "./db";
+import {examProposalsEnabled,proposeExamPractice} from "./exam-practice-proposals";
 import {createDurableExamEngine} from "./exam-durable-engine";
 import {readExamGoal,recentExamActivities,exportExamHistoryPage} from "./exam-history-repository";
 import {examGoalInput} from "../shared/exam-history-contract";
@@ -27,7 +28,8 @@ export const examRouter=router({
  privacyStatus:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {enabled:examPrivacyEnabled()};}),
  privacyExport:protectedProcedure.input(z.object({beforeId:z.number().int().positive().max(2147483647).nullable()}).strict()).mutation(async({ctx,input})=>{checkRequestOrigin(ctx.req);rateLimit("exam-export:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");return exportExamHistoryPage(await privacyDb(),ctx.user.id,input.beforeId);}),
  privacyClear:protectedProcedure.input(z.object({confirm:z.literal(true)}).strict()).mutation(async({ctx})=>{checkRequestOrigin(ctx.req);rateLimit("exam-privacy-clear:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");await createDurableExamEngine(await privacyDb()).clear(ctx.user.id);return {cleared:true as const};}),
- overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const,durable:Boolean(examAccess(ctx.user.email))&&durableExamEnabled(),feedbackProvider:examAccess(ctx.user.email)&&writingFeedbackEnabled()&&(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email))?tutorMode():null};}),
+ overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const,durable:Boolean(examAccess(ctx.user.email))&&durableExamEnabled(),proposals:Boolean(examAccess(ctx.user.email))&&durableExamEnabled()&&examProposalsEnabled(),feedbackProvider:examAccess(ctx.user.email)&&writingFeedbackEnabled()&&(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email))?tutorMode():null};}),
+ practiceProposals:protectedProcedure.input(z.object({variant:z.enum(IELTS_VARIANTS)}).strict()).query(async({ctx,input})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");if(!examProposalsEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Recomendações ainda indisponíveis."});return proposeExamPractice(input.variant,await recentExamActivities(await historyDb(),ctx.user.id));}),
  history:protectedProcedure.query(async({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");const db=await historyDb();return {goal:await readExamGoal(db,ctx.user.id),activities:await recentExamActivities(db,ctx.user.id)};}),
  resume:protectedProcedure.query(async({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");return createDurableExamEngine(await historyDb()).resume(ctx.user.id);}),
  saveGoal:protectedProcedure.input(examGoalInput).mutation(async({ctx,input})=>{checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-goal:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");await createDurableExamEngine(await historyDb()).saveGoal(ctx.user.id,input);return {saved:true as const};}),
