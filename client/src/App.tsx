@@ -1,3 +1,4 @@
+import AdminDashboard from "./pages/AdminDashboard";
 import { useSyncExternalStore } from "react";
 import "./pages/academy-interior.css";
 import { Toaster } from "@/components/ui/sonner";
@@ -67,6 +68,7 @@ function Router() {
     <Route path="/demo"><Redirect to="/login?mode=signup" replace /></Route>
     {import.meta.env.VITE_PUBLIC_LIVES_ENABLED === "true" && <Route path="/live" component={PublicLivePage} />}
     {import.meta.env.VITE_PARTNER_DASHBOARD_ENABLED === "true" && <Route path="/partners" component={PartnerDashboard} />}
+    {import.meta.env.VITE_ADMIN_LAB_ENABLED === "true" && <Route path="/admin" component={AdminDashboard} />}
     <Route path="/exam-privacy" component={ExamPrivacy} />
     <Route path="/login" component={Login} />
     <Route path="/404" component={NotFound} />
