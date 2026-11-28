@@ -177,6 +177,7 @@ async function test(name,width,mode,body,fixture="public"){
         const answer=json=>({result:{data:{json}}});
         const parsed=JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}");
         const input=(url.searchParams.has("batch")?parsed[String(names.indexOf(name))]:parsed)?.json??{};
+        if(name==="adminLab.academyInviteSummary")return answer({configured:true,total:3,active:2,expired:1,availableSlots:17});
         if(name==="adminLab.metrics")return answer({registeredAccounts:2,activeMembers:1,activePaidMembers:0,activeTrialMembers:1,companies:{total:0,active:0,pending:0,suspended:0},trialCouponsIssued:0,trialRedemptions:0});
         if(name==="adminLab.advertising")return answer({totalOrders:0,paidOrders:0,activePaidOrders:0});
         if(name==="adminLab.referrals")return answer({codesIssued:0,attributions:0,confirmedConversions:0,reversedConversions:0});
@@ -839,6 +840,8 @@ try{
     await test("administrators manually resolve and dismiss separate reports",375,"closed",async(page,calls)=>{
       await page.goto(base+"/admin");
       await page.getByRole("heading",{name:"Visão executiva"}).waitFor();
+      await page.getByText("Convites vigentes").waitFor();
+      await page.getByText("Vagas para novos convites").waitFor();
       await page.getByRole("heading",{name:"Fila de denúncias"}).waitFor();
       await page.getByText("Pendentes:").waitFor();
       page.once("dialog",dialog=>dialog.accept());
