@@ -152,6 +152,11 @@ async function test(name,width,mode,body,fixture="public"){
         if(name==="adminLab.recurring"||name==="adminLab.finance")return answer({totals:[]});
         if(name==="adminLab.coupons"||name==="adminLab.promotions")return answer({items:[],nextBeforeId:null,asOfMs:Date.now()});
         if(name==="adminLab.communityPublicationAudit")return answer({items:[],nextBeforeId:null});
+        if(name==="adminLab.communityReportSummary")return answer({
+          pending:Object.values(adminDecisions).filter(v=>v==="pending").length,
+          dismissed:Object.values(adminDecisions).filter(v=>v==="dismissed").length,
+          actioned:Object.values(adminDecisions).filter(v=>v==="actioned").length,
+        });
         if(name==="adminLab.communityReports"){
           const entries=[
            {id:88,reporterId:9002,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"spam",createdAtMs:1764300000001},
@@ -775,6 +780,7 @@ try{
       await page.goto(base+"/admin");
       await page.getByRole("heading",{name:"Visão executiva"}).waitFor();
       await page.getByRole("heading",{name:"Fila de denúncias"}).waitFor();
+      await page.getByText("Pendentes:").waitFor();
       page.once("dialog",dialog=>dialog.accept());
       await page.getByRole("row").filter({hasText:"Spam"}).getByRole("button",{name:"Ocultar"}).click();
       await page.getByRole("status").filter({hasText:"Denúncia concluída"}).waitFor();
