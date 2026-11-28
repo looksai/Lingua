@@ -9,7 +9,7 @@ import {TRPCError} from "@trpc/server";
 import {adminProcedure,router} from "./_core/trpc";
 import {getDb} from "./db";
 import {checkRequestOrigin,rateLimit} from "./auth-local";
-import {trialCoupons,trialRedemptions,commercialAdminAudit} from "../drizzle/commercial-draft";
+import {trialCoupons,trialRedemptions,commercialAdminAudit,commercialPromotionCoupons} from "../drizzle/commercial-draft";
 import {TRIAL_DAYS,couponExpiryFromIssuance,type TrialDays} from "../shared/admin-coupon-policy";
 const code=z.string().regex(/^[A-Z0-9_-]{4,40}$/);
 const timestamp=z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
@@ -19,6 +19,28 @@ async function labDb(){
 }
 // Deliberately not mounted until administrative audit and isolated SQL tests exist.
 export const adminTrialRouterLab=router({
+ issuePromotion:adminProcedure.input(z.object({code,plan:z.enum(["lingua-premium","community-premium"]),discount:z.discriminatedUnion("kind",[z.object({kind:z.literal("percent"),basisPoints:z.number().int().min(1).max(10000)}).strict(),z.object({kind:z.literal("fixed"),currency:z.enum(["BRL","USD","EUR"]),minorUnits:z.number().int().positive().max(Number.MAX_SAFE_INTEGER)}).strict()]),validity:z.discriminatedUnion("kind",[z.object({kind:z.literal("days"),days:z.number().int().positive().max(36500)}).strict(),z.object({kind:z.literal("date"),expiresAtMs:timestamp}).strict()]),maxUses:z.number().int().min(1).max(100000)}).strict()).mutation(async({ctx,input})=>{
+ checkRequestOrigin(ctx.req);rateLimit("admin-promo-issue:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
+ const db=await labDb(),now=Date.now();
+ const expiry=input.validity.kind==="days"?couponExpiryFromIssuance(now,input.validity.days):input.validity.expiresAtMs;
+ if(expiry===null||expiry<=now)throw new TRPCError({code:"BAD_REQUEST"});
+ await db.transaction(async tx=>{
+ await tx.insert(commercialPromotionCoupons).values({code:input.code,plan:input.plan,discountKind:input.discount.kind,discountValue:input.discount.kind==="percent"?input.discount.basisPoints:input.discount.minorUnits,currency:input.discount.kind==="fixed"?input.discount.currency:null,redeemFromMs:now,redeemUntilMs:expiry,maxUses:input.maxUses});
+ await tx.insert(commercialAdminAudit).values({actorId:ctx.user.id,action:"promotion-issued",targetCode:input.code,occurredAtMs:now});
+ });
+ return {code:input.code,expiresAtMs:expiry};
+ }),
+ revokePromotion:adminProcedure.input(z.object({code}).strict()).mutation(async({ctx,input})=>{
+ checkRequestOrigin(ctx.req);rateLimit("admin-promo-revoke:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
+ await (await labDb()).transaction(async tx=>{
+ const [coupon]=await tx.select().from(commercialPromotionCoupons).where(eq(commercialPromotionCoupons.code,input.code)).for("update");
+ if(!coupon||coupon.revokedAtMs!==null)return;
+ const now=Date.now();
+ await tx.update(commercialPromotionCoupons).set({revokedAtMs:now}).where(eq(commercialPromotionCoupons.id,coupon.id));
+ await tx.insert(commercialAdminAudit).values({actorId:ctx.user.id,action:"promotion-revoked",targetCode:input.code,occurredAtMs:now});
+ });
+ return {processed:true as const};
+ }),
  referrals:adminProcedure.query(async({ctx})=>{
  ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-referrals:"+ctx.user.id);
  return readAdminReferralMetrics(await labDb());
