@@ -275,7 +275,7 @@ try{
     await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
     await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
     await page.getByRole("button",{name:/Listening Compreensão auditiva/}).click();
-    await page.getByLabel("Atividade",{exact:true}).selectOption("listen-qa");
+    await page.locator(".exam-panel select").filter({has:page.locator('option[value="listen-qa"]')}).selectOption("listen-qa");
     await page.getByRole("button",{name:"Iniciar prática",exact:true}).click();
     await page.getByRole("button",{name:"Ouvir áudio"}).waitFor();
     assert.equal(await page.getByText("The bus leaves at nine.",{exact:true}).count(),0);
