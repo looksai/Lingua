@@ -22,3 +22,11 @@ describe("Guided oral sequence",()=>{
   expect(oralSequence(SPEAKING_PROMPTS.slice(0,2))).toEqual([]);
  });
 });
+
+it("offers independent oral sets and rejects unknown or incomplete selections",()=>{
+ const first=oralSequence(SPEAKING_PROMPTS,"set-1"),second=oralSequence(SPEAKING_PROMPTS,"set-2");
+ expect(second.map(p=>p.part)).toEqual([1,1,2,3,3]);
+ expect(new Set([...first,...second].map(p=>p.id)).size).toBe(10);
+ expect(oralSequence(SPEAKING_PROMPTS,"unknown")).toEqual([]);
+ expect(oralSequence(SPEAKING_PROMPTS.filter(p=>p.id!=="part2-help"),"set-2")).toEqual([]);
+});
