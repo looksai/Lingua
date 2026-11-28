@@ -21,3 +21,14 @@ export const gamificationPrivacy=mysqlTable("gamificationPrivacy",{
  leaderboardOptIn:boolean("leaderboardOptIn").notNull().default(false),
  updatedAtMs:bigint("updatedAtMs",{mode:"number"}).notNull(),
 });
+
+export const gamificationShares=mysqlTable("gamificationShares",{
+ id:int("id").autoincrement().primaryKey(),
+ userId:int("userId").notNull().references(()=>users.id,{onDelete:"cascade"}),
+ achievementId:varchar("achievementId",{length:80}).notNull(),
+ publishedAtMs:bigint("publishedAtMs",{mode:"number"}).notNull(),
+ revokedAtMs:bigint("revokedAtMs",{mode:"number"}),
+},t=>({
+ ownerAchievement:unique("gamification_share_owner_achievement").on(t.userId,t.achievementId),
+ feedOrder:index("gamification_share_feed_order").on(t.revokedAtMs,t.publishedAtMs,t.id),
+}));
