@@ -106,6 +106,7 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="campus.sponsors")return {result:{data:{json:fixture==="sponsor"?[{id:"synthetic-campaign",sponsor:"Empresa sintética de QA",title:"Campanha sintética",description:"Apenas teste isolado.",url:"https://example.com/"}]:[]}}};
       if(name==="auth.trialStatus")return {result:{data:{json:fixture==="expired"?{kind:"expired",expiresAtMs:1700000000000,remainingDays:0}:{kind:"active",expiresAtMs:1900000000000,remainingDays:15}}}};
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
+      if(name==="learning.gamificationPreview")return {result:{data:{json:{scope:"review-history-preview",totalXp:30,level:1,xpIntoLevel:30,xpPerLevel:250,achievements:[],missions:[]}}}};
       throw Error("Unexpected API call in public Academy fixture: "+name);
     });
     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(url.searchParams.has("batch")?reply:reply[0])});
