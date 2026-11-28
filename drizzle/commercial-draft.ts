@@ -33,7 +33,7 @@ export const trialRedemptions=mysqlTable("trialRedemptions",{
 export const commercialAdminAudit=mysqlTable("commercialAdminAudit",{
  id:int("id").autoincrement().primaryKey(),
  actorId:int("actorId").notNull().references(()=>users.id),
- action:mysqlEnum("action",["trial-issued","trial-revoked"]).notNull(),
+ action:mysqlEnum("action",["trial-issued","trial-revoked","promotion-issued","promotion-revoked"]).notNull(),
  targetCode:varchar("targetCode",{length:40}).notNull(),
  occurredAtMs:bigint("occurredAtMs",{mode:"number"}).notNull(),
 },t=>({actorTime:index("commercial_audit_actor_time").on(t.actorId,t.occurredAtMs)}));
