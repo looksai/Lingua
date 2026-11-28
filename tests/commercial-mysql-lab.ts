@@ -1,3 +1,5 @@
+import {appRouter} from "../server/routers";
+import type {TrpcContext} from "../server/_core/context";
 import {attributeReferralLab} from "../server/referral-attribution-lab";
 import {readAdminReferralMetrics} from "../server/admin-referral-metrics-lab";
 import {readRealizedCashLab} from "../server/admin-finance-repository-lab";
@@ -86,8 +88,53 @@ try{
  await pools[0].query("UPDATE commercialReferralConversions SET status='reversed'");
  const reversed=await readAdminReferralMetrics(b,now);
  assert.equal(reversed.confirmedConversions,0);assert.equal(reversed.reversedConversions,1);
+ await pools[0].query("CREATE TABLE commercialAdminAudit (id int AUTO_INCREMENT PRIMARY KEY, actorId int NOT NULL, action varchar(30) NOT NULL, targetCode varchar(40) NOT NULL, occurredAtMs bigint NOT NULL, FOREIGN KEY(actorId) REFERENCES users(id))");
+ await pools[0].query("CREATE TABLE commercialPromotionCoupons (id int AUTO_INCREMENT PRIMARY KEY, code varchar(40) NOT NULL UNIQUE, plan varchar(30) NOT NULL, discountKind varchar(20) NOT NULL, discountValue bigint NOT NULL, currency varchar(3), redeemFromMs bigint NOT NULL, redeemUntilMs bigint NOT NULL, maxUses int NOT NULL, revokedAtMs bigint)");
+ await pools[0].query("CREATE TABLE commercialPromotionRedemptions (id int AUTO_INCREMENT PRIMARY KEY, couponId int NOT NULL, userId int NOT NULL, cashSourceKey varchar(180) UNIQUE, currency varchar(3) NOT NULL, discountMinor bigint NOT NULL, redeemedAtMs bigint NOT NULL, FOREIGN KEY(couponId) REFERENCES commercialPromotionCoupons(id), UNIQUE(couponId,userId))");
+ process.env.LINGUA_ADMIN_LAB_ENABLED="true";
+ process.env.LINGUA_COMMERCIAL_LAB_ENABLED="true";
+ process.env.ACADEMY_TRIAL_ENABLED="true";
+ const caller=(id:number,role:"admin"|"user")=>appRouter.createCaller({
+   user:{id,role,createdAt:new Date(0)},req:{headers:{origin:"http://localhost",host:"localhost"}},
+   res:{setHeader(){}},
+ } as unknown as TrpcContext);
+ const admin=caller(ids[0],"admin").adminLab;
+ const student=caller(ids[1],"user");
+ const trial={code:"COMMUNITY30",plan:"community-premium" as const,days:30,validity:{kind:"days" as const,days:3},maxUses:2};
+ await admin.issue(trial);
+ await assert.rejects(student.auth.learningAccess({userId:ids[0]}));
+ assert.equal((await student.commercialLab.redeemTrial({code:trial.code})).status,"granted");
+ const access=()=>student.auth.learningAccess({userId:ids[1]});
+ assert.equal((await access()).community,true);
+ assert.equal((await access()).course,false);
+ await assert.rejects(student.onboarding.me(),{code:"FORBIDDEN"});
+ await student.exams.overview();
+ await assert.rejects(student.tutor.capabilities(),{code:"FORBIDDEN"});
+ await admin.revoke({code:trial.code});
+ await assert.rejects(caller(ids[0],"user").commercialLab.redeemTrial({code:trial.code}));
+ assert.equal((await access()).exams,true);
+ assert.equal((await admin.coupons({})).items.find(c=>c.code===trial.code)?.uses,1);
+ await a.update(commercialSubscriptions).set({endsAtMs:Date.now()}).where(eq(commercialSubscriptions.userId,ids[1]));
+ assert.equal((await access()).exams,false);
+ await assert.rejects(student.exams.overview(),{code:"FORBIDDEN"});
+
+ const promo={code:"PROMOLAB",plan:"lingua-premium" as const,discount:{kind:"fixed" as const,currency:"BRL" as const,minorUnits:500},validity:trial.validity,maxUses:1};
+ const issues=await Promise.allSettled([admin.issuePromotion(promo),admin.issuePromotion(promo)]);
+ assert.equal(issues.filter(result=>result.status==="fulfilled").length,1);
+ await Promise.all([admin.revokePromotion({code:promo.code}),admin.revokePromotion({code:promo.code})]);
+ const listed=(await admin.promotions({})).items.find(c=>c.code===promo.code);
+ assert.ok(listed?.revokedAtMs);assert.equal(listed.discountValue,500);assert.equal(listed.uses,0);
+ const [audit]=await pools[0].query<mysql.RowDataPacket[]>("SELECT action FROM commercialAdminAudit ORDER BY id");
+ assert.deepEqual(audit.map(row=>row.action),["trial-issued","trial-revoked","promotion-issued","promotion-revoked"]);
+ // Unknown actor violates the audit FK after the coupon insert. Both must roll back.
+ await assert.rejects(caller(2147483647,"admin").adminLab.issue({...trial,code:"ROLLBACK"}));
+ assert.ok(!(await admin.coupons({})).items.some(c=>c.code==="ROLLBACK"));
+ console.log("PASS admin issue, student redemption, plan boundaries, expiry, concurrent promotion lifecycle and audit rollback");
  console.log("PASS referral concurrency, self-referral, expiry and conversion metrics");
  console.log("PASS advertising settlement evidence, expiry and refund exclusion");
  console.log("PASS financial cash and recurring reporting, currency isolation and period boundaries");
  console.log("PASS commercial trial concurrency, replay, duration, isolation and cancellation");
 }finally{await Promise.all(pools.map(p=>p.end()));}
+
+// The app router uses its own lazy pool. Exit only after successful assertions and lab cleanup.
+process.exit(0);
