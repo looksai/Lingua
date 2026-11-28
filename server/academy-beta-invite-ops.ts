@@ -55,3 +55,13 @@ export function revokeBetaInvitation(json:string,email:string){
  if(updated.length===records.length)throw Error("Unknown invited email");
  return {records:updated,json:JSON.stringify(updated,null,2)+"\n"};
 }
+
+/** Remove only expired invitation records. No email or raw token is returned.
+ * Expiration is inclusive: at the exact deadline a token is no longer usable. */
+export function pruneExpiredBetaInvitations(json:string,now=Date.now()){
+ if(!Number.isSafeInteger(now)||now<0)throw Error("Invalid time");
+ const entries=readBetaInvitations(json);
+ const records=entries.filter(row=>Date.parse(row.expiresAt)>now);
+ return {removed:entries.length-records.length,remaining:records.length,
+  json:JSON.stringify(records,null,2)+"\n"};
+}
