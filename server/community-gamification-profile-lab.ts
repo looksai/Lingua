@@ -17,7 +17,7 @@ export async function readCommunityGamificationProfile(db:MySql2Database,viewerI
  if(!await canView(viewerId,ownerId))throw Error("Community access required");
  const currentPrivacy=await readGamificationPrivacy(db,ownerId);
  const profile=communityGamificationProfile(awards,currentPrivacy);
- if(!("achievements" in profile))return profile;
+ if(!profile.achievements)return profile;
  // A moderated achievement must not reappear through the profile projection
  // after being removed from the publication feed.
  const rowsHidden=await db.select({achievementId:communityPublicationRestrictions.achievementId})
