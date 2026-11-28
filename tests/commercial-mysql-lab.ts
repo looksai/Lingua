@@ -141,9 +141,9 @@ try{
  await pools[0].query("CREATE TABLE gamificationEvidence (id int AUTO_INCREMENT PRIMARY KEY,userId int NOT NULL,kind varchar(50) NOT NULL,sourceId varchar(180) NOT NULL,occurredAtMs bigint NOT NULL,policyVersion varchar(40) NOT NULL,awardedXp int NOT NULL,FOREIGN KEY(userId) REFERENCES users(id))");
  await pools[0].execute("INSERT INTO gamificationEvidence(userId,kind,sourceId,occurredAtMs,policyVersion,awardedXp) VALUES (?,'lesson_completed','safety-lab',?,?,10)",[ids[1],now,GAMIFICATION_POLICY_VERSION]);
  await pools[0].query("CREATE TABLE communityPublicationRestrictions (ownerId int NOT NULL,achievementId varchar(80) NOT NULL,hidden boolean NOT NULL,PRIMARY KEY(ownerId,achievementId),FOREIGN KEY(ownerId) REFERENCES users(id))");
- await pools[0].query("CREATE TABLE communityPublicationAudit (id int AUTO_INCREMENT PRIMARY KEY,actorId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,hidden boolean NOT NULL,occurredAtMs bigint NOT NULL)");
+ await pools[0].query("CREATE TABLE communityPublicationAudit (id int AUTO_INCREMENT PRIMARY KEY,actorId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,hidden boolean NOT NULL,occurredAtMs bigint NOT NULL,FOREIGN KEY(actorId) REFERENCES users(id),FOREIGN KEY(ownerId) REFERENCES users(id))");
  const allow=async()=>true;
- await pools[0].query("CREATE TABLE communityPublicationReports (id int AUTO_INCREMENT PRIMARY KEY,reporterId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,publishedAtMs bigint NOT NULL,reason enum('spam','harassment','inappropriate','other') NOT NULL,status enum('pending','dismissed','actioned') NOT NULL DEFAULT 'pending',createdAtMs bigint NOT NULL,resolvedAtMs bigint NULL,resolvedBy int NULL,UNIQUE(reporterId,ownerId,achievementId,publishedAtMs),INDEX(status,id))");
+ await pools[0].query("CREATE TABLE communityPublicationReports (id int AUTO_INCREMENT PRIMARY KEY,reporterId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,publishedAtMs bigint NOT NULL,reason enum('spam','harassment','inappropriate','other') NOT NULL,status enum('pending','dismissed','actioned') NOT NULL DEFAULT 'pending',createdAtMs bigint NOT NULL,resolvedAtMs bigint NULL,resolvedBy int NULL,UNIQUE(reporterId,ownerId,achievementId,publishedAtMs),INDEX(status,id),FOREIGN KEY(reporterId) REFERENCES users(id),FOREIGN KEY(ownerId) REFERENCES users(id),FOREIGN KEY(resolvedBy) REFERENCES users(id))");
  // A newer but hidden author must not consume a page or leak a cursor.
  await a.insert(users).values({openId:"commercial-lab-hidden-feed-author"});
  const [hiddenAuthor]=await a.select({id:users.id}).from(users).where(eq(users.openId,"commercial-lab-hidden-feed-author"));
@@ -156,7 +156,8 @@ try{
  assert.equal(impact.requiresPolicyReview,true);
  assert.equal(impact.deletionCanBeBlocked,true);
  assert.ok(impact.restrictive.some(c=>c.table==="communityPublicationReports"&&c.column==="reporterId"));
- assert.ok(impact.restrictive.some(c=>c.table==="communityPublicationAudit"&&c.column==="actorId")===false || impact.deletionCanBeBlocked);
+ assert.ok(impact.restrictive.some(c=>c.table==="communityPublicationAudit"&&c.column==="actorId"));
+ assert.ok(impact.restrictive.some(c=>c.table==="communityPublicationReports"&&c.column==="ownerId"));
  console.log("PASS community account-erasure FK impact preflight remains fail-closed");
  const feed=()=>readCommunityAchievementFeed(b,ids[0],allow);
  const profile=()=>communityCommercialLab(b,allow).profile(ids[0],ids[1]);
