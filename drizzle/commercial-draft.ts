@@ -11,3 +11,20 @@ export const commercialSubscriptions=mysqlTable("commercialSubscriptions",{
  startsAtMs:bigint("startsAtMs",{mode:"number"}).notNull(),
  endsAtMs:bigint("endsAtMs",{mode:"number"}).notNull(),
 },t=>({sourceUnique:unique("commercial_owner_source").on(t.userId,t.source,t.sourceId),ownerStatus:index("commercial_owner_status").on(t.userId,t.status,t.endsAtMs)}));
+
+export const trialCoupons=mysqlTable("trialCoupons",{
+ id:int("id").autoincrement().primaryKey(),
+ code:varchar("code",{length:40}).notNull().unique(),
+ plan:mysqlEnum("plan",["lingua-premium","community-premium"]).notNull(),
+ days:int("days").notNull(),
+ redeemFromMs:bigint("redeemFromMs",{mode:"number"}).notNull(),
+ redeemUntilMs:bigint("redeemUntilMs",{mode:"number"}).notNull(),
+ maxUses:int("maxUses").notNull(),
+ revokedAtMs:bigint("revokedAtMs",{mode:"number"}),
+});
+export const trialRedemptions=mysqlTable("trialRedemptions",{
+ id:int("id").autoincrement().primaryKey(),
+ couponId:int("couponId").notNull().references(()=>trialCoupons.id),
+ userId:int("userId").notNull().references(()=>users.id),
+ redeemedAtMs:bigint("redeemedAtMs",{mode:"number"}).notNull(),
+},t=>({ownerCoupon:unique("trial_owner_coupon").on(t.couponId,t.userId)}));
