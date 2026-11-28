@@ -449,6 +449,27 @@ try{
     assert.equal(await page.locator(".exam-panel select").filter({has:page.locator('option[value="qa-new"]')}).inputValue(),"qa-new");
     assert.ok(!calls.includes("exams.start"));await fit(page);
   },"exam-proposals");
+  await test("integrated itinerary retains objective result and distinguishes skipped stages",375,"closed",async(page,calls)=>{
+    await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Reading",exact:true}).click();
+    await page.getByRole("heading",{name:"Passage 3",exact:true}).waitFor();
+    for(const q of await page.locator(".exam-question").all())await q.getByRole("radio",{name:"Yes",exact:true}).check();
+    await page.getByRole("button",{name:"Enviar respostas"}).click();
+    await page.getByText("Resultado: 12/12 acertos. Não corresponde a uma nota IELTS.").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("heading",{name:"Relatório da prática integrada"}).waitFor();
+    await page.getByText("Reading: 12/12 acertos",{exact:true}).waitFor();
+    await page.getByText("1 de 4 etapas concluídas.",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Reiniciar roteiro"}).click();
+    await page.getByRole("button",{name:"Abrir Listening",exact:true}).waitFor();
+    assert.equal(await page.getByText("Reading: 12/12 acertos",{exact:true}).count(),0);
+    assert.ok(calls.includes("exams.submit"));await fit(page);
+  },"reading-mock");
   await test("extended reading mock shows three passages and twelve questions before correction",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
     await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
