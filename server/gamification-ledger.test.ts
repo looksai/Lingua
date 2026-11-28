@@ -1,3 +1,4 @@
+import {importOwnedReviewEvidence} from "./gamification-review-import-lab";
 import {describe,it,expect} from "vitest";
 import {recordParticipation,type GamificationLedger,type LedgerEntry} from "./gamification-ledger";
 function lab():GamificationLedger{
@@ -36,5 +37,29 @@ describe("Transactional participation awards",()=>{
   const store=lab();
   await expect(recordParticipation(store,0,event("a"))).rejects.toThrow();
   await expect(recordParticipation(store,1,event(""))).rejects.toThrow();
+ });
+});
+
+describe("Owned review import",()=>{
+ const row=(logId:number,time=0)=>({logId,createdAt:new Date(time)});
+ it("orders records, caps daily XP and replays without extra awards",async()=>{
+  const store=lab(),records=Array.from({length:25},(_,i)=>row(i+1,25-i));
+  const first=await importOwnedReviewEvidence(store,1,records,100);
+  expect(first.reduce((sum,e)=>sum+e.xp,0)).toBe(200);
+  expect(first[0].sourceId).toBe("25");
+  expect(await importOwnedReviewEvidence(store,1,records,100)).toEqual(first);
+  expect(await importOwnedReviewEvidence(store,2,[row(1,25)],100)).toMatchObject([{xp:10}]);
+ });
+ it("retries after interruption without awarding twice",async()=>{
+  const store=lab();let calls=0;
+  const interrupted:GamificationLedger={transaction(userId,work){if(++calls===2)return Promise.reject(Error("interrupted"));return store.transaction(userId,work);}};
+  await expect(importOwnedReviewEvidence(interrupted,1,[row(1),row(2)],100)).rejects.toThrow("interrupted");
+  expect(await importOwnedReviewEvidence(store,1,[row(1),row(2)],100)).toMatchObject([{xp:10},{xp:10}]);
+ });
+ it("rejects future or conflicting records before writes",async()=>{
+  const store=lab();
+  await expect(importOwnedReviewEvidence(store,1,[row(1),row(2,101)],100)).rejects.toThrow();
+  await expect(importOwnedReviewEvidence(store,1,[row(1),row(1,2)],100)).rejects.toThrow();
+  expect(await importOwnedReviewEvidence(store,1,[row(1,3)],100)).toMatchObject([{xp:10}]);
  });
 });
