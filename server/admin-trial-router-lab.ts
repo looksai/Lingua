@@ -30,20 +30,20 @@ export const adminTrialRouterLab=router({
    return {processed:true};
  }),
  communityReports:adminProcedure.input(z.object({status:z.enum(["pending","dismissed","actioned"]).default("pending"),beforeId:z.number().int().positive().max(2147483647).optional()}).strict()).query(async({ctx,input})=>{
-   ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-community-reports:"+ctx.user.id);
+   ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-community-reports:"+ctx.user.id,Date.now(),60);
    const db=await labDb();
    const rows=await db.select().from(communityPublicationReports).where(and(eq(communityPublicationReports.status,input.status),input.beforeId===undefined?undefined:lt(communityPublicationReports.id,input.beforeId))).orderBy(desc(communityPublicationReports.id)).limit(51);
    const items=rows.slice(0,50);
    return {items,nextBeforeId:rows.length>50?items[49].id:null};
  }),
  actionCommunityReport:adminProcedure.input(z.object({reportId:z.number().int().positive().max(2147483647)}).strict()).mutation(async({ctx,input})=>{
-   checkRequestOrigin(ctx.req);rateLimit("admin-community-report-resolution:"+ctx.user.id);
+   checkRequestOrigin(ctx.req);rateLimit("admin-community-report-resolution:"+ctx.user.id,Date.now(),60);
    ctx.res.setHeader("Cache-Control","private, no-store");
    const db=await labDb();
    return actionCommunityReport(db,ctx.user.id,input.reportId);
  }),
  dismissCommunityReport:adminProcedure.input(z.object({reportId:z.number().int().positive().max(2147483647)}).strict()).mutation(async({ctx,input})=>{
-   checkRequestOrigin(ctx.req);rateLimit("admin-community-report-resolution:"+ctx.user.id);
+   checkRequestOrigin(ctx.req);rateLimit("admin-community-report-resolution:"+ctx.user.id,Date.now(),60);
    ctx.res.setHeader("Cache-Control","private, no-store");
    const db=await labDb();
    await db.transaction(async tx=>{
@@ -55,7 +55,7 @@ export const adminTrialRouterLab=router({
    return {processed:true as const};
  }),
  communityPublicationAudit:adminProcedure.input(z.object({beforeId:z.number().int().positive().max(2147483647).optional()}).strict()).query(async({ctx,input})=>{
-   ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-community-audit:"+ctx.user.id);
+   ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-community-audit:"+ctx.user.id,Date.now(),60);
    const db=await labDb();
    const rows=await db.select().from(communityPublicationAudit).where(input.beforeId===undefined?undefined:lt(communityPublicationAudit.id,input.beforeId)).orderBy(desc(communityPublicationAudit.id)).limit(51);
    const items=rows.slice(0,50);
