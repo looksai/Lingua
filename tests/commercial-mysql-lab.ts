@@ -1,3 +1,4 @@
+import {inspectCommunityDeletionConstraints} from "../server/community-deletion-preflight-lab";
 import {publishAchievement,revokeAchievement} from "../server/community-achievement-share-lab";
 import {reportCommunityPublication,actionCommunityReport} from "../server/community-report-lab";
 import {communityPublicationReports} from "../drizzle/community-safety-draft";
@@ -150,6 +151,13 @@ try{
  await pools[0].execute("INSERT INTO gamificationPrivacy(userId,showLevel,showAchievements,leaderboardOptIn,updatedAtMs) VALUES (?,0,1,0,?)",[hiddenAuthor.id,now]);
  await pools[0].execute("INSERT INTO gamificationShares(userId,achievementId,publishedAtMs) VALUES (?,?,?)",[hiddenAuthor.id,ACHIEVEMENTS[0].id,now+60000]);
  await pools[0].execute("INSERT INTO communityPublicationRestrictions(ownerId,achievementId,hidden) VALUES (?,?,1)",[hiddenAuthor.id,ACHIEVEMENTS[0].id]);
+ const impact=await inspectCommunityDeletionConstraints(pools[0],"partner_lab");
+ assert.deepEqual(impact.missingTables,[]);
+ assert.equal(impact.requiresPolicyReview,true);
+ assert.equal(impact.deletionCanBeBlocked,true);
+ assert.ok(impact.restrictive.some(c=>c.table==="communityPublicationReports"&&c.column==="reporterId"));
+ assert.ok(impact.restrictive.some(c=>c.table==="communityPublicationAudit"&&c.column==="actorId")===false || impact.deletionCanBeBlocked);
+ console.log("PASS community account-erasure FK impact preflight remains fail-closed");
  const feed=()=>readCommunityAchievementFeed(b,ids[0],allow);
  const profile=()=>communityCommercialLab(b,allow).profile(ids[0],ids[1]);
  const ranking=()=>communityCommercialLab(b,allow).ranking(ids[0],now);
