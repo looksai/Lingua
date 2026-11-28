@@ -13,7 +13,10 @@ export async function readWeeklyCommunityRanking(db:MySql2Database,viewerId:numb
  const candidates=[];
  for(const row of rows){
   if(!await isActiveMember(row.memberId))continue;
+  const [current]=await db.select({optedIn:privacy.leaderboardOptIn}).from(privacy).where(eq(privacy.userId,row.memberId)).limit(1);
+  if(!current?.optedIn)continue;
   candidates.push({memberId:row.memberId,active:true,optedIn:true,weeklyXp:Number(row.total)});
  }
+ if(!await isActiveMember(viewerId))throw Error("Community access required");
  return {weekStartMs:monday,ranking:weeklyParticipationRanking(candidates,limit)};
 }
