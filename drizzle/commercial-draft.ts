@@ -71,3 +71,27 @@ export const commercialAdOrders=mysqlTable("commercialAdOrders",{
  endsAtMs:bigint("endsAtMs",{mode:"number"}).notNull(),
  cashSourceKey:varchar("cashSourceKey",{length:180}).unique().references(()=>commercialCashEntries.sourceKey),
 },t=>({partnerLookup:index("commercial_ads_partner").on(t.partnerId),deliveryLookup:index("commercial_ads_delivery").on(t.deliveryStatus,t.endsAtMs)}));
+
+export const commercialReferralCodes=mysqlTable("commercialReferralCodes",{
+ id:int("id").autoincrement().primaryKey(),
+ code:varchar("code",{length:40}).notNull().unique(),
+ referrerId:int("referrerId").notNull().references(()=>users.id),
+ commissionBasisPoints:int("commissionBasisPoints").notNull(),
+ issuedAtMs:bigint("issuedAtMs",{mode:"number"}).notNull(),
+ expiresAtMs:bigint("expiresAtMs",{mode:"number"}).notNull(),
+ revokedAtMs:bigint("revokedAtMs",{mode:"number"}),
+});
+export const commercialReferralAttributions=mysqlTable("commercialReferralAttributions",{
+ id:int("id").autoincrement().primaryKey(),
+ codeId:int("codeId").notNull().references(()=>commercialReferralCodes.id),
+ referredUserId:int("referredUserId").notNull().unique().references(()=>users.id),
+ attributedAtMs:bigint("attributedAtMs",{mode:"number"}).notNull(),
+ commissionBasisPoints:int("commissionBasisPoints").notNull(),
+},t=>({codeLookup:index("commercial_referral_code").on(t.codeId)}));
+export const commercialReferralConversions=mysqlTable("commercialReferralConversions",{
+ id:int("id").autoincrement().primaryKey(),
+ attributionId:int("attributionId").notNull().unique().references(()=>commercialReferralAttributions.id),
+ cashSourceKey:varchar("cashSourceKey",{length:180}).notNull().unique().references(()=>commercialCashEntries.sourceKey),
+ convertedAtMs:bigint("convertedAtMs",{mode:"number"}).notNull(),
+ status:mysqlEnum("status",["pending","confirmed","reversed"]).notNull(),
+});
