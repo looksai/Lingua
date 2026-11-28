@@ -28,6 +28,21 @@ const sets:Record<IeltsVariant,ExamSet>={
 };
 type Stored={owner:number;attempt:ExamAttempt;set:ExamSet;result?:ExamResult};
 export function examExercises(variant:IeltsVariant,skill:ExamSkill){return (skill==="reading"?[sets[variant],...additionalReading[variant]]:listeningSets).map(({id,title})=>({id,title}));}
+export function resolveExamSet(variant:IeltsVariant,skill:ExamSkill,exerciseId?:string){
+ const pool=skill==="reading"?[sets[variant],...additionalReading[variant]]:listeningSets;
+ const set=exerciseId?pool.find(x=>x.id===exerciseId):pool[0];
+ if(!set)throw new TRPCError({code:"BAD_REQUEST",message:"Atividade incompatível com a seleção."});
+ return set;
+}
+export function publicExamAttempt(id:string,variant:IeltsVariant,mode:ExamMode,set:ExamSet,deadline:number):ExamAttempt{
+ return {id,variant,mode,version:IELTS_ADAPTER_VERSION,deadline,exercise:{id:set.id,title:set.title,passage:set.passage,skill:set.skill,questions:set.questions.map(({id,prompt,options})=>({id,prompt,options}))}};
+}
+export function gradeExamSet(set:ExamSet,mode:ExamMode,version:string,answers:Record<string,string>):ExamResult{
+ if(Object.keys(answers).some(key=>!set.questions.some(q=>q.id===key)))throw new TRPCError({code:"BAD_REQUEST",message:"Resposta inválida."});
+ for(const q of set.questions)if(Object.hasOwn(answers,q.id)&&!q.options.includes(answers[q.id]!))throw new TRPCError({code:"BAD_REQUEST",message:"Alternativa inválida."});
+ const items=set.questions.map(q=>({id:q.id,correct:answers[q.id]===q.expected,expected:q.expected,explanation:q.explanation}));
+ return {correct:items.filter(i=>i.correct).length,total:items.length,mode,version,items};
+}
 export function createExamEngine(clock=Date.now){
  const attempts=new Map<string,Stored>();
  const prune=(now:number)=>{for(const [id,row] of attempts)if(now>row.attempt.deadline+5*60*1000)attempts.delete(id);};
@@ -35,14 +50,12 @@ export function createExamEngine(clock=Date.now){
  return {
   start(owner:number,variant:IeltsVariant,mode:ExamMode,skill:ExamSkill="reading",exerciseId?:string):ExamAttempt{
    if(skill==="listening"&&mode==="timed")throw new TRPCError({code:"BAD_REQUEST",message:"Listening cronometrado ainda não disponível."});
-   const pool=skill==="reading"?[sets[variant],...additionalReading[variant]]:listeningSets;
-   const set=exerciseId?pool.find(x=>x.id===exerciseId):pool[0];
-   if(!set)throw new TRPCError({code:"BAD_REQUEST",message:"Atividade incompatível com a seleção."});
+   const set=resolveExamSet(variant,skill,exerciseId);
    const now=clock();prune(now);
    if(attempts.size>=2000)throw new TRPCError({code:"TOO_MANY_REQUESTS",message:"Limite temporário de atividades atingido."});
    // One live attempt per account. Starting a new one replaces the old session.
    for(const [id,row] of attempts)if(row.owner===owner)attempts.delete(id);
-   const attempt:ExamAttempt={id:randomUUID(),variant,mode,version:IELTS_ADAPTER_VERSION,deadline:now+(mode==="timed"?EXAM_PILOT_DURATION_MS:EXAM_PRACTICE_DURATION_MS),exercise:{id:set.id,title:set.title,passage:set.passage,skill:set.skill,questions:set.questions.map(({id,prompt,options})=>({id,prompt,options}))}};
+   const attempt=publicExamAttempt(randomUUID(),variant,mode,set,now+(mode==="timed"?EXAM_PILOT_DURATION_MS:EXAM_PRACTICE_DURATION_MS));
    attempts.set(attempt.id,{owner,attempt,set});return attempt;
   },
   submit(owner:number,id:string,answers:Record<string,string>):ExamResult{
@@ -50,11 +63,7 @@ export function createExamEngine(clock=Date.now){
    if(!row||row.owner!==owner)throw missing();
    if(row.result)return row.result;
    if(now>=row.attempt.deadline)throw new TRPCError({code:"PRECONDITION_FAILED",message:"O tempo terminou. Inicie outra atividade."});
-   const set=row.set;
-   if(Object.keys(answers).some(key=>!set.questions.some(q=>q.id===key)))throw new TRPCError({code:"BAD_REQUEST",message:"Resposta inválida."});
-   for(const q of set.questions)if(Object.hasOwn(answers,q.id)&&!q.options.includes(answers[q.id]!))throw new TRPCError({code:"BAD_REQUEST",message:"Alternativa inválida."});
-   const items=set.questions.map(q=>({id:q.id,correct:answers[q.id]===q.expected,expected:q.expected,explanation:q.explanation}));
-   const result:ExamResult={correct:items.filter(i=>i.correct).length,total:items.length,mode:row.attempt.mode,version:row.attempt.version,items};row.result=result;return result;
+   const result=gradeExamSet(row.set,row.attempt.mode,row.attempt.version,answers);row.result=result;return result;
   },
  };
 }
