@@ -1,3 +1,4 @@
+import {reportCommunityPublication} from "./community-report-lab";
 import {and,asc,eq,gt} from "drizzle-orm";
 import {communityBlocks} from "../drizzle/community-safety-draft";
 import {setCommunityBlock} from "./community-safety-lab";
@@ -19,6 +20,13 @@ function confirmAccount(accountId:number|undefined, userId:number) {
 const accountId=z.number().int().positive();
 
 export const commercialStudentRouterLab=router({
+ reportPublication:protectedProcedure.input(z.object({accountId,ownerId:z.number().int().positive().max(2147483647),achievementId:z.string().min(1).max(80),publishedAtMs:z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),reason:z.enum(["spam","harassment","inappropriate","other"])}).strict()).mutation(async({ctx,input})=>{
+   confirmAccount(input.accountId,ctx.user.id);checkRequestOrigin(ctx.req);
+   rateLimit("community-report:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
+   const db=await dbForLab();
+   try{return await reportCommunityPublication(db,ctx.user.id,input);}
+   catch{throw new TRPCError({code:"BAD_REQUEST",message:"Não foi possível registrar a denúncia."});}
+ }),
  blockedMembers:protectedProcedure.input(z.object({accountId,afterId:z.number().int().positive().optional()}).strict()).query(async({ctx,input})=>{
    confirmAccount(input.accountId,ctx.user.id);
    ctx.res.setHeader("Cache-Control","private, no-store");
