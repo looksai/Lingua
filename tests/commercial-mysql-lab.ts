@@ -171,6 +171,8 @@ try{
  await caller(ids[0],"user").commercialLab.reportPublication({accountId:ids[0],...reportInput});
  const pending=await admin.communityReports({status:"pending"});
  assert.equal(pending.items.length,1);
+ assert.equal(pending.items[0].reason,"spam");
+ assert.equal((await feed()).items.length,1,"A report must not hide its target without review");
  const mine=()=>caller(ids[0],"user").commercialLab.myCommunityReports({accountId:ids[0]});
  assert.equal((await mine()).items.length,1);
  assert.equal((await mine()).items[0].reason,"spam");
@@ -185,6 +187,9 @@ try{
  assert.equal((await admin.communityReports({status:"actioned"})).items[0].resolvedBy,ids[0]);
  assert.equal((await mine()).items[0].status,"actioned");
  assert.equal((await admin.communityPublicationAudit({})).items.length,3);
+ await admin.actionCommunityReport({reportId});
+ assert.equal((await admin.communityPublicationAudit({})).items.length,3,"Repeat resolution must not duplicate moderation audit");
+ await assert.rejects(caller(ids[0],"user").commercialLab.reportPublication({accountId:ids[0],...reportInput}));
  await setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,false);
  const newerRevision=reportInput.publishedAtMs+1;
  await pools[0].execute("UPDATE gamificationShares SET publishedAtMs=? WHERE userId=? AND achievementId=?",[newerRevision,ids[1],achievementId]);
@@ -261,6 +266,11 @@ try{
  // Unknown actor violates the audit FK after the coupon insert. Both must roll back.
  await assert.rejects(caller(2147483647,"admin").adminLab.issue({...trial,code:"ROLLBACK"}));
  assert.ok(!(await admin.coupons({})).items.some(c=>c.code==="ROLLBACK"));
+ // A member retains access to their own report history after expiry, not the community feed.
+ await a.update(commercialSubscriptions).set({endsAtMs:Date.now()}).where(eq(commercialSubscriptions.userId,ids[0]));
+ assert.ok((await mine()).items.length>=1);
+ await assert.rejects(authorizedFeed(),{code:"FORBIDDEN"});
+ console.log("PASS expired reporter history without feed access");
  console.log("PASS admin issue, student redemption, plan boundaries, expiry, concurrent promotion lifecycle and audit rollback");
  console.log("PASS referral concurrency, self-referral, expiry and conversion metrics");
  console.log("PASS advertising settlement evidence, expiry and refund exclusion");
