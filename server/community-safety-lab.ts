@@ -13,11 +13,19 @@ function checkMember(id:number){
 export async function setCommunityBlock(db:MySql2Database,owner:number,target:number,blocked:boolean){
   checkMember(owner);checkMember(target);
   if(owner===target)throw Error("Cannot block own account");
-  if(blocked){
-    await db.insert(communityBlocks).values({ownerId:owner,targetId:target}).onDuplicateKeyUpdate({set:{targetId:target}});
-  }else{
-    await db.delete(communityBlocks).where(and(eq(communityBlocks.ownerId,owner),eq(communityBlocks.targetId,target)));
-  }
+  await db.transaction(async tx=>{
+    // Lock the pair in canonical order. A concurrent report or block must
+    // observe either the state before this transition or the state after it.
+    for(const id of [owner,target].sort((a,b)=>a-b)){
+      const [row]=await tx.select({id:users.id}).from(users).where(eq(users.id,id)).for("update");
+      if(!row)throw Error("Unknown member");
+    }
+    if(blocked){
+      await tx.insert(communityBlocks).values({ownerId:owner,targetId:target}).onDuplicateKeyUpdate({set:{targetId:target}});
+    }else{
+      await tx.delete(communityBlocks).where(and(eq(communityBlocks.ownerId,owner),eq(communityBlocks.targetId,target)));
+    }
+  });
 }
 
 export async function communityInteractionAllowed(db:MySql2Database,viewer:number,owner:number){
