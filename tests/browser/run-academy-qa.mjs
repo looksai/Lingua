@@ -25,6 +25,7 @@ async function test(name,width,mode,body,fixture="public"){
   let communityBlocked=false,reportSent=false;
   const adminDecisions={88:"pending",89:"pending"};
   let redeemed=false;
+  let signedUp=false;
   let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
   page.on("pageerror",e=>errors.push(e.message));
@@ -36,13 +37,22 @@ async function test(name,width,mode,body,fixture="public"){
     const names=url.pathname.slice("/api/trpc/".length).split(",");
     calls.push(...names);
     const reply=names.map(name=>{
-      if(name==="auth.me")return {result:{data:{json:fixture==="public"?null:{id:accountId,email:"qa-visual@synthetic.invalid",name:"Aluno de teste",role:fixture==="admin-report"?"admin":"user"}}}};
+      if(name==="auth.me")return {result:{data:{json:fixture==="public"||(fixture==="signup-flow"&&!signedUp)?null:{id:accountId,email:"qa-visual@synthetic.invalid",name:"Aluno de teste",role:fixture==="admin-report"?"admin":"user"}}}};
       if(fixture!=="public"){
-        const profile={userId:9001,tutorName:"Alex",tutorPersona:"welcoming",interest:"work",allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:fixture==="diagnostic"?"started":"deferred"};
+        const profile={userId:9001,tutorName:"Alex",tutorPersona:"welcoming",interest:"work",allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:fixture==="diagnostic"||fixture==="signup-flow"?"started":"deferred"};
         const plan={title:"Apresentações e perguntas",objective:"Praticar mensagens curtas em inglês.",context:"comunicação profissional",reason:"Ponto de partida exploratório.",limits:"Não certifica proficiência."};
         const nextTask={id:"introduce-yourself-v1",skill:"writing",message:"Como você se apresentaria em inglês?",purpose:"Apresentação"};
-        const fixtures={"onboarding.me":{profile:fixture==="onboarding"?null:profile,responses:[],nextTask:fixture==="diagnostic"?nextTask:null,plan:fixture==="onboarding"?null:plan},"learning.listItems":[],"learning.history":[],"placement.me":{answers:[],plan:null,source:null,nextTask:null,status:"in_progress",skills:{writing:"sampled",reading:"not_assessed",listening:"not_assessed",speaking:"not_assessed"}},"tutor.capabilities":{provider:"off",chat:false,asr:false,tts:false,neuralEnglish:false,geminiDemo:false,memory:false}};
+        const fixtures={"onboarding.me":{profile:fixture==="onboarding"||fixture==="signup-flow"?null:profile,responses:[],nextTask:fixture==="diagnostic"?nextTask:null,plan:fixture==="onboarding"?null:plan},"learning.listItems":[],"learning.history":[],"placement.me":{answers:[],plan:null,source:null,nextTask:null,status:"in_progress",skills:{writing:"sampled",reading:"not_assessed",listening:"not_assessed",speaking:"not_assessed"}},"tutor.capabilities":{provider:"off",chat:false,asr:false,tts:false,neuralEnglish:false,geminiDemo:false,memory:false}};
         if(Object.hasOwn(fixtures,name))return {result:{data:{json:fixtures[name]}}};
+      }
+      if(name==="auth.signUp"&&fixture==="signup-flow"){
+        const body=JSON.parse(route.request().postData()||"{}");
+        const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body)?.json??{};
+        assert.equal(input.email,"qa-new@synthetic.invalid");
+        assert.equal(input.password,"strong-synthetic-password");
+        if(input.inviteCode!=="A".repeat(43))return {error:{message:"Cadastro indisponível. Confira seu convite da Academy Beta.",code:-32003,data:{code:"FORBIDDEN",httpStatus:403}}};
+        signedUp=true;
+        return {result:{data:{json:{success:true}}}};
       }
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
@@ -281,6 +291,23 @@ try{
     assert.equal(await code.inputValue(),"");
     await fit(page);
   });
+  await test("Beta invite sign-up rejects wrong token and enters authenticated onboarding",375,"invite",async(page,calls)=>{
+    await page.goto(base+"/login?mode=signup");
+    await page.getByRole("heading",{name:"Crie sua conta"}).waitFor();
+    await page.getByLabel("E-mail").fill("qa-new@synthetic.invalid");
+    await page.getByLabel("Senha",{exact:true}).fill("strong-synthetic-password");
+    const invite=page.getByLabel("Código do convite");
+    await invite.fill("B".repeat(43));
+    await page.getByRole("button",{name:"Cadastrar"}).click();
+    await page.getByRole("alert").filter({hasText:"Cadastro indisponível"}).waitFor();
+    assert.equal(await page.locator(".academy-onboarding-card").count(),0);
+    await invite.fill("A".repeat(43));
+    await page.getByRole("button",{name:"Cadastrar"}).click();
+    await page.locator(".academy-onboarding-card").waitFor();
+    assert.equal(calls.filter(name=>name==="auth.signUp").length,2);
+    assert.ok(calls.includes("onboarding.me"));
+    await fit(page);
+  },"signup-flow");
   await test("closed mode keeps login and hides sign-up",375,"closed",async page=>{
     await page.goto(base+"/login");
     await page.getByText("Novos cadastros estão temporariamente fechados.").waitFor();
