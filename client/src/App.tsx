@@ -31,15 +31,20 @@ function PrivateExperience({ email, userId, exams }: { email: string; userId: nu
   if (access.isPending) return <Loading text="Confirmando seu acesso..."/>;
   if (access.error || !access.data || (access.data.trial.kind === "unavailable" && !access.data.exams)) return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><h1 className="font-display text-3xl">Não foi possível confirmar seu acesso</h1><button className="academy-primary mt-5" onClick={()=>void access.refetch()}>Tentar novamente</button></div></main>;
   if (!access.data.course && !access.data.exams) return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p>{import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/redeem">Tenho um cupom de acesso</a>}{import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/community">Privacidade da comunidade</a>}<a href="/exam-privacy">Privacidade do Centro de Exames</a><button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>{logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}</div></main>;
-  if (exams || !access.data.course) return <main className="academy-interior px-5 py-8"><section className="academy-state-card">
-    <h1>{access.data.community ? "Comunidade Lingua" : "Centro de Exames"}</h1>
-    {access.data.course && <a href="/">Voltar ao campus</a>}
-    {access.data.community && import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/community">Privacidade da comunidade</a>}
+  if (exams || !access.data.course) return <main className="academy-interior exam-standalone">
+    <header className="exam-member-header">
+      <img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/>
+      {access.data.community && <h2>Comunidade Lingua</h2>}
+      <nav aria-label="Conta do aluno">
+        {access.data.course && <a href="/">Voltar ao campus</a>}
+        {access.data.community && import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/community">Privacidade da comunidade</a>}
+        <a href="/exam-privacy">Privacidade do Centro de Exames</a>
+        <button disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>
+      </nav>
+      {logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}
+    </header>
     <ExamCampus/>
-    <a href="/exam-privacy">Privacidade do Centro de Exames</a>
-    <button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>
-    {logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}
-  </section></main>;
+  </main>;
   return <><div className="academy-trial-strip" hidden={access.data.trial.kind !== "active"}>{access.data.trial.kind === "active" ? `Período gratuito · ${access.data.trial.remainingDays} dia(s) restantes` : null}</div><LearningExperience email={email}/></>;
 }
 
