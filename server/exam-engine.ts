@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import { EXAM_PILOT_DURATION_MS, EXAM_PRACTICE_DURATION_MS, IELTS_ADAPTER_VERSION, type ExamAttempt, type ExamMode, type ExamResult, type ExamSkill, type IeltsVariant } from "../shared/exam-contract";
+import { EXAM_PILOT_DURATION_MS, EXAM_PRACTICE_DURATION_MS, IELTS_ADAPTER_VERSION, READING_MOCK_ID, READING_MOCK_VERSION, READING_MOCK_DURATION_MS, type ExamAttempt, type ExamMode, type ExamResult, type ExamSkill, type IeltsVariant } from "../shared/exam-contract";
 import {additionalReading,listeningSets,type ExamSet} from "./exam-content-v2";
+import {readingMock} from "./exam-reading-mock";
 type Plan="lingua"|"community";
 export function examAccess(email:string|null|undefined,env:NodeJS.ProcessEnv=process.env):Plan|null{
  if(env.LINGUA_EXAM_PILOT_ENABLED!=="true"||!email)return null;
@@ -28,14 +29,17 @@ const sets:Record<IeltsVariant,ExamSet>={
 };
 type Stored={owner:number;attempt:ExamAttempt;set:ExamSet;result?:ExamResult};
 export function examExercises(variant:IeltsVariant,skill:ExamSkill){return (skill==="reading"?[sets[variant],...additionalReading[variant]]:listeningSets).map(({id,title})=>({id,title}));}
-export function resolveExamSet(variant:IeltsVariant,skill:ExamSkill,exerciseId?:string){
+export function resolveExamSet(variant:IeltsVariant,skill:ExamSkill,exerciseId?:string,mode:ExamMode="practice"){
+ if(exerciseId===READING_MOCK_ID){if(skill!=="reading"||mode!=="timed")throw new TRPCError({code:"BAD_REQUEST",message:"Atividade incompatível com a seleção."});return readingMock(variant);}
  const pool=skill==="reading"?[sets[variant],...additionalReading[variant]]:listeningSets;
  const set=exerciseId?pool.find(x=>x.id===exerciseId):pool[0];
  if(!set)throw new TRPCError({code:"BAD_REQUEST",message:"Atividade incompatível com a seleção."});
  return set;
 }
+export function examVersion(set:ExamSet){return set.id===READING_MOCK_ID?READING_MOCK_VERSION:IELTS_ADAPTER_VERSION;}
+export function examDuration(set:ExamSet,mode:ExamMode){return set.id===READING_MOCK_ID?READING_MOCK_DURATION_MS:mode==="timed"?EXAM_PILOT_DURATION_MS:EXAM_PRACTICE_DURATION_MS;}
 export function publicExamAttempt(id:string,variant:IeltsVariant,mode:ExamMode,set:ExamSet,deadline:number):ExamAttempt{
- return {id,variant,mode,version:IELTS_ADAPTER_VERSION,deadline,exercise:{id:set.id,title:set.title,passage:set.passage,skill:set.skill,questions:set.questions.map(({id,prompt,options})=>({id,prompt,options}))}};
+ return {id,variant,mode,version:examVersion(set),deadline,exercise:{id:set.id,title:set.title,passage:set.passage,skill:set.skill,questions:set.questions.map(({id,prompt,options})=>({id,prompt,options})),...(set.sections?{sections:set.sections.map(({title,passage,questionIds})=>({title,passage,questionIds:[...questionIds]}))}:{})}};
 }
 export function gradeExamSet(set:ExamSet,mode:ExamMode,version:string,answers:Record<string,string>):ExamResult{
  if(Object.keys(answers).some(key=>!set.questions.some(q=>q.id===key)))throw new TRPCError({code:"BAD_REQUEST",message:"Resposta inválida."});
@@ -50,12 +54,12 @@ export function createExamEngine(clock=Date.now){
  return {
   start(owner:number,variant:IeltsVariant,mode:ExamMode,skill:ExamSkill="reading",exerciseId?:string):ExamAttempt{
    if(skill==="listening"&&mode==="timed")throw new TRPCError({code:"BAD_REQUEST",message:"Listening cronometrado ainda não disponível."});
-   const set=resolveExamSet(variant,skill,exerciseId);
+   const set=resolveExamSet(variant,skill,exerciseId,mode);
    const now=clock();prune(now);
    if(attempts.size>=2000)throw new TRPCError({code:"TOO_MANY_REQUESTS",message:"Limite temporário de atividades atingido."});
    // One live attempt per account. Starting a new one replaces the old session.
    for(const [id,row] of attempts)if(row.owner===owner)attempts.delete(id);
-   const attempt=publicExamAttempt(randomUUID(),variant,mode,set,now+(mode==="timed"?EXAM_PILOT_DURATION_MS:EXAM_PRACTICE_DURATION_MS));
+   const attempt=publicExamAttempt(randomUUID(),variant,mode,set,now+examDuration(set,mode));
    attempts.set(attempt.id,{owner,attempt,set});return attempt;
   },
   submit(owner:number,id:string,answers:Record<string,string>):ExamResult{
