@@ -1,3 +1,4 @@
+import {actionCommunityReport} from "./community-report-lab";
 import {communityPublicationAudit,communityPublicationReports} from "../drizzle/community-safety-draft";
 import {ACHIEVEMENTS} from "../shared/gamification-achievements";
 import {setCommunityPublicationRestriction,setCommunityRestriction} from "./community-safety-lab";
@@ -34,6 +35,12 @@ export const adminTrialRouterLab=router({
    const rows=await db.select().from(communityPublicationReports).where(and(eq(communityPublicationReports.status,input.status),input.beforeId===undefined?undefined:lt(communityPublicationReports.id,input.beforeId))).orderBy(desc(communityPublicationReports.id)).limit(51);
    const items=rows.slice(0,50);
    return {items,nextBeforeId:rows.length>50?items[49].id:null};
+ }),
+ actionCommunityReport:adminProcedure.input(z.object({reportId:z.number().int().positive().max(2147483647)}).strict()).mutation(async({ctx,input})=>{
+   checkRequestOrigin(ctx.req);rateLimit("admin-community-report-resolution:"+ctx.user.id);
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   const db=await labDb();
+   return actionCommunityReport(db,ctx.user.id,input.reportId);
  }),
  dismissCommunityReport:adminProcedure.input(z.object({reportId:z.number().int().positive().max(2147483647)}).strict()).mutation(async({ctx,input})=>{
    checkRequestOrigin(ctx.req);rateLimit("admin-community-report-resolution:"+ctx.user.id);
