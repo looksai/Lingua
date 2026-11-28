@@ -58,7 +58,7 @@ export const examRouter=router({
   ctx.res.setHeader("Cache-Control","private, no-store");
   return (durableExamEnabled()?createDurableExamEngine(await historyDb()):examEngine).start(ctx.user.id,input.variant,input.mode,input.skill,input.exerciseId);
  }),
- submit:protectedProcedure.input(z.object({attemptId:z.uuid(),answers:z.record(z.string().max(24),z.string().max(120)).refine(v=>Object.keys(v).length<=4)}).strict()).mutation(async({ctx,input})=>{
+ submit:protectedProcedure.input(z.object({attemptId:z.uuid(),answers:z.record(z.string().max(24),z.string().max(120)).refine(v=>Object.keys(v).length<=12)}).strict()).mutation(async({ctx,input})=>{
   checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-submit:"+ctx.user.id);
   ctx.res.setHeader("Cache-Control","private, no-store");
   return (durableExamEnabled()?createDurableExamEngine(await historyDb()):examEngine).submit(ctx.user.id,input.attemptId,input.answers);
