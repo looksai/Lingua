@@ -169,6 +169,10 @@ try{
  assert.equal((await feed()).items.length,1);
  console.log("PASS bidirectional community block, independent removal, suspension and restoration with persistent membership and privacy");
  await a.update(commercialSubscriptions).set({endsAtMs:Date.now()}).where(eq(commercialSubscriptions.userId,ids[1]));
+ // Expired authors must disappear before keyset pagination, even with privacy still enabled.
+ assert.deepEqual(await readCommunityAchievementFeed(b,ids[0],allow,1),{items:[],nextCursor:null});
+ await assert.rejects(profile());
+ assert.deepEqual((await ranking()).ranking,[]);
  assert.equal((await access()).exams,false);
  await assert.rejects(student.exams.overview(),{code:"FORBIDDEN"});
 
