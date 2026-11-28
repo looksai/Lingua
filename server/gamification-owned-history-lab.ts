@@ -15,3 +15,16 @@ export async function importAuthenticatedReviewHistory(db:MySql2Database,userId:
  const last=page[page.length-1];
  return {processed:receipts.length,cutoffMs:nowMs,nextCursor:rows.length>1000&&last?{timeMs:last.createdAt.getTime(),logId:last.logId}:null};
 }
+
+// Run only from a trusted laboratory job; keep the same cutoff across all pages.
+export async function importCompleteAuthenticatedReviewHistory(db:MySql2Database,userId:number,nowMs=Date.now()){
+ let cursor:{timeMs:number;logId:number}|undefined;
+ let processed=0;
+ do{
+  const page=await importAuthenticatedReviewHistory(db,userId,nowMs,cursor);
+  processed+=page.processed;
+  if(page.nextCursor&&cursor&&(page.nextCursor.timeMs<cursor.timeMs||(page.nextCursor.timeMs===cursor.timeMs&&page.nextCursor.logId<=cursor.logId)))throw Error("Import cursor did not advance");
+  cursor=page.nextCursor??undefined;
+ }while(cursor);
+ return {processed,cutoffMs:nowMs};
+}
