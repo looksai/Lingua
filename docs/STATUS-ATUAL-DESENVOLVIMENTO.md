@@ -1,3 +1,32 @@
+# CHECKPOINT PRIORITÁRIO — 28/11/2026 — Academy Beta: operação de convites e QA de primeiro aluno
+
+**Retomada operacional:** PR #125, branch `feat/exam-writing-catalog`. Continuar desenvolvimento autônomo, com commits e testes efetivos. CSLE permanece intocado. **Nenhum deploy, migração ou ativação de flags de produção nesta sequência.** O manual seguro de operação está em `docs/ACADEMY-BETA-INVITATIONS-OPERATOR.md`.
+
+## Implementação efetivamente salva
+
+1. **Operação offline do piloto:** `server/academy-beta-invite-ops.ts` emite/revoga convites restritos a e-mail (1–30 dias, máximo 20), token aleatório de 32 bytes, JSON com somente SHA-256 e expiração; campos inválidos, repetidos ou expirados são rejeitados. `scripts/academy-beta-invites.ts` cria/atualiza arquivo privado `0600` por gravação atômica, recusa symlink e destino dentro do repositório, nunca altera servidores. `audit` devolve apenas totais.
+2. **Pré-verificação redigida:** `inspectAcademyBetaReadiness` e `scripts/academy-beta-preflight.ts` conferem mode `invite`, trial ativado, existência de segredo de sessão e banco, e ao menos um convite válido. Status contém somente códigos e contagens, não e-mails, tokens nem URLs. `ready` cobre o mínimo local, **não** implantação ou distribuição de limitação de requisições. Aviso de rate limit compartilhado permanece.
+3. **Métricas administrativas:** `adminLab.academyInviteSummary`, protegida por papel admin e flag do laboratório, informa emitidos, vigentes, expirados e vagas do limite de 20. O dashboard mostra isso separado de usuários cadastrados e pagantes, com explicação explícita para não confundir convite com inscrição.
+4. **Testes completos:** `server/academy-beta-invite-ops.test.ts`, `server/academy-beta-invite-cli.test.ts`, `server/academy-beta-readiness.test.ts`, proteção admin em `server/admin-router-access.test.ts`. `tests/academy-mysql-http-lab.ts` passou a usar os tokens reais gerados pelo operador e comprova revogação e armazenamento somente de hashes. `tests/commercial-mysql-lab.ts` verifica contadores de convites sem PII.
+5. **Fluxo visual Beta no Chromium:** `tests/browser/run-academy-qa.mjs` percorre Landing → botão Começar agora → inscrição por convite inválido (negada) → convite válido (aceito) → perfil do tutor, feedback com IA **desativado por padrão** → triagem opcional adiada sem inventar evidência → Campus. Capturas sintéticas `beta-invite-login-375.png`, `beta-invite-onboarding-375.png`, `beta-invite-campus-375.png` são geradas no artefato QA da CI.
+6. **UX de autenticação:** `Login.tsx` elimina erro antigo quando aluno corrige senha, e-mail ou código de convite; browser QA verifica desaparecimento do alerta antes de reenvio. Não há dados de estudantes nem tokens reais nos testes.
+
+## Evidência CI
+
+- Baseline desta rodada: commit `48b616d`, 4/4 pipelines aprovados.
+- Commit `39f69cf`: P0 `46183613597`, MySQL `46183613503`, Chromium `46183613526`, lives `46183613486`, 4/4 aprovados.
+- Commit `c1470b7`: Chromium `46183737167`, MySQL `46183737163` e lives `46183737185` aprovados; P0 `46183737169` falhou por uma **expectativa de teste com sequência de caracteres errada**, não uma falha de segurança. Corrigida em `20085fd`, cujo P0 `46183819448` passou.
+- As verificações das últimas alterações de UX/admin/dashboard ainda podem estar executando. **Consultar os quatro resultados do HEAD atual antes de afirmar homologação.** Não usar resultados de um SHA anterior como resultado do head.
+
+## Próximas etapas concretas
+
+1. Auditar os quatro workflows do novo HEAD e corrigir qualquer falha, especialmente Chromium com onboarding completo, screenshots e MySQL full-stack após integração de convites.
+2. Revisar as capturas de tela sintéticas e os detalhes de fidelidade visual aprovados para home/Campus antes de liberar a primeiros convidados. O material aprovado continua sendo a referência, sem reconstrução aproximada.
+3. Antes de qualquer estágio real: aprovar limitação distribuída de signup, orçamentos, políticas de privacidade e configuração segura de `ACADEMY_ADMISSION_MODE=invite`; verificar preflight no ambiente-alvo e a política de admissão autorizada.
+4. Continuar roadmap de tutor real, exames e controles comerciais, sem substituir testes pedagógicos por XP, sem permitir coleta não autorizada e **sem mudar CSLE**.
+
+---
+
 # CHECKPOINT PRIORITÁRIO — 28/11/2026 — Moderação, portabilidade e consentimento por conquista
 
 **Retomar deste bloco.** Repositório `looksai/Lingua`, PR #125, branch `feat/exam-writing-catalog`. Fundador delegou desenvolvimento e testes autônomos em blocos substanciais. Os detalhes de governança e homologação estão em `docs/COMMUNITY-MODERATION-LAB-RELEASE-GATE.md`.
