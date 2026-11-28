@@ -1,3 +1,4 @@
+import {CommunityAchievementFeed} from "./CommunityAchievementFeed";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { PRIVATE_GAMIFICATION, type GamificationPrivacy } from "@shared/gamification-profile";
@@ -10,6 +11,7 @@ const labels = {
 
 export default function CommunityPrivacy({accountId}:{accountId:number}) {
   const [blocksOpen,setBlocksOpen]=useState(false);
+  const [feedOpen,setFeedOpen]=useState(false);
   const query = trpc.commercialLab.communityPreferences.useQuery({accountId}, { retry:false });
   return <main className="academy-interior px-5 py-8"><section className="academy-state-card">
     <h1 className="font-display text-3xl">Privacidade da comunidade</h1>
@@ -19,6 +21,11 @@ export default function CommunityPrivacy({accountId}:{accountId:number}) {
     <details onToggle={event=>setBlocksOpen(event.currentTarget.open)}>
       <summary>Meus bloqueios</summary>
       {blocksOpen && <BlockedMembers accountId={accountId}/>}
+    </details>
+    <details onToggle={event=>setFeedOpen(event.currentTarget.open)}>
+      <summary>Conquistas da comunidade (laboratório)</summary>
+      {feedOpen && query.data?.member && <CommunityAchievementFeed accountId={accountId}/>}
+      {feedOpen && query.data && !query.data.member && <p>O feed está disponível apenas para membros com acesso ativo.</p>}
     </details>
     <a href="/">Voltar ao Lingua</a>
   </section></main>;
