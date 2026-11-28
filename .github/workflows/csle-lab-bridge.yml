@@ -1,0 +1,23 @@
+name: CSLE synthetic bridge contract
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/csle/**'
+      - '.github/workflows/csle-lab-bridge.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bridge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: node --test tests/csle/exam-lab-bridge.test.cjs
