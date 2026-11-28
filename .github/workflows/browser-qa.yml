@@ -115,6 +115,7 @@ jobs:
           VITE_PUBLIC_LIVES_ENABLED: 'true'
           VITE_PARTNER_DASHBOARD_ENABLED: 'true'
           VITE_COMMERCIAL_LAB_ENABLED: 'true'
+          VITE_ADMIN_LAB_ENABLED: 'true'
         run: |
           set -euo pipefail
           pnpm build:static
