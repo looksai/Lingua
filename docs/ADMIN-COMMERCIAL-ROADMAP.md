@@ -1,5 +1,6 @@
 # Lingua Admin — founder requirements
-Status: proposed implementation roadmap; no production activation.
+Status: complementary workstream approved by founder; no production activation.
+Academy, integrated exams, gamification and community retain their existing priorities. Admin consumes their authoritative services rather than replacing them.
 
 ## Modules
 - Executive dashboard: registered users, active paid subscribers, trial users, companies, paid advertising campaigns, referral redemptions and conversions.
