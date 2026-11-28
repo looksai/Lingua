@@ -87,3 +87,7 @@ O CSLE atual (3.18.20, com checkpoints sintéticos aprovados) é uma versão bá
 ## Fase 15 — sequência de Writing
 - Academic e General: duas tarefas existentes em sessão guiada de 60 minutos com cronômetro local, alternância entre Task 1 e Task 2, rascunhos independentes e autoavaliação conjunta somente ao encerrar ou expirar o prazo. Edição bloqueada ao fim; textos descartados ao sair, sem armazenamento local persistente, envio ao servidor ou fornecedor de IA.
 - Contagem e perguntas de revisão locais, sem nota, avaliação linguística automática, equivalência a prova supervisionada ou mecanismo antiadulteração. Reutiliza o catálogo atual, portanto não é um conjunto independente de avaliação. Testes de ordenação, variante, contagem e Chromium sintético. Sem alteração de infraestrutura, banco ou CSLE.
+
+## Fase 16 — catálogo Writing ampliado
+- 12 tarefas originais no total (6 Academic e 6 General), organizadas em três pares por variante. Novas tabelas fictícias, ensaios de vantagens/desvantagens, causas/soluções e opinião, cartas com diferentes destinatários. Prática individual ou seleção de um par antes de iniciar a sequência; conteúdo copiado para a sessão, sem trocar conjunto durante a tentativa. Autoavaliação específica por enunciado, sem nota. A escolha de conjunto não garante que o aluno nunca o tenha praticado.
+- Catálogo v2, IDs existentes preservados, sem dados pessoais, persistência, alteração de CSLE ou infraestrutura. Validação editorial humana e qualidade de avaliação ainda pendentes.
