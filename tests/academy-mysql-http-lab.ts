@@ -154,6 +154,11 @@ try {
   const coupon={code:"HTTP"+suffix.toUpperCase(),plan:"community-premium",days:30,validity:{kind:"days",days:3},maxUses:1};
   assert.equal((await rpc("adminLab.issue",coupon,cookieB)).status,403);
   await pool.execute("UPDATE users SET role='admin' WHERE id=?",[a.id]);
+  assert.equal((await rpc("adminLab.academyInviteSummary",undefined,cookieB,true)).status,403);
+  const invitationSummary=good(await rpc("adminLab.academyInviteSummary",undefined,cookieA,true));
+  assert.deepEqual(invitationSummary,{configured:true,admissionMode:"closed",total:3,active:2,expired:1,availableSlots:17});
+  assert.ok(!JSON.stringify(invitationSummary).includes(emailA)&&!JSON.stringify(invitationSummary).includes(codeA));
+  pass("admin HTTP session sees redacted invitation inventory while registration remains closed");
   good(await rpc("adminLab.issue",coupon,cookieA));
   const redeem=(cookie:string,accountId:number)=>rpc("commercialLab.redeemTrial",{code:coupon.code,accountId},cookie);
   assert.equal((await redeem(cookieB,a.id)).status,403);
