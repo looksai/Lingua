@@ -25,7 +25,7 @@ async function test(name,width,mode,body,fixture="public"){
   let communityBlocked=false,reportSent=false;
   const adminDecisions={88:"pending",89:"pending"};
   let redeemed=false;
-  let signedUp=false;
+  let signedUp=false,betaProfile=null,betaDeferred=false;
   let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
   page.on("pageerror",e=>errors.push(e.message));
@@ -38,6 +38,27 @@ async function test(name,width,mode,body,fixture="public"){
     calls.push(...names);
     const reply=names.map(name=>{
       if(name==="auth.me")return {result:{data:{json:fixture==="public"||(fixture==="signup-flow"&&!signedUp)?null:{id:accountId,email:"qa-visual@synthetic.invalid",name:"Aluno de teste",role:fixture==="admin-report"?"admin":"user"}}}};
+      if(fixture==="signup-flow"){
+        const answer=json=>({result:{data:{json}}});
+        if(name==="onboarding.me"){
+          const profile=betaProfile?{userId:accountId,tutorName:betaProfile.tutorName,tutorPersona:betaProfile.tutorPersona,interest:betaProfile.interest,allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:betaDeferred?"deferred":"started"}:null;
+          return answer({profile,responses:[],nextTask:profile&&!betaDeferred?{id:"introduce-yourself-v1",skill:"writing",message:"How would you introduce yourself?",purpose:"Introduction"}:null,plan:betaDeferred?{title:"Apresentações e perguntas",objective:"Prática inicial",context:"trabalho",reason:"Preparação",limits:"Não certifica proficiência."}:null});
+        }
+        if(name==="onboarding.saveProfile"){
+          const parsed=JSON.parse(route.request().postData()||"{}");
+          const input=(url.searchParams.has("batch")?parsed[String(names.indexOf(name))]:parsed)?.json??{};
+          assert.equal(input.allowAIFeedback,false);
+          assert.equal(input.tutorName,"Nina");
+          assert.equal(input.interfaceLocale,"pt-BR");
+          betaProfile=input;
+          return answer({saved:true});
+        }
+        if(name==="onboarding.defer"){
+          assert.ok(betaProfile,"Profile must be saved before skipping diagnostic");
+          betaDeferred=true;
+          return answer({saved:true});
+        }
+      }
       if(fixture!=="public"){
         const profile={userId:9001,tutorName:"Alex",tutorPersona:"welcoming",interest:"work",allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:fixture==="diagnostic"||fixture==="signup-flow"?"started":"deferred"};
         const plan={title:"Apresentações e perguntas",objective:"Praticar mensagens curtas em inglês.",context:"comunicação profissional",reason:"Ponto de partida exploratório.",limits:"Não certifica proficiência."};
@@ -304,8 +325,16 @@ try{
     await invite.fill("A".repeat(43));
     await page.getByRole("button",{name:"Cadastrar"}).click();
     await page.locator(".academy-onboarding-card").waitFor();
+    const aiConsent=page.getByRole("checkbox",{name:/Quero feedback curto com IA/});
+    assert.equal(await aiConsent.isChecked(),false,"Consent must be opt-in");
+    await page.getByRole("textbox",{name:"Como você quer chamar seu tutor?"}).fill("Nina");
+    await page.getByRole("button",{name:"Conhecer meu tutor"}).click();
+    await page.getByRole("heading",{name:"Uma descoberta de cada vez."}).waitFor();
+    await page.getByRole("button",{name:"Prefiro explorar o aplicativo agora"}).click();
+    await page.locator(".academy-dashboard-v3").waitFor();
     assert.equal(calls.filter(name=>name==="auth.signUp").length,2);
-    assert.ok(calls.includes("onboarding.me"));
+    assert.ok(calls.includes("onboarding.saveProfile")&&calls.includes("onboarding.defer"));
+    assert.ok(!calls.includes("onboarding.submit"),"Skipping initial diagnostic must not create invented evidence");
     await fit(page);
   },"signup-flow");
   await test("closed mode keeps login and hides sign-up",375,"closed",async page=>{
