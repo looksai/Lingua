@@ -1,3 +1,11 @@
+# Atualização de execução — 28/11/2026 (denúncias)
+
+Na PR #125, branch feat/exam-writing-catalog, testes específicos de denúncia adicionados aos testes de integração MySQL: concorrência e idempotência, checagem de identidade na API, não administrador proibido, ocultação e auditoria, revisão obsoleta não pode ser moderada, descarte com atribuição. Commits 8bd1de8 e 2b03865. Os workflows disparados pelo primeiro commit foram observados EM EXECUÇÃO, ainda não há conclusão registrada neste checkpoint. Não alegar aprovação desses novos testes até confirmar conclusão. Os quatro workflows do commit anterior bdbb8f8 passaram, mas não incluíam estes testes. 
+
+PENDÊNCIAS: confirmar CI atual, corrigir qualquer falha; integrar controle de denúncia à futura interface de feed (feed não está público); revisão de retenção, privacidade e migrações de laboratório; testar fluxo UI admin em Chromium. Não habilitar flags de produção nem mexer no CSLE.
+
+---
+
 # Atualização de continuidade — 28/11/2026
 
 PR #125, branch feat/exam-writing-catalog. Checkpoint validado: bdbb8f812348d841b151496b941e62237742f4f9. GitHub Actions: P0 46180846137, MySQL 46180846120, Chromium 46180846125, lives 46180846106: todos concluídos com sucesso.
