@@ -1,5 +1,6 @@
 import {readRealizedCashLab} from "../server/admin-finance-repository-lab";
 import {readContractedMrrLab} from "../server/admin-recurring-repository-lab";
+import {partnersDraft} from "../drizzle/partner-foundation-draft";
 import assert from "node:assert/strict";
 import mysql from "mysql2/promise";
 import {drizzle} from "drizzle-orm/mysql2";
@@ -29,7 +30,14 @@ try{
  assert.equal((await redeemTrialLab(b,receipt.userId,"LABONE",()=>now)).status,"already-redeemed");
  assert.equal(await commercialAccessLab(a).isActiveMember(receipt.userId),true);
  assert.equal(await commercialAccessLab(b).isActiveMember(ids.find(id=>id!==receipt.userId)!),false);
+ const baseline=await readAdminCommercialMetrics(a,now);
+ await a.insert(partnersDraft).values([{name:"Commercial QA active",status:"active"},{name:"Commercial QA pending",status:"pending"},{name:"Commercial QA suspended",status:"suspended"}]);
  const metrics=await readAdminCommercialMetrics(a,now);
+ assert.equal(metrics.companies.total,baseline.companies.total+3);
+ assert.equal(metrics.companies.active,baseline.companies.active+1);
+ assert.equal(metrics.companies.pending,baseline.companies.pending+1);
+ assert.equal(metrics.companies.suspended,baseline.companies.suspended+1);
+ for(const name of ["Commercial QA active","Commercial QA pending","Commercial QA suspended"])await a.delete(partnersDraft).where(eq(partnersDraft.name,name));
  assert.equal(metrics.activeMembers,1);assert.equal(metrics.activeTrialMembers,1);assert.equal(metrics.activePaidMembers,0);assert.equal(metrics.trialCouponsIssued,1);assert.equal(metrics.trialRedemptions,1);
  await a.insert(commercialSubscriptions).values({userId:receipt.userId,plan:"community-premium",status:"active",source:"paid",sourceId:"lab-paid",startsAtMs:now,endsAtMs:now+86400000});
  const overlap=await readAdminCommercialMetrics(b,now);
