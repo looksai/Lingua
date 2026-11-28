@@ -11,6 +11,15 @@ describe("Local two-task Writing sequence",()=>{
   expect(result[0]).toMatchObject({words:150,minimumMet:true,assessment:"self-review-only"});
   expect(result[1]).toMatchObject({words:2,minimumMet:false,assessment:"self-review-only"});
  });
+ it("keeps the three sets separate and reviews the selected tasks",()=>{
+  const tasks=writingTasks("ielts-general");
+  const all=(["set-1","set-2","set-3"] as const).flatMap(id=>writingSequence(tasks,id));
+  expect(new Set(all.map(t=>t.id)).size).toBe(6);
+  const pair=writingSequence(tasks,"set-3");
+  expect(pair.map(t=>t.id)).toEqual(["general-1-manager","general-2-volunteering"]);
+  expect(reviewWritingSequence(tasks,{[pair[0]!.id]:"one two"},"set-3")[0]).toMatchObject({taskId:pair[0]!.id,words:2});
+  expect(writingSequence([...tasks,pair[0]!],"set-3")).toEqual([]);
+ });
  it("does not fabricate missing or mixed-variant tasks",()=>{
   expect(writingSequence([])).toEqual([]);
   expect(writingSequence([writingTasks("ielts-academic")[0]!,writingTasks("ielts-general")[1]!])).toEqual([]);
