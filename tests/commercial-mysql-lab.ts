@@ -148,9 +148,13 @@ try{
  assert.deepEqual((await ranking()).ranking.map(row=>row.memberId),[ids[1]]);
  assert.ok("achievements" in await profile());
  assert.equal((await feed()).items.length,1);
+ const authorizedFeed=()=>caller(ids[0],"user").commercialLab.achievementFeed({accountId:ids[0],limit:1});
+ assert.equal((await authorizedFeed()).items.length,1);
+ await assert.rejects(student.commercialLab.achievementFeed({accountId:ids[0],limit:1}),{code:"FORBIDDEN"});
  const achievementId=ACHIEVEMENTS[0].id;
  await Promise.all([setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,true),setCommunityPublicationRestriction(b,ids[0],ids[1],achievementId,true)]);
  assert.deepEqual(await readCommunityAchievementFeed(b,ids[0],allow,1),{items:[],nextCursor:null});
+ assert.deepEqual(await authorizedFeed(),{items:[],nextCursor:null});
  await pools[0].execute("UPDATE gamificationShares SET publishedAtMs=? WHERE userId=?",[Date.now(),ids[1]]);
  assert.equal((await feed()).items.length,0);
  await setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,false);
@@ -202,6 +206,7 @@ try{
  console.log("PASS report deduplication, authorization, atomic moderation and stale revision protection");
 
  await Promise.all([setCommunityBlock(a,ids[1],ids[0],true),setCommunityBlock(b,ids[1],ids[0],true)]);
+ await assert.rejects(caller(ids[0],"user").commercialLab.reportPublication({accountId:ids[0],...reportInput,publishedAtMs:Number(repostedRows[0].publishedAtMs)}));
  assert.equal(await communityInteractionAllowed(b,ids[0],ids[1]),false);
  assert.equal((await feed()).items.length,0);
  assert.deepEqual((await ranking()).ranking,[]);
