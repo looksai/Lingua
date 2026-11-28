@@ -56,6 +56,12 @@ async function test(name,width,mode,body,fixture="public"){
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
         if(name==="exams.speakingPrompts")return answer({version:"qa",prompts:fixture==="speaking-sequence"?["part1-work","part1-travel","part2-skill","part3-learning","part3-cities"].map((id,i)=>({id,part:[1,1,2,3,3][i],title:"QA "+id,question:"Question "+(i+1),preparationSeconds:i===2?60:0,practiceSeconds:120,review:["Did I give an example?"]})):[{id:"qa-speaking",part:2,title:"A useful skill",question:"Describe a useful skill.",preparationSeconds:60,practiceSeconds:120,review:["Did I give an example?"]}],criteria:[{name:"Pronúncia",description:"Escute sua gravação."}]});
       }
+      if(fixture==="writing-sequence"){
+        const answer=payload=>({result:{data:{json:payload}}});
+        if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true});
+        if(name==="exams.writingTasks")return answer([{id:"sequence-1",variant:"ielts-academic",kind:1,title:"First writing task",prompt:"Describe the fictional table.",minimumWords:150,recommendedMinutes:20,reviewQuestions:["Did I summarise the trends?"]},{id:"sequence-2",variant:"ielts-academic",kind:2,title:"Second writing task",prompt:"Discuss both opinions.",minimumWords:250,recommendedMinutes:40,reviewQuestions:["Did I give my opinion?"]}]);
+        if(name==="exams.writingReview"||name==="exams.writingFeedback")throw Error("Local sequence must not transmit drafts");
+      }
       if(fixture==="writing-authorized"){
         const answer=payload=>({result:{data:{json:payload}}});
         if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true});
@@ -474,6 +480,27 @@ try{
     for(let i=1;i<=3;i++)await page.getByText("Original fictional audio script "+i,{exact:true}).waitFor();
     assert.ok(calls.includes("exams.submit"));await fit(page);
   },"listening-extended");
+  await test("Writing sequence keeps both texts local and defers self-review",375,"closed",async(page,calls)=>{
+    await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
+    await page.getByRole("button",{name:/Writing Produção de textos/}).click();
+    await page.getByRole("button",{name:"Sequência de duas tarefas"}).click();
+    await page.getByRole("button",{name:"Iniciar sequência de Writing"}).click();
+    await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("First local draft");
+    await page.getByRole("button",{name:"Task 2",exact:true}).click();
+    await page.getByRole("textbox",{name:"Seu texto em inglês"}).fill("Second local draft");
+    await page.getByRole("button",{name:"Task 1",exact:true}).click();
+    assert.equal(await page.getByRole("textbox",{name:"Seu texto em inglês"}).inputValue(),"First local draft");
+    assert.equal(await page.getByText("Autoavaliação das duas tarefas",{exact:true}).count(),0);
+    page.once("dialog",d=>d.accept());
+    await page.getByRole("button",{name:"Encerrar sequência e revisar"}).click();
+    await page.getByText("Autoavaliação das duas tarefas",{exact:true}).waitFor();
+    const drafts=page.getByRole("textbox",{name:"Seu texto",exact:true});
+    assert.equal(await drafts.count(),2);
+    assert.equal(await drafts.nth(0).inputValue(),"First local draft");
+    assert.equal(await drafts.nth(1).inputValue(),"Second local draft");
+    assert.ok(!calls.includes("exams.writingReview")&&!calls.includes("exams.writingFeedback"));await fit(page);
+  },"writing-sequence");
   await test("approved sponsor placement clearly identified",1440,"closed",async(page)=>{
     await page.goto(base);const slot=page.getByRole("region",{name:"Destaques patrocinados"});
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
@@ -501,5 +528,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?32:28));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?33:29));
 }finally{await browser.close();}

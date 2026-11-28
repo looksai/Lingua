@@ -1,4 +1,5 @@
 import {useState} from "react";
+import ExamWritingSequence from "./ExamWritingSequence";
 import {Pencil} from "lucide-react";
 import {trpc} from "@/lib/trpc";
 import type {IeltsVariant} from "@shared/exam-contract";
@@ -10,6 +11,7 @@ export default function ExamWritingPractice({variant,allowed,feedbackProvider}:{
  const ai=trpc.exams.writingFeedback.useMutation();
  const [feedback,setFeedback]=useState<{criterion:string;excerpt:string;observation:string;suggestion:string}|null>(null);
  const busy=review.isPending||ai.isPending;
+ const [sequenceMode,setSequenceMode]=useState(false);
  const [taskId,setTaskId]=useState("");
  const [draft,setDraft]=useState("");
  const [result,setResult]=useState<WritingReview|null>(null);
@@ -22,7 +24,8 @@ export default function ExamWritingPractice({variant,allowed,feedbackProvider}:{
  return <section className="exam-panel">
   <div className="exam-heading"><Pencil/><h2>Treinamento de Writing</h2></div>
   <p>Produza textos originais e use critérios de autoavaliação. A autoavaliação não atribui nota IELTS. O feedback do tutor, quando habilitado, é experimental.</p>
-  {!allowed?<p>A prática exige acesso autorizado ao piloto Premium.</p>:tasks.isPending?<p role="status">Carregando atividades...</p>:tasks.isError?<button className="academy-secondary" onClick={()=>void tasks.refetch()}>Tentar novamente</button>:task&&<>
+  {allowed&&tasks.data&&<nav aria-label="Modo Writing"><button className="academy-secondary" aria-pressed={!sequenceMode} disabled={busy} onClick={()=>{if(sequenceMode&&!window.confirm("Sair da sequência descarta seus textos. Continuar?"))return;setSequenceMode(false);}}>Prática individual</button><button className="academy-secondary" aria-pressed={sequenceMode} disabled={busy} onClick={()=>{if(!sequenceMode&&draft&&!window.confirm("Trocar de modo descarta o rascunho individual. Continuar?"))return;clear();setSequenceMode(true);}}>Sequência de duas tarefas</button></nav>}
+  {sequenceMode&&allowed&&tasks.data?<ExamWritingSequence tasks={tasks.data} allowed={allowed}/>:!allowed?<p>A prática exige acesso autorizado ao piloto Premium.</p>:tasks.isPending?<p role="status">Carregando atividades...</p>:tasks.isError?<button className="academy-secondary" onClick={()=>void tasks.refetch()}>Tentar novamente</button>:task&&<>
    <label>Atividade<select value={task.id} disabled={busy} onChange={e=>{if(draft&&!window.confirm("Trocar de atividade descarta o texto desta sessão. Continuar?"))return;setTaskId(e.target.value);clear();}}>{tasks.data?.map(t=><option value={t.id} key={t.id}>Task {t.kind} · {t.title}</option>)}</select></label>
    <p className="exam-muted">Mínimo recomendado: {task.minimumWords} palavras · Referência de tempo: {task.recommendedMinutes} minutos · Prática sem cronômetro.</p>
    <article className="exam-passage" lang="en"><h3>{task.title}</h3><p>{task.prompt}</p>{task.table&&<div style={{overflowX:"auto"}}><table><caption>{task.table.caption}</caption><thead><tr>{task.table.headers.map(h=><th scope="col" key={h}>{h}</th>)}</tr></thead><tbody>{task.table.rows.map(row=><tr key={row[0]}>{row.map((cell,i)=>i===0?<th scope="row" key={i}>{cell}</th>:<td key={i}>{cell}</td>)}</tr>)}</tbody></table></div>}</article>
