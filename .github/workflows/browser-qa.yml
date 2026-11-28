@@ -114,6 +114,7 @@ jobs:
           LINGUA_QA_EXPERIMENTAL_ROUTES: '1'
           VITE_PUBLIC_LIVES_ENABLED: 'true'
           VITE_PARTNER_DASHBOARD_ENABLED: 'true'
+          VITE_COMMERCIAL_LAB_ENABLED: 'true'
         run: |
           set -euo pipefail
           pnpm build:static

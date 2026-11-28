@@ -186,7 +186,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
             {placement.isError&&<p className="text-sm text-ink-muted">A sondagem não está disponível neste momento.</p>}
           </section>
           <section className="campus-event"><p className="academy-kicker">LIVES & EVENTOS</p><h2>Aprenda com especialistas</h2><p>Agenda de aulas e encontros em preparação.</p></section>
-          <div className="academy-campus-editorial-stack"><section className="campus-community"><p className="academy-kicker">COMUNIDADE LINGUA</p><h2>Conecte-se com o mundo</h2><p>Comunidade exclusiva em preparação.</p></section><section className="campus-news"><p className="academy-kicker">NOTÍCIAS GLOBAIS</p><h2>O mundo em perspectiva</h2><p>Curadoria editorial em preparação.</p></section></div>
+          <div className="academy-campus-editorial-stack"><section className="campus-community"><p className="academy-kicker">COMUNIDADE LINGUA</p><h2>Conecte-se com o mundo</h2>{import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" ? <a href="/community">Privacidade da comunidade</a> : <p>Comunidade exclusiva em preparação.</p>}</section><section className="campus-news"><p className="academy-kicker">NOTÍCIAS GLOBAIS</p><h2>O mundo em perspectiva</h2><p>Curadoria editorial em preparação.</p></section></div>
           <aside className="academy-dashboard-tutor">
             <div className="academy-tutor-monogram"><MessageSquare size={30} aria-hidden="true"/><span>AI</span></div>
             <p className="academy-kicker">02 / SEU TUTOR</p>

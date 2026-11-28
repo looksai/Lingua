@@ -19,6 +19,8 @@ async function test(name,width,mode,body,fixture="public"){
   const context=await browser.newContext({viewport:{width,height:900}});
   const page=await context.newPage();
   const errors=[],calls=[],broken=[];
+  let redeemed=false;
+  let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
   page.on("pageerror",e=>errors.push(e.message));
   page.on("response",r=>{if(r.url().startsWith(base+"/academy/")&&!r.ok())broken.push(r.url());});
@@ -104,10 +106,22 @@ async function test(name,width,mode,body,fixture="public"){
       }
       if(name==="exams.overview")return {result:{data:{json:{plan:null,catalog:[],pilot:true}}}};
       if(name==="campus.sponsors")return {result:{data:{json:fixture==="sponsor"?[{id:"synthetic-campaign",sponsor:"Empresa sintética de QA",title:"Campanha sintética",description:"Apenas teste isolado.",url:"https://example.com/"}]:[]}}};
+      if(name==="commercialLab.redeemTrial" || name==="commercialLab.saveCommunityPreferences"){
+        const payload=JSON.parse(route.request().postData());
+        const input=(url.searchParams.has("batch")?payload[String(names.indexOf(name))]:payload).json;
+        assert.equal(input.accountId,9001);
+        if(name==="commercialLab.redeemTrial"){
+          assert.equal(input.code,"COMMUNITY30");redeemed=true;
+          return {result:{data:{json:{status:"granted",plan:"community-premium",endsAtMs:Date.now()+86400000}}}};
+        }
+        preferences={showLevel:input.showLevel,showAchievements:input.showAchievements,leaderboardOptIn:input.leaderboardOptIn};
+        return {result:{data:{json:{saved:true}}}};
+      }
+      if(name==="commercialLab.communityPreferences")return {result:{data:{json:{member:redeemed,preferences}}}};
       if(name==="auth.learningAccess"){
-        const trialEnded=["expired","community","premium"].includes(fixture);
+        const trialEnded=["expired","community","premium","coupon"].includes(fixture);
         const course=!trialEnded || fixture==="premium";
-        return {result:{data:{json:{trial:{kind:trialEnded?"expired":"active",expiresAtMs:1900000000000,remainingDays:trialEnded?0:15},course,tutor:course,exams:fixture!=="expired",community:fixture==="community" || fixture==="premium"}}}};
+        return {result:{data:{json:{trial:{kind:trialEnded?"expired":"active",expiresAtMs:1900000000000,remainingDays:trialEnded?0:15},course,tutor:course,exams:fixture!=="expired" && (fixture!=="coupon" || redeemed),community:redeemed || fixture==="community" || fixture==="premium"}}}};
       }
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
       if(name==="learning.gamificationPreview")return {result:{data:{json:{scope:"review-history-preview",totalXp:30,level:1,xpIntoLevel:30,xpPerLevel:250,achievements:[],missions:[]}}}};
@@ -645,6 +659,23 @@ try{
     assert.ok(!calls.includes("onboarding.me"));await fit(page);
   },"expired");
   if(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"){
+    await test("expired student redeems and controls community privacy",375,"closed",async(page,calls)=>{
+      await page.goto(base);
+      await page.getByRole("link",{name:"Tenho um cupom de acesso"}).click();
+      await page.getByLabel("Código do cupom").fill("COMMUNITY30");
+      await page.getByRole("button",{name:"Resgatar cupom"}).click();
+      await page.getByRole("heading",{name:"Acesso registrado"}).waitFor();
+      await page.getByRole("link",{name:"Voltar ao Lingua"}).click();
+      await page.getByRole("heading",{name:"Comunidade Lingua",exact:true}).waitFor();
+      await page.getByRole("link",{name:"Privacidade da comunidade"}).click();
+      const optIn=page.getByLabel("Participar do ranking semanal");
+      assert.equal(await optIn.isChecked(),false);
+      await optIn.check();
+      await Promise.all([page.waitForResponse(r=>r.url().includes("commercialLab.saveCommunityPreferences")),page.getByRole("button",{name:"Salvar preferências"}).click()]);
+      await page.reload();await optIn.waitFor();
+      assert.equal(await optIn.isChecked(),true);
+      assert.ok(!calls.includes("onboarding.me"));
+    },"coupon");
     for(const width of [375,1440]){
       await test("synthetic corporate events "+width,width,"closed",async page=>{
         await page.goto(base+"/partners");

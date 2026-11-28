@@ -1,5 +1,6 @@
 import CommercialTrialRedemption from "./pages/CommercialTrialRedemption";
 import { SessionQueries } from "./SessionQueries";
+import CommunityPrivacy from "./pages/CommunityPrivacy";
 import ExamCampus from "./pages/ExamCampus";
 import AdminDashboard from "./pages/AdminDashboard";
 import { useSyncExternalStore } from "react";
@@ -29,10 +30,11 @@ function PrivateExperience({ email, userId, exams }: { email: string; userId: nu
   const logout = trpc.auth.logout.useMutation({onSuccess:()=>window.location.assign("/login")});
   if (access.isPending) return <Loading text="Confirmando seu acesso..."/>;
   if (access.error || !access.data || (access.data.trial.kind === "unavailable" && !access.data.exams)) return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><h1 className="font-display text-3xl">Não foi possível confirmar seu acesso</h1><button className="academy-primary mt-5" onClick={()=>void access.refetch()}>Tentar novamente</button></div></main>;
-  if (!access.data.course && !access.data.exams) return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p>{import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/redeem">Tenho um cupom de acesso</a>}<a href="/exam-privacy">Privacidade do Centro de Exames</a><button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>{logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}</div></main>;
+  if (!access.data.course && !access.data.exams) return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p>{import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/redeem">Tenho um cupom de acesso</a>}{import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/community">Privacidade da comunidade</a>}<a href="/exam-privacy">Privacidade do Centro de Exames</a><button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>{logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}</div></main>;
   if (exams || !access.data.course) return <main className="academy-interior px-5 py-8"><section className="academy-state-card">
     <h1>{access.data.community ? "Comunidade Lingua" : "Centro de Exames"}</h1>
     {access.data.course && <a href="/">Voltar ao campus</a>}
+    {access.data.community && import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/community">Privacidade da comunidade</a>}
     <ExamCampus/>
     <a href="/exam-privacy">Privacidade do Centro de Exames</a>
     <button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>
@@ -62,6 +64,14 @@ function RootPage({ exams = false }: { exams?: boolean }) {
   return <SessionQueries key={identity.data.id}><PrivateExperience userId={identity.data.id} exams={exams} email={identity.data.email ?? "minha conta"} /></SessionQueries>;
 }
 
+function CommunityPage() {
+  const identity = trpc.auth.me.useQuery(undefined,{retry:false});
+  if (identity.isPending) return <Loading text="Confirmando sessão..."/>;
+  if (identity.error) return <main role="alert">Não foi possível confirmar sua sessão.</main>;
+  if (!identity.data) return <Redirect to="/login" replace/>;
+  return <SessionQueries key={identity.data.id}><CommunityPrivacy accountId={identity.data.id}/></SessionQueries>;
+}
+
 function subscribeToInviteHash(onChange:()=>void) {
   window.addEventListener("hashchange",onChange);
   window.addEventListener("popstate",onChange);
@@ -82,6 +92,7 @@ function Router() {
     {import.meta.env.VITE_PARTNER_DASHBOARD_ENABLED === "true" && <Route path="/partners" component={PartnerDashboard} />}
     {import.meta.env.VITE_ADMIN_LAB_ENABLED === "true" && <Route path="/admin" component={AdminDashboard} />}
     {import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <Route path="/redeem" component={CommercialTrialRedemption} />}
+    {import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <Route path="/community" component={CommunityPage}/>}
     <Route path="/exam-privacy" component={ExamPrivacy} />
     <Route path="/login" component={Login} />
     <Route path="/404" component={NotFound} />

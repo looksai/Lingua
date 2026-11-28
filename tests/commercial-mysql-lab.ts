@@ -114,10 +114,25 @@ try{
  await assert.rejects(caller(ids[0],"user").commercialLab.redeemTrial({code:trial.code}));
  assert.equal((await access()).exams,true);
  assert.equal((await admin.coupons({})).items.find(c=>c.code===trial.code)?.uses,1);
+ await pools[0].query("CREATE TABLE gamificationPrivacy (userId int PRIMARY KEY,showLevel boolean NOT NULL,showAchievements boolean NOT NULL,leaderboardOptIn boolean NOT NULL,updatedAtMs bigint NOT NULL,FOREIGN KEY(userId) REFERENCES users(id))");
+ await pools[0].query("CREATE TABLE gamificationShares (id int AUTO_INCREMENT PRIMARY KEY,userId int NOT NULL,achievementId varchar(80) NOT NULL,publishedAtMs bigint NOT NULL,revokedAtMs bigint NULL,UNIQUE(userId,achievementId),FOREIGN KEY(userId) REFERENCES users(id))");
+ const privatePrefs={showLevel:false,showAchievements:false,leaderboardOptIn:false};
+ const preferenceRequest={accountId:ids[1],...privatePrefs};
+ const preferences=()=>student.commercialLab.communityPreferences({accountId:ids[1]});
+ assert.deepEqual(await preferences(),{member:true,preferences:privatePrefs});
+ await assert.rejects(student.commercialLab.saveCommunityPreferences({...preferenceRequest,accountId:ids[0]}),{code:"FORBIDDEN"});
+ await student.commercialLab.saveCommunityPreferences({...preferenceRequest,showAchievements:true,leaderboardOptIn:true});
+ assert.equal((await preferences()).preferences.leaderboardOptIn,true);
+ await pools[0].query("INSERT INTO gamificationShares(userId,achievementId,publishedAtMs) VALUES (?,?,?)",[ids[1],"laboratory",Date.now()]);
  await a.update(commercialSubscriptions).set({endsAtMs:Date.now()}).where(eq(commercialSubscriptions.userId,ids[1]));
  assert.equal((await access()).exams,false);
  await assert.rejects(student.exams.overview(),{code:"FORBIDDEN"});
 
+ await assert.rejects(student.commercialLab.saveCommunityPreferences({...preferenceRequest,showLevel:true}),{code:"FORBIDDEN"});
+ await student.commercialLab.saveCommunityPreferences(preferenceRequest);
+ assert.deepEqual(await preferences(),{member:false,preferences:privatePrefs});
+ const [shares]=await pools[0].query<mysql.RowDataPacket[]>("SELECT revokedAtMs FROM gamificationShares WHERE userId=?",[ids[1]]);
+ assert.ok(shares[0].revokedAtMs);
  const promo={code:"PROMOLAB",plan:"lingua-premium" as const,discount:{kind:"fixed" as const,currency:"BRL" as const,minorUnits:500},validity:trial.validity,maxUses:1};
  const issues=await Promise.allSettled([admin.issuePromotion(promo),admin.issuePromotion(promo)]);
  assert.equal(issues.filter(result=>result.status==="fulfilled").length,1);
