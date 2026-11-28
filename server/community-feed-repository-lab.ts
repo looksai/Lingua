@@ -21,8 +21,9 @@ export async function readCommunityAchievementFeed(db:MySql2Database,viewerId:nu
  const viewerActive=await access.isActiveMember(viewer);
  const ownerActive=await access.isActiveMember(owner);
  const moderation=viewerActive&&ownerActive&&await moderationAllows(viewer,owner,achievementId);
- const [current]=await db.select({allowed:privacy.showAchievements}).from(privacy).innerJoin(shares,and(eq(shares.userId,privacy.userId),eq(shares.achievementId,achievementId),isNull(shares.revokedAtMs))).where(eq(privacy.userId,owner)).limit(1);
- return {viewerActive,ownerActive,ownerAllowsAchievements:current?.allowed===true,moderationAllows:moderation};
+ const original=candidates.find(c=>c.ownerId===owner&&c.achievementId===achievementId);
+ const [current]=await db.select({allowed:privacy.showAchievements,publishedAtMs:shares.publishedAtMs}).from(privacy).innerJoin(shares,and(eq(shares.userId,privacy.userId),eq(shares.achievementId,achievementId),isNull(shares.revokedAtMs))).where(eq(privacy.userId,owner)).limit(1);
+ return {viewerActive,ownerActive,ownerAllowsAchievements:current?.allowed===true&&current.publishedAtMs===original?.publishedAtMs,moderationAllows:moderation};
  },limit);
  if(!await access.isActiveMember(viewerId))throw Error("Community access required");
  const last=rows[Math.min(rows.length,limit)-1]?.gamificationShares;
