@@ -1,4 +1,5 @@
-import {eq} from "drizzle-orm";
+import {communityPublicationRestrictions} from "../drizzle/community-safety-draft";
+import {and,eq} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
 import {gamificationEvidence as evidence} from "../drizzle/gamification-draft";
 import {GAMIFICATION_POLICY_VERSION,type XpAward} from "../shared/gamification-contract";
@@ -14,5 +15,17 @@ export async function readCommunityGamificationProfile(db:MySql2Database,viewerI
  if(rows.some(r=>r.policyVersion!==GAMIFICATION_POLICY_VERSION))throw Error("Unsupported award policy");
  const awards:XpAward[]=rows.map(r=>({kind:r.kind,sourceId:r.sourceId,occurredAtMs:r.occurredAtMs,xp:r.awardedXp,policyVersion:GAMIFICATION_POLICY_VERSION}));
  if(!await canView(viewerId,ownerId))throw Error("Community access required");
- return communityGamificationProfile(awards,await readGamificationPrivacy(db,ownerId));
+ const currentPrivacy=await readGamificationPrivacy(db,ownerId);
+ const profile=communityGamificationProfile(awards,currentPrivacy);
+ if(!("achievements" in profile))return profile;
+ // A moderated achievement must not reappear through the profile projection
+ // after being removed from the publication feed.
+ const rowsHidden=await db.select({achievementId:communityPublicationRestrictions.achievementId})
+   .from(communityPublicationRestrictions).where(and(
+     eq(communityPublicationRestrictions.ownerId,ownerId),
+     eq(communityPublicationRestrictions.hidden,true),
+   ));
+ const hidden=new Set(rowsHidden.map(r=>r.achievementId));
+ if(!await canView(viewerId,ownerId))throw Error("Community access required");
+ return {...profile,achievements:profile.achievements.filter(a=>!hidden.has(a.id))};
 }
