@@ -1,3 +1,15 @@
+# ATUALIZAÇÃO IMEDIATA DE RETOMADA — Academy Beta, 28/11/2026
+
+**PR #125, branch `feat/exam-writing-catalog`.** Operação de convites em laboratório concluída no código: emissão/revogação offline de tokens seguros e hashes, validação de acesso invite-only e trial, preflight com resultado redigido, painel admin com totais e **modo de inscrição atual**. Nenhum código bruto de convite é persistido no repositório; a emissão requer arquivo externo ao checkout com permissão `0600`.
+
+**E2E do primeiro aluno:** o Chromium simula Landing → cadastro com token inválido rejeitado → token correto aceito → perfil do tutor sem consentimento de feedback de IA → triagem adiada sem forjar dados → Campus. O login agora apaga o erro antigo quando os campos são corrigidos e limpa senha/token ao alternar signin/signup. Artefatos visuais sintéticos já gerados em `academy-screenshots`, workflow `46183920930` (GitHub Actions), incluindo `beta-invite-login-375.png`, `beta-invite-onboarding-375.png`, `beta-invite-campus-375.png`.
+
+**Verificação CONFIRMADA:** commit `5b1d628` passou P0 `46183952563`, MySQL `46183952539`, Chromium `46183952545`, lives `46183952533`: **4/4 verdes**. Inclui fluxo beta e correção de mensagens; commit `7b4ccf9` também passou os quatro workflows e gerou screenshots. Último commit de código observado antes desta atualização: `52cb84b`, com testes extras de admissão admin sob HTTP real e CI ainda em fila/execução; **não extrapolar aprovação ao SHA atual sem reconsultar.**
+
+**Próxima execução:** confirmar os quatro pipelines do HEAD mais recente; inspecionar falhas de browser/MySQL se houver; revisão humana das capturas visuais vs. kit/home aprovados; obter aprovação explícita de rollout e controles distribuídos de limitação de requisições antes de convidar alunos reais. Academy Beta não equivale a plataforma concluída. CSLE permanece independente, sem alterações de currículo/certificação, pagamentos de produção, migrações ou flags ativas.
+
+---
+
 # RETOMADA MAIS RECENTE — 28/11/2026 (Academy Beta e primeiro aluno)
 
 Branch `feat/exam-writing-catalog` na PR #125. O bloco de desenvolvimento anterior integra emissão **offline** de até 20 convites com tokens aleatórios/hash-only e validade 1–30 dias, revogação, arquivo privado `0600`, leitura/auditoria redigida, preflight fail-closed, painel administrativo com capacidade de convites e testes de laboratório HTTP/MySQL. O fluxo Chromium faz Landing → convite inválido → convite correto → perfil (IA sem consentimento por padrão) → triagem adiada → Campus e gera screenshots sintéticos do percurso. O login remove erros obsoletos após correção, e alternar signin/signup elimina senha e código anterior.
