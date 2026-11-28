@@ -1,4 +1,5 @@
 import {bigint,index,int,mysqlEnum,mysqlTable,unique,varchar} from "drizzle-orm/mysql-core";
+import {partnersDraft} from "./partner-foundation-draft";
 import {users} from "./schema";
 // Laboratory schema only. No production migration.
 export const commercialSubscriptions=mysqlTable("commercialSubscriptions",{
@@ -57,3 +58,16 @@ export const commercialRecurringContracts=mysqlTable("commercialRecurringContrac
  startsAtMs:bigint("startsAtMs",{mode:"number"}).notNull(),
  endsAtMs:bigint("endsAtMs",{mode:"number"}).notNull(),
 },t=>({activePeriod:index("commercial_recurring_period").on(t.status,t.endsAtMs,t.startsAtMs)}));
+
+export const commercialAdOrders=mysqlTable("commercialAdOrders",{
+ id:int("id").autoincrement().primaryKey(),
+ partnerId:int("partnerId").notNull().references(()=>partnersDraft.id),
+ orderKey:varchar("orderKey",{length:180}).notNull().unique(),
+ currency:mysqlEnum("currency",["BRL","USD","EUR"]).notNull(),
+ amountMinor:bigint("amountMinor",{mode:"number"}).notNull(),
+ paymentStatus:mysqlEnum("paymentStatus",["pending","paid","refunded","cancelled"]).notNull(),
+ deliveryStatus:mysqlEnum("deliveryStatus",["draft","scheduled","active","ended","cancelled"]).notNull(),
+ startsAtMs:bigint("startsAtMs",{mode:"number"}).notNull(),
+ endsAtMs:bigint("endsAtMs",{mode:"number"}).notNull(),
+ cashSourceKey:varchar("cashSourceKey",{length:180}).unique().references(()=>commercialCashEntries.sourceKey),
+},t=>({partnerLookup:index("commercial_ads_partner").on(t.partnerId),deliveryLookup:index("commercial_ads_delivery").on(t.deliveryStatus,t.endsAtMs)}));
