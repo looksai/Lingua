@@ -547,6 +547,34 @@ try{
     for(let i=1;i<=3;i++)await page.getByText("Original fictional audio script "+i,{exact:true}).waitFor();
     assert.ok(calls.includes("exams.submit"));await fit(page);
   },"listening-extended");
+  await test("integrated Listening advances only after objective submission",375,"closed",async(page,calls)=>{
+    await page.addInitScript(()=>{
+      const voice={name:"QA local English",lang:"en-GB",localService:true,voiceURI:"qa-local",default:true};
+      const synth=new EventTarget();
+      Object.assign(synth,{getVoices:()=>[voice],speaking:false,pending:false,speak:utterance=>{synth.speaking=true;window.__qaSpoken=utterance.text;},cancel:()=>{synth.speaking=false;}});
+      Object.defineProperty(window,"speechSynthesis",{value:synth,configurable:true});
+      Object.defineProperty(window,"SpeechSynthesisUtterance",{value:class{constructor(text){this.text=text;}},configurable:true});
+    });
+    await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Listening",exact:true}).click();
+    for(let i=1;i<=3;i++){
+      assert.equal(await page.getByText("Original fictional audio script "+i,{exact:true}).count(),0);
+      await page.getByRole("button",{name:"Ouvir áudio · Audio "+i,exact:true}).click();
+      assert.equal(await page.evaluate(()=>window.__qaSpoken),"Original fictional audio script "+i);
+      await page.getByRole("button",{name:"Parar áudio",exact:true}).click();
+    }
+    for(const q of await page.locator(".exam-question").all())await q.getByRole("radio",{name:"Yes",exact:true}).check();
+    await page.getByRole("button",{name:"Enviar respostas"}).click();
+    await page.getByText("Resultado: 12/12 acertos. Não corresponde a uma nota IELTS.").waitFor();
+    for(let i=1;i<=3;i++)await page.getByText("Original fictional audio script "+i,{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Reading",exact:true}).waitFor();
+    for(let i=0;i<3;i++)await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByText("Listening: 12/12 acertos",{exact:true}).waitFor();
+    assert.ok(calls.includes("exams.submit"));await fit(page);
+  },"listening-extended");
   await test("integrated Writing records local sequence without uploading drafts",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
     await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
