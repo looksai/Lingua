@@ -39,10 +39,10 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
-      if(fixture==="speaking-authorized"){
+      if(fixture==="speaking-authorized"||fixture==="speaking-sequence"){
         const answer=payload=>({result:{data:{json:payload}}});
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
-        if(name==="exams.speakingPrompts")return answer({version:"qa",prompts:[{id:"qa-speaking",part:2,title:"A useful skill",question:"Describe a useful skill.",preparationSeconds:60,practiceSeconds:120,review:["Did I give an example?"]}],criteria:[{name:"Pronúncia",description:"Escute sua gravação."}]});
+        if(name==="exams.speakingPrompts")return answer({version:"qa",prompts:fixture==="speaking-sequence"?["part1-work","part1-travel","part2-skill","part3-learning","part3-cities"].map((id,i)=>({id,part:[1,1,2,3,3][i],title:"QA "+id,question:"Question "+(i+1),preparationSeconds:i===2?60:0,practiceSeconds:120,review:["Did I give an example?"]})):[{id:"qa-speaking",part:2,title:"A useful skill",question:"Describe a useful skill.",preparationSeconds:60,practiceSeconds:120,review:["Did I give an example?"]}],criteria:[{name:"Pronúncia",description:"Escute sua gravação."}]});
       }
       if(fixture==="writing-authorized"){
         const answer=payload=>({result:{data:{json:payload}}});
@@ -343,6 +343,40 @@ try{
     assert.equal(await page.locator("audio").count(),0);
     await fit(page);
   },"speaking-authorized");
+  await test("oral sequence defers review and clears five local recordings (synthetic microphone)",375,"closed",async(page,calls)=>{
+    await page.addInitScript(()=>{
+      window.__qaMicStopped=0;
+      const revoke=URL.revokeObjectURL.bind(URL);window.__qaRevoked=0;
+      URL.revokeObjectURL=(url)=>{window.__qaRevoked++;revoke(url);};
+      Object.defineProperty(navigator.mediaDevices,"getUserMedia",{configurable:true,value:async()=>({getTracks:()=>[{stop:()=>window.__qaMicStopped++}]})});
+      Object.defineProperty(window,"MediaRecorder",{configurable:true,value:class{
+        constructor(){this.state="inactive";this.mimeType="audio/webm";}
+        start(){this.state="recording";}
+        stop(){if(this.state!=="recording")return;this.state="inactive";queueMicrotask(()=>{this.ondataavailable?.({data:new Blob(["qa audio"],{type:this.mimeType})});this.onstop?.();});}
+      }});
+    });
+    await page.goto(base);
+    await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:/Speaking Fluência e comunicação/}).click();
+    await page.getByRole("button",{name:"Sequência oral guiada"}).click();
+    for(let i=1;i<=5;i++){
+      await page.getByText("Question "+i,{exact:true}).waitFor();
+      await page.getByRole("button",{name:"Gravar resposta"}).click();
+      await page.getByRole("button",{name:"Encerrar gravação"}).click();
+      await page.getByText("Resposta gravada. A revisão será exibida ao final.").waitFor();
+      assert.equal(await page.locator("audio").count(),0);
+      await page.getByRole("button",{name:i===5?"Concluir sequência":"Próxima pergunta"}).click();
+    }
+    await page.getByText("5 respostas gravadas. Nenhuma nota atribuída.").waitFor();
+    assert.equal(await page.locator("audio").count(),5);
+    assert.equal(await page.evaluate(()=>window.__qaMicStopped),5);
+    assert.ok(!calls.some(c=>/transcribe|speech|speakingReview/.test(c)));
+    await page.getByRole("button",{name:"Descartar e reiniciar sequência"}).click();
+    assert.equal(await page.locator("audio").count(),0);
+    assert.equal(await page.evaluate(()=>window.__qaRevoked),5);
+    await page.getByText("Question 1",{exact:true}).waitFor();await fit(page);
+  },"speaking-sequence");
   await test("approved sponsor placement clearly identified",1440,"closed",async(page)=>{
     await page.goto(base);const slot=page.getByRole("region",{name:"Destaques patrocinados"});
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
@@ -370,5 +404,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?27:23));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?28:24));
 }finally{await browser.close();}

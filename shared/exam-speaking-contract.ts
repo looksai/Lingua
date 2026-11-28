@@ -14,3 +14,11 @@ export const SPEAKING_CRITERIA=[
  {name:"Gramática",description:"Variedade e correção das estruturas."},
  {name:"Pronúncia",description:"Clareza e inteligibilidade da fala, a verificar ouvindo a gravação."}
 ] as const;
+
+export const ORAL_SEQUENCE_VERSION="ielts-oral-sequence-v1-2026-11-28";
+export const ORAL_SEQUENCE_IDS=["part1-work","part1-travel","part2-skill","part3-learning","part3-cities"] as const;
+export function oralSequence(prompts:readonly SpeakingPrompt[]):SpeakingPrompt[]{
+ const ordered=ORAL_SEQUENCE_IDS.map(id=>prompts.find(p=>p.id===id));
+ if(ordered.some(p=>!p))return [];
+ return ordered as SpeakingPrompt[];
+}
