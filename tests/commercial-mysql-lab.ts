@@ -160,7 +160,10 @@ try{
  const reportInput={ownerId:ids[1],achievementId,publishedAtMs:Number(revisionRows[0].publishedAtMs),reason:"spam" as const};
  await assert.rejects(reportCommunityPublication(a,ids[1],reportInput));
  await assert.rejects(reportCommunityPublication(a,ids[0],{...reportInput,publishedAtMs:reportInput.publishedAtMs-1}));
- await Promise.all([reportCommunityPublication(a,ids[0],reportInput),reportCommunityPublication(b,ids[0],reportInput)]);
+ await assert.rejects(student.commercialLab.reportPublication({accountId:ids[0],...reportInput}),{code:"FORBIDDEN"});
+ await student.commercialLab.reportPublication({accountId:ids[1],ownerId:ids[0],achievementId,publishedAtMs:reportInput.publishedAtMs,reason:"spam"}).then(()=>{throw Error("Unexpected report success");},()=>{});
+  await Promise.all([reportCommunityPublication(a,ids[0],reportInput),reportCommunityPublication(b,ids[0],reportInput)]);
+ await caller(ids[0],"user").commercialLab.reportPublication({accountId:ids[0],...reportInput});
  const pending=await admin.communityReports({status:"pending"});
  assert.equal(pending.items.length,1);
  const reportId=pending.items[0].id;
