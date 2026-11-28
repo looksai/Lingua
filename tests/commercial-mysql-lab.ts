@@ -1,3 +1,5 @@
+import {readRealizedCashLab} from "../server/admin-finance-repository-lab";
+import {readContractedMrrLab} from "../server/admin-recurring-repository-lab";
 import assert from "node:assert/strict";
 import mysql from "mysql2/promise";
 import {drizzle} from "drizzle-orm/mysql2";
@@ -35,5 +37,16 @@ try{
  assert.equal((await readAdminCommercialMetrics(b,now+150*86400000)).activeMembers,0);
  await a.update(commercialSubscriptions).set({status:"cancelled"}).where(eq(commercialSubscriptions.userId,receipt.userId));
  assert.equal(await commercialAccessLab(b).isActiveMember(receipt.userId),false);
+ await pools[0].query("CREATE TABLE commercialCashEntries (id int AUTO_INCREMENT PRIMARY KEY,sourceKey varchar(180) NOT NULL UNIQUE,currency enum('BRL','USD','EUR') NOT NULL,kind enum('subscription','advertising','partner','refund','ai-cost','commission','operating-expense') NOT NULL,minorUnits bigint NOT NULL,settledAtMs bigint NOT NULL,recordedAtMs bigint NOT NULL)");
+ await pools[0].query("CREATE TABLE commercialRecurringContracts (id int AUTO_INCREMENT PRIMARY KEY,sourceKey varchar(180) NOT NULL UNIQUE,currency enum('BRL','USD','EUR') NOT NULL,amountMinor bigint NOT NULL,intervalMonths int NOT NULL,status enum('active','pending','cancelled','suspended') NOT NULL,startsAtMs bigint NOT NULL,endsAtMs bigint NOT NULL)");
+ await pools[0].query("INSERT INTO commercialCashEntries (sourceKey,currency,kind,minorUnits,settledAtMs,recordedAtMs) VALUES ('sale','BRL','subscription',9990,?,?),('refund','BRL','refund',1000,?,?),('cost','BRL','ai-cost',1500,?,?),('partner','USD','partner',14900,?,?)",Array(8).fill(now));
+ const cash=await readRealizedCashLab(b,now,now+1);
+ assert.equal(cash.totals[0].net,7490);assert.equal(cash.totals[1].net,14900);
+ assert.equal((await readRealizedCashLab(b,now-1,now)).totals[0].revenue,0);
+ await pools[0].query("INSERT INTO commercialRecurringContracts (sourceKey,currency,amountMinor,intervalMonths,status,startsAtMs,endsAtMs) VALUES ('monthly','BRL',9990,1,'active',?,?),('annual','BRL',99700,12,'active',?,?),('partner','USD',14900,1,'active',?,?)",[now,now+1000,now,now+1000,now,now+1000]);
+ const recurring=await readContractedMrrLab(b,now);
+ assert.equal(recurring.totals[0].mrrMinor,18298);assert.equal(recurring.totals[1].mrrMinor,14900);
+ assert.equal((await readContractedMrrLab(b,now+1000)).totals[0].mrrMinor,0);
+ console.log("PASS financial cash and recurring reporting, currency isolation and period boundaries");
  console.log("PASS commercial trial concurrency, replay, duration, isolation and cancellation");
 }finally{await Promise.all(pools.map(p=>p.end()));}
