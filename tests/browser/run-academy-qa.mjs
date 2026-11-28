@@ -87,6 +87,7 @@ async function test(name,width,mode,body,fixture="public"){
         const input=(url.searchParams.has("batch")?JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}")[String(names.indexOf(name))]:JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}"))?.json??{};
         const questions=Array.from({length:12},(_,i)=>({id:"m"+(i+1),prompt:"Question "+(i+1),options:["Yes","No"]}));
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
+        if(name==="exams.writingTasks")return answer([]);
         if(name==="exams.start"){assert.equal(input.exerciseId,"reading-mock-v1");assert.equal(input.mode,"timed");return answer({id:"00000000-0000-4000-8000-000000000001",variant:"ielts-academic",mode:"timed",version:"mock-qa",deadline:Date.now()+900000,exercise:{id:"reading-mock-v1",skill:"reading",title:"Reading mock fixture",passage:"",questions,sections:[0,1,2].map(i=>({title:"Passage "+(i+1),passage:"Original fictional passage "+(i+1),questionIds:questions.slice(i*4,i*4+4).map(q=>q.id)}))}});}
         if(name==="exams.submit"){assert.equal(Object.keys(input.answers).length,12);return answer({correct:12,total:12,mode:"timed",version:"mock-qa",items:questions.map(q=>({id:q.id,correct:true,expected:"Yes",explanation:"Synthetic correction."}))});}
       }
@@ -516,6 +517,8 @@ try{
     for(const q of await page.locator(".exam-question").all())await q.getByRole("radio",{name:"Yes",exact:true}).check();
     await page.getByRole("button",{name:"Enviar respostas"}).click();
     await page.getByText("Resultado: 12/12 acertos. Não corresponde a uma nota IELTS.").waitFor();
+    await page.getByRole("button",{name:"Continuar para Writing"}).click();
+    await page.getByRole("navigation",{name:"Centro de exames"}).getByRole("button",{name:"Writing",exact:true}).getAttribute("aria-current").then(value=>assert.equal(value,"page"));
     await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
     await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
     await page.getByRole("button",{name:"Pular etapa",exact:true}).click();

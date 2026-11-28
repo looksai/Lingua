@@ -2,6 +2,16 @@
 
 Este checkpoint prevalece sobre todos os avisos históricos abaixo. Fundador autorizou desenvolvimento, auditoria e testes autônomos, em blocos substanciais, sem pedir OK repetidamente. Academy Beta e fidelidade visual continuam prioridades; administração comercial é frente complementar, não substitui Academy, exames, gamificação ou comunidade.
 
+## Atualização posterior em 28/11 — acesso do aluno, comunidade e exames
+
+Este bloco atualiza os itens 1–4 do ponto de retomada abaixo. A PR continua em draft. Em `7f43c178`, a home e o middleware passaram a usar a mesma política. O trial inicial ativo e a Academy com trial desativado conservam acesso legado independente do plano. Após vencer, Lingua Premium abre a Academy e Community Premium abre o Centro de Exames sem consultar onboarding ou tutor. A prática continua sujeita à allowlist de exames. Falha ao carregar as concessões interrompe o acesso. A visualização privada usa cache por identidade; o servidor confere a conta esperada na consulta de acesso.
+
+Em `78ef8199`, os quatro workflows da PR passaram, incluindo ciclo tRPC de emissão, resgate, replay, revogação do código, acesso por plano, vencimento, concorrência na promoção e rollback de auditoria no MySQL descartável. As identidades nesses testes são sintéticas.
+
+Em `081c7e8e`, a rota experimental /community passou a ler e gravar preferências persistentes da própria conta. A retirada integral das permissões funciona após vencer e revoga os compartilhamentos existentes. A UI de resgate também envia a identidade esperada. Chromium tem um percurso sintético de cupom até preferências. O bloco seguinte conecta a correção objetiva diretamente à próxima habilidade e devolve a tentativa expirada ao roteiro.
+
+**Para retomar:** conferir o head e a conclusão de P0, MySQL, Chromium isolado e lives no GitHub. Na Academy, comparar a composição renderizada com o arquivo visual aprovado e validar o convite até o tutor com autenticação completa. No exame integrado, persistir o roteiro somente com autorização e integrar exportação/exclusão antes de habilitar retenção. Na comunidade faltam moderação e bloqueios persistentes antes de expor feed e ranking entre membros. No comercial continuam pendentes revogação individual de concessão, conciliação por titular e regras de descontos no checkout. Flags produtivas, CSLE e serviços pagos permanecem sob as condições de rollout registradas abaixo.
+
 ## Estado verificável
 - PR #125 aberta, branch feat/exam-writing-catalog. Head de código verificado: 801538f6d08c9a5e9d96f179726c5d8589fcb53a. GitHub Actions desse SHA: P0, Chromium isolado, MySQL laboratório e lives públicas, todos success. Este checkpoint acrescenta apenas documentação. Verificar novamente head, main, diffs e logs antes de trabalhar. CI verde não prova cobertura de todas as funções.
 - Não houve merge, deploy, migração produtiva, ativação de flags ou contratação de infraestrutura nesta etapa. CSLE congelado; não modificar motor, contratos pedagógicos ou custos sem autorização.
