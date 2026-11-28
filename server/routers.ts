@@ -1,3 +1,4 @@
+import {adminTrialRouterLab} from "./admin-trial-router-lab";
 import {reviewGamificationPreview} from "./gamification-review-evidence";
 import {examRouter} from "./exam-router";
 import {campusSponsors} from "./campus-sponsors";
@@ -29,6 +30,7 @@ import {
 } from "./db";
 
 export const appRouter = router({
+  adminLab: adminTrialRouterLab,
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   partnerEvents: createPartnerEventRouter({
