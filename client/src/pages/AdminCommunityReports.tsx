@@ -5,13 +5,14 @@ export function AdminCommunityReports(){
  const [notice,setNotice]=useState("");
  const [status,setStatus]=useState<"pending"|"dismissed"|"actioned">("pending"),[beforeId,setBeforeId]=useState<number|undefined>();
  const utils=trpc.useUtils();
+ const summary=trpc.adminLab.communityReportSummary.useQuery(undefined,{retry:false});
  const queue=trpc.adminLab.communityReports.useQuery({status,beforeId},{retry:false});
- const refresh=()=>{void utils.adminLab.communityReports.invalidate();void utils.adminLab.communityPublicationAudit.invalidate();};
+ const refresh=()=>{void utils.adminLab.communityReports.invalidate();void utils.adminLab.communityPublicationAudit.invalidate();void utils.adminLab.communityReportSummary.invalidate();};
  const dismiss=trpc.adminLab.dismissCommunityReport.useMutation({onSuccess:()=>{setNotice("Denúncia descartada.");refresh();}});
  const action=trpc.adminLab.actionCommunityReport.useMutation({onSuccess:()=>{setNotice("Denúncia concluída e publicação moderada.");refresh();}});
  const busy=dismiss.isPending||action.isPending;
  return <section className="academy-state-card !m-0 !p-5">
- <h2 className="text-xl font-semibold">Fila de denúncias</h2><p className="text-sm">A moderação é manual: receber uma denúncia não oculta a conquista.</p>
+ <h2 className="text-xl font-semibold">Fila de denúncias</h2>{summary.data&&<p role="status">Pendentes: <strong>{summary.data.pending}</strong> · Encerradas sem ação: {summary.data.dismissed} · Moderação aplicada: {summary.data.actioned}</p>}{summary.isError&&<p role="alert">Resumo de denúncias indisponível.</p>}<p className="text-sm">A moderação é manual: receber uma denúncia não oculta a conquista.</p>
  <label>Situação<select className="block border rounded p-2" value={status} disabled={busy} onChange={e=>{setStatus(e.target.value==="dismissed"?"dismissed":e.target.value==="actioned"?"actioned":"pending");setBeforeId(undefined);dismiss.reset();action.reset();setNotice("");}}><option value="pending">Pendentes</option><option value="dismissed">Descartadas</option><option value="actioned">Com ação aplicada</option></select></label>
  {notice&&<p role="status">{notice}</p>}
  {queue.isPending&&<p role="status">Carregando denúncias...</p>}
