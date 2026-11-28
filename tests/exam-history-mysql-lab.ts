@@ -105,6 +105,14 @@ try{
  await purgeExpiredExamDataForOwner(b,one,retentionNow);
  assert.equal((await recentExamActivities(a,one)).length,2);
  await first.clear(one);
+ const extended=await first.start(one,"ielts-general","timed","reading","reading-mock-v1");
+ assert.equal(extended.exercise.questions.length,12);
+ assert.equal((await second.resume(one))?.version,extended.version);
+ const grade=await second.submit(one,extended.id,{mg1:"True",mg2:"False"});
+ assert.equal(grade.total,12);assert.equal(grade.correct,2);
+ assert.deepEqual(await first.submit(one,extended.id,{}),grade);
+ await first.clear(one);
+ console.log("PASS extended reading durable resume and replay");
  console.log("PASS exam retention: exact cutoff, expired attempt removal, cross-owner isolation, concurrent submission and replay-safe repeated purge");
  console.log("PASS privacy export: pagination, owner isolation and deletion");
  console.log("PASS durable exam attempts: restart/resume, concurrent replay, expiry, replacement and deletion barrier");
