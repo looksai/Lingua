@@ -7,7 +7,7 @@
  * The clear-text token appears exactly once on stdout for secure delivery.
  * Only its SHA-256 hash is written to disk, with mode 0600.
  */
-import {lstat,readFile,realpath,rename,unlink,writeFile} from "node:fs/promises";
+import {lstat,open,readFile,realpath,rename,stat,unlink,writeFile} from "node:fs/promises";
 import {dirname,isAbsolute,relative,resolve,sep} from "node:path";
 import {randomBytes} from "node:crypto";
 import {fileURLToPath} from "node:url";
@@ -23,6 +23,11 @@ async function resolveProtectedTarget(input:string){
  const repository=await realpath(process.cwd());
  const parent=await realpath(dirname(target));
  if(!outsideRepo(target,repository)||!outsideRepo(parent,repository))throw Error("Refusing to store invitations inside the repository");
+ const parentStat=await stat(parent);
+ // Prevent other local users from reading or swapping the file while it is updated.
+ if(!parentStat.isDirectory()||(parentStat.mode&0o077)!==0)
+  throw Error("Invitation store directory must be private (0700)");
+
  try{
   const stat=await lstat(target);
   if(!stat.isFile()||stat.isSymbolicLink())throw Error("Invitation store must be a regular file, not a symlink");
@@ -46,27 +51,50 @@ async function store(target:string,content:string){
   await rename(temporary,target);
  }finally{await unlink(temporary).catch(()=>{});}
 }
+/** Fail-closed single-writer lock: overlapping issue/revoke calls cannot overwrite
+ * each other's invitation JSON. A stale lock is never silently stolen. */
+async function withInvitationLock<T>(target:string,operation:()=>Promise<T>):Promise<T>{
+ const lockPath=target+".lock";
+ let handle;
+ try{
+  handle=await open(lockPath,"wx",0o600);
+ }catch(error){
+  if((error as NodeJS.ErrnoException).code==="EEXIST")
+   throw Error("Invitation store is locked; resolve the other operation before retrying");
+  throw error;
+ }
+ try{return await operation();}
+ finally{
+  await handle.close();
+  await unlink(lockPath);
+ }
+}
 export async function main(args:string[]){
  const [command,file,email,ttl]=args;
  if(!file||!["issue","revoke","audit"].includes(command??""))throw Error("Usage: issue FILE EMAIL DAYS | revoke FILE EMAIL | audit FILE");
  const target=await resolveProtectedTarget(file);
- const json=await load(target,command==="issue");
  if(command==="audit"){
   if(email!==undefined||ttl!==undefined)throw Error("audit accepts only FILE");
-  const summary=inspectBetaInvitations(json);
+  const summary=inspectBetaInvitations(await load(target,false));
   process.stdout.write(JSON.stringify(summary)+"\n");return;
  }
  if(!email)throw Error("Email is required");
- if(command==="revoke"){
-  if(ttl!==undefined)throw Error("revoke accepts FILE and EMAIL");
-  await store(target,revokeBetaInvitation(json,email).json);
-  process.stdout.write("Invitation revoked. Update the pilot environment with the new hashed JSON store.\n");return;
- }
- if(!ttl||!/^[0-9]+$/.test(ttl))throw Error("Provide lifetime in whole days (1–30)");
- const issued=issueBetaInvitation(json,email,Number(ttl));
- await store(target,issued.json);
- process.stdout.write("INVITE_CODE="+issued.code+"\n");
- process.stderr.write("Expires "+issued.expiresAt+". Share securely, never commit or log the code. Restart the pilot with the new ACADEMY_INVITATIONS_JSON.\n");
+ if(command==="revoke"&&ttl!==undefined)throw Error("revoke accepts FILE and EMAIL");
+ if(command==="issue"&&(!ttl||!/^[0-9]+$/.test(ttl)))throw Error("Provide lifetime in whole days (1–30)");
+ await withInvitationLock(target,async()=>{
+  // Read only after taking the exclusive lock so the next operator cannot
+  // overwrite an invitation issued by the previous one.
+  const json=await load(target,command==="issue");
+  if(command==="revoke"){
+   await store(target,revokeBetaInvitation(json,email).json);
+   process.stdout.write("Invitation revoked. Update the pilot environment with the new hashed JSON store.\n");
+   return;
+  }
+  const issued=issueBetaInvitation(json,email,Number(ttl));
+  await store(target,issued.json);
+  process.stdout.write("INVITE_CODE="+issued.code+"\n");
+  process.stderr.write("Expires "+issued.expiresAt+". Share securely, never commit or log the code. Restart the pilot with the new ACADEMY_INVITATIONS_JSON.\n");
+ });
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(fileURLToPath(import.meta.url))){
  main(process.argv.slice(2)).catch(error=>{
