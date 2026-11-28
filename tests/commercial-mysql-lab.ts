@@ -1,5 +1,5 @@
 import {GAMIFICATION_POLICY_VERSION} from "../shared/gamification-contract";
-import {communityInteractionAllowed,setCommunityBlock} from "../server/community-safety-lab";
+import {setCommunityPublicationRestriction,communityInteractionAllowed,setCommunityBlock} from "../server/community-safety-lab";
 import {communityCommercialLab} from "../server/community-commercial-lab";
 import {readCommunityAchievementFeed} from "../server/community-feed-repository-lab";
 import {ACHIEVEMENTS} from "../shared/gamification-achievements";
@@ -136,6 +136,8 @@ try{
  await pools[0].execute("UPDATE gamificationShares SET achievementId=? WHERE userId=?",[ACHIEVEMENTS[0].id,ids[1]]);
  await pools[0].query("CREATE TABLE gamificationEvidence (id int AUTO_INCREMENT PRIMARY KEY,userId int NOT NULL,kind varchar(50) NOT NULL,sourceId varchar(180) NOT NULL,occurredAtMs bigint NOT NULL,policyVersion varchar(40) NOT NULL,awardedXp int NOT NULL,FOREIGN KEY(userId) REFERENCES users(id))");
  await pools[0].execute("INSERT INTO gamificationEvidence(userId,kind,sourceId,occurredAtMs,policyVersion,awardedXp) VALUES (?,'lesson_completed','safety-lab',?,?,10)",[ids[1],now,GAMIFICATION_POLICY_VERSION]);
+ await pools[0].query("CREATE TABLE communityPublicationRestrictions (ownerId int NOT NULL,achievementId varchar(80) NOT NULL,hidden boolean NOT NULL,PRIMARY KEY(ownerId,achievementId),FOREIGN KEY(ownerId) REFERENCES users(id))");
+ await pools[0].query("CREATE TABLE communityPublicationAudit (id int AUTO_INCREMENT PRIMARY KEY,actorId int NOT NULL,ownerId int NOT NULL,achievementId varchar(80) NOT NULL,hidden boolean NOT NULL,occurredAtMs bigint NOT NULL)");
  const allow=async()=>true;
  const feed=()=>readCommunityAchievementFeed(b,ids[0],allow);
  const profile=()=>communityCommercialLab(b,allow).profile(ids[0],ids[1]);
@@ -143,6 +145,15 @@ try{
  assert.deepEqual((await ranking()).ranking.map(row=>row.memberId),[ids[1]]);
  assert.ok("achievements" in await profile());
  assert.equal((await feed()).items.length,1);
+ const achievementId=ACHIEVEMENTS[0].id;
+ await Promise.all([setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,true),setCommunityPublicationRestriction(b,ids[0],ids[1],achievementId,true)]);
+ assert.deepEqual(await readCommunityAchievementFeed(b,ids[0],allow,1),{items:[],nextCursor:null});
+ await pools[0].execute("UPDATE gamificationShares SET publishedAtMs=? WHERE userId=?",[Date.now(),ids[1]]);
+ assert.equal((await feed()).items.length,0);
+ await setCommunityPublicationRestriction(a,ids[0],ids[1],achievementId,false);
+ assert.equal((await feed()).items.length,1);
+ const [publicationAudit]=await pools[0].query<mysql.RowDataPacket[]>("SELECT hidden FROM communityPublicationAudit ORDER BY id");
+ assert.deepEqual(publicationAudit.map(row=>row.hidden),[1,0]);
  await Promise.all([setCommunityBlock(a,ids[1],ids[0],true),setCommunityBlock(b,ids[1],ids[0],true)]);
  assert.equal(await communityInteractionAllowed(b,ids[0],ids[1]),false);
  assert.equal((await feed()).items.length,0);
