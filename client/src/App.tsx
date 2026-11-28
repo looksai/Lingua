@@ -1,3 +1,4 @@
+import CommercialTrialRedemption from "./pages/CommercialTrialRedemption";
 import AdminDashboard from "./pages/AdminDashboard";
 import { useSyncExternalStore } from "react";
 import "./pages/academy-interior.css";
@@ -26,7 +27,7 @@ function PrivateExperience({ email }: { email: string }) {
   const logout = trpc.auth.logout.useMutation({onSuccess:()=>window.location.assign("/login")});
   if (trial.isPending) return <Loading text="Confirmando seu acesso..."/>;
   if (trial.error || !trial.data || trial.data.kind === "unavailable") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><h1 className="font-display text-3xl">Não foi possível confirmar seu acesso</h1><button className="academy-primary mt-5" onClick={()=>void trial.refetch()}>Tentar novamente</button></div></main>;
-  if (trial.data.kind === "expired") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p><a href="/exam-privacy">Privacidade do Centro de Exames</a><button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>{logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}</div></main>;
+  if (trial.data.kind === "expired") return <main className="academy-interior px-5 py-8"><div className="academy-state-card"><img className="academy-interior-brand" src={`${import.meta.env.BASE_URL}academy/logo-lingua-transparente.png`} alt="Lingua"/><h1 className="font-display text-3xl">Seus 15 dias gratuitos terminaram.</h1><p>Seu progresso continua vinculado à sua conta. Os planos de assinatura ainda estão em preparação.</p>{import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <a href="/redeem">Tenho um cupom de acesso</a>}<a href="/exam-privacy">Privacidade do Centro de Exames</a><button className="academy-secondary" disabled={logout.isPending} onClick={()=>logout.mutate()}>Sair da conta</button>{logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}</div></main>;
   return <><div className="academy-trial-strip" hidden={trial.data.kind !== "active"}>{trial.data.kind === "active" ? `Período gratuito · ${trial.data.remainingDays} dia(s) restantes` : null}</div><LearningExperience email={email}/></>;
 }
 
@@ -69,6 +70,7 @@ function Router() {
     {import.meta.env.VITE_PUBLIC_LIVES_ENABLED === "true" && <Route path="/live" component={PublicLivePage} />}
     {import.meta.env.VITE_PARTNER_DASHBOARD_ENABLED === "true" && <Route path="/partners" component={PartnerDashboard} />}
     {import.meta.env.VITE_ADMIN_LAB_ENABLED === "true" && <Route path="/admin" component={AdminDashboard} />}
+    {import.meta.env.VITE_COMMERCIAL_LAB_ENABLED === "true" && <Route path="/redeem" component={CommercialTrialRedemption} />}
     <Route path="/exam-privacy" component={ExamPrivacy} />
     <Route path="/login" component={Login} />
     <Route path="/404" component={NotFound} />
