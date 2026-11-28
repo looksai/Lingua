@@ -1,6 +1,6 @@
-import type { ExamSkill,IeltsVariant } from "../shared/exam-contract";
+import type { ExamSkill,IeltsVariant,ExamReadingSection } from "../shared/exam-contract";
 export type ExamItem={id:string;prompt:string;options:readonly string[];expected:string;explanation:string};
-export type ExamSet={id:string;title:string;passage:string;skill:ExamSkill;questions:ExamItem[]};
+export type ExamSet={id:string;title:string;passage:string;skill:ExamSkill;questions:ExamItem[];sections?:ExamReadingSection[]};
 const tf=["True","False","Not given"] as const;
 export const additionalReading:Record<IeltsVariant,ExamSet[]> = {
  "ielts-academic":[
