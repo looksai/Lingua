@@ -8,6 +8,8 @@ O head inicial foi `560ad674`, com P0, MySQL, Chromium isolado e lives aprovados
 
 O recurso depende do histórico durável e da nova flag `LINGUA_EXAM_ITINERARY_ENABLED=true`, desligada por padrão. O SQL aditivo em `drizzle/manual-review/exam-itinerary-v1.sql` destina-se ao laboratório e à revisão antes de qualquer rollout. O preflight valida a extensão quando presente e a exige quando a flag estiver ativa sobre a base existente. Exportação, exclusão e limpeza por prazo incluem a cópia mesmo com a flag de gravação desligada. A UI permite rever a cópia antes de substituir. A gravação compara revisões sob lock do proprietário.
 
+A página de privacidade permite também excluir somente o roteiro, conferindo identidade e revisão. O teste HTTP atravessa a perda do benefício e desliga a gravação antes de exportar e retirar a cópia. A limpeza por prazo foi testada no limite exato com isolamento por proprietário.
+
 A cobertura inclui compatibilidade com o histórico antigo, consentimento obrigatório, rejeição de dados extras, conflito entre conexões, repetição, isolamento, exportação, exclusão e retomada no Chromium. Consultar os quatro workflows do head para confirmar a execução. Continuam prioritários homologação visual da Academy, piloto convidado, moderação e bloqueios da comunidade. A implantação e o CSLE continuam sujeitos às regras abaixo.
 
 ## Atualização posterior em 28/11 — acesso do aluno, comunidade e exames

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { TRPCError } from "@trpc/server";
 import type { MySql2Database } from "drizzle-orm/mysql2";
@@ -34,5 +34,15 @@ export async function saveItinerary(db:MySql2Database,owner:number,input:z.infer
     const values={revision:randomUUID(),savedAtMs:Date.now(),bookmarkJson};
     await tx.insert(rows).values({userId:owner,...values}).onDuplicateKeyUpdate({set:values});
     return {revision:values.revision};
+  });
+}
+
+export async function removeItinerary(db:MySql2Database,owner:number,revision:string) {
+  return db.transaction(async tx=>{
+    await tx.select({id:users.id}).from(users).where(eq(users.id,owner)).for("update");
+    const [current]=await tx.select({revision:rows.revision}).from(rows).where(eq(rows.userId,owner)).for("update");
+    if(!current)return;
+    if(current.revision!==revision)throw new TRPCError({code:"CONFLICT",message:"O roteiro salvo mudou. Confira a versão atual."});
+    await tx.delete(rows).where(and(eq(rows.userId,owner),eq(rows.revision,revision)));
   });
 }
