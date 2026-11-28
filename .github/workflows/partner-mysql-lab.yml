@@ -5,6 +5,12 @@ on:
     paths:
       - 'drizzle/commercial-draft.ts'
       - 'server/commercial-*.ts'
+      - 'server/community-*.ts'
+      - 'server/admin-trial-router-lab.ts'
+      - 'drizzle/community-safety-draft.ts'
+      - 'drizzle/gamification-draft.ts'
+      - 'shared/community-*.ts'
+      - 'shared/gamification-achievements.ts'
       - 'server/trial-redemption-lab.ts'
       - 'tests/commercial-mysql-lab.ts'
       - 'drizzle/partner-foundation-draft.ts'
