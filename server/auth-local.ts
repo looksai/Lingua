@@ -34,12 +34,13 @@ export async function verifyPassword(password: string, stored: string): Promise<
   const actual = await scrypt(password, salt);
   return timingSafeEqual(actual, expectedBytes);
 }
-export function rateLimit(key: string, now = Date.now()) {
+export function rateLimit(key: string, now = Date.now(), maxAttempts = MAX_ATTEMPTS) {
+  if (!Number.isSafeInteger(maxAttempts) || maxAttempts < 1 || maxAttempts > 500) throw new Error("Invalid rate limit policy");
   // Process-local backstop only; use a shared rate limiter before public launch.
   if (attempts.size > 10000) attempts.clear();
   const current = attempts.get(key);
   if (!current || current.expires <= now) { attempts.set(key, { count: 1, expires: now + WINDOW_MS }); return; }
-  if (current.count >= MAX_ATTEMPTS) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Tente novamente mais tarde" });
+  if (current.count >= maxAttempts) throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "Tente novamente mais tarde" });
   current.count++;
 }
 export function checkRequestOrigin(req: Request) {
