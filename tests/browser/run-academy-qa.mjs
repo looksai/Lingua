@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
-import {mkdir} from "node:fs/promises";
+import {mkdir,readFile} from "node:fs/promises";
 import {pathToFileURL} from "node:url";
 
 const dir=process.env.LINGUA_QA_PLAYWRIGHT_DIR||"/tmp/lingua-browser-tools";
@@ -189,6 +189,10 @@ async function test(name,width,mode,body,fixture="public"){
         }
         if(name==="commercialLab.blockedMembers")return answer({members:communityBlocked?[{memberId:42}]:[],next:null});
         if(name==="commercialLab.myCommunityReports")return answer({items:reportSent||fixture==="reports-expired"?[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]:[],nextBeforeId:null});
+        if(name==="commercialLab.myCommunityReportsExport"){
+          assert.deepEqual(input,{accountId:9001});
+          return answer({version:1,accountId:9001,exportedAtMs:1764300010000,complete:true,reports:[{id:55,ownerId:42,achievementId:"first-lesson",publishedAtMs:1764300000000,reason:"harassment",status:"pending",createdAtMs:1764300000000,resolvedAtMs:null}]});
+        }
       }
       if(fixture==="blocked-list"){
         if(name==="commercialLab.blockedMembers")return {result:{data:{json:{members:blocked?[{memberId:42}]:[],next:null}}}};
@@ -817,6 +821,13 @@ try{
       await page.goto(base+"/community");
       await page.getByText("Minhas denúncias",{exact:true}).click();
       await page.getByText("Denúncia #55").waitFor();
+      const [download]=await Promise.all([page.waitForEvent("download"),page.getByRole("button",{name:"Exportar minhas denúncias (JSON)"}).click()]);
+      assert.equal(download.suggestedFilename(),"lingua-denuncias-9001.json");
+      const exported=JSON.parse(await readFile(await download.path(),"utf8"));
+      assert.equal(exported.accountId,9001);
+      assert.equal(exported.complete,true);
+      assert.equal(exported.reports[0].id,55);
+      assert.equal("resolvedBy" in exported.reports[0],false);
       assert.ok(!calls.includes("commercialLab.achievementFeed"));
       await fit(page);
     },"reports-expired");
