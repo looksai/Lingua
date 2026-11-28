@@ -1,3 +1,34 @@
+# CHECKPOINT PRIORITÁRIO — 28/11/2026 — Moderação, portabilidade e consentimento por conquista
+
+**Retomar deste bloco.** Repositório `looksai/Lingua`, PR #125, branch `feat/exam-writing-catalog`. Fundador delegou desenvolvimento e testes autônomos em blocos substanciais. Os detalhes de governança e homologação estão em `docs/COMMUNITY-MODERATION-LAB-RELEASE-GATE.md`.
+
+## Trabalho desta rodada, efetivamente salvo no GitHub
+
+- Painel de moderação: nova consulta `adminLab.communityReportSummary` separa contagens de denúncias pendentes/descartadas/com ação aplicada, atualizadas após cada decisão. UI mostra contadores e botão de atualização. Testes de autorização admin, integração MySQL e Chromium sintético verificam transições.
+- Dados próprios do membro: `commercialLab.myCommunityReportsExport` só aceita `accountId` da sessão autenticada, faz consulta paginada internamente com limite de 1.001 registros para indicar truncamento e entrega no máximo 1.000 em JSON; não revela ID do denunciante nem do administrador. UI `/community` cria download local apenas por ação explícita e avisa quando o arquivo é incompleto. Testes MySQL e Chromium cobrem isolamento entre contas, exportação após expiração comercial e truncamento.
+- Pré-verificação de exclusão de contas: `server/community-deletion-preflight-lab.ts` lê `information_schema` sem escrever. Laboratório MySQL espelha as FKs do draft de denúncias/auditorias e confirma `RESTRICT/NO ACTION` que podem bloquear exclusão de contas. É uma evidência de bloqueio jurídico/técnico, **não** uma política de eliminação de dados; nenhuma exclusão/migração de produção foi criada.
+- Correção de concorrência: `setCommunityBlock` agora bloqueia as duas contas em ordem canônica na transação. `reportCommunityPublication` usa a mesma ordenação e revalida plano ativo de ambos, bloqueios bilaterais e suspensões *dentro* da transação antes de aceitar a denúncia, além de revisão/privacidade/ocultação. Testes MySQL de bloqueio e submissão seguem no pipeline.
+- Correção crítica de consentimento/moderação: `readCommunityGamificationProfile` não pode mostrar conquista oculta administrativamente ou revogada pelo dono. Perfil agora exige preferência global habilitada **e publicação individual ativa/não revogada**, além da ausência de restrição de moderação. MySQL testa ocultação, restauração, revogação e republicação, impedindo vazamento entre feed e perfil.
+- Os workflows continuam a executar nas alterações da branch, sem flags públicas e sem alterar CSLE.
+
+## CI realmente observada
+
+- Commit `853adb11`: **4/4 concluídos com sucesso**, P0 `46182891764`, MySQL `46182891770`, Chromium `46182891773`, lives `46182891759`. Inclui exportação, truncamento no Chromium, triagem e testes anteriores.
+- Commit `41617a1a`: **4/4 concluídos com sucesso**, P0 `46182642956`, MySQL `46182642897`, Chromium `46182642867`, lives `46182642946`.
+- Commits posteriores adicionaram o preflight, locks/rechecagens transacionais e a correção de perfil; **não declarar homologação** sem conferir os 4 workflows do head atual. Último head observado antes deste checkpoint: `7b7eca5d`, com CI ainda enfileirada; conferir no GitHub.
+
+## Pendências executáveis
+
+1. Confirmar quatro pipelines no head mais recente; corrigir falhas de integração e browser caso apareçam. Se a UI de exportação ou os testes do perfil causarem erro, auditar logs dos jobs.
+2. Adicionar/aperfeiçoar teste determinístico de corrida entre bloqueio e denúncia; validar restauro/privacidade em duas conexões e UX visual móvel/desktop antes de staging.
+3. Definir governança de retenção/eliminação de registros de segurança e estratégia para FKs bloqueantes antes de autorizar migração. Não criar deleção destrutiva sem a política.
+4. Limitação local de requisições deve ser distribuída para escala real; nunca ativar o módulo público sem isso.
+5. Próxima frente de produto: homologação visual definitiva da Academy Beta, convite/tutor efetivo com conta sintética/controle, experiência final de exames e integração comercial. Roadmap histórico mantido abaixo.
+
+**Gates imutáveis:** CSLE separado e congelado, sem mudança curricular/certificadora, sem migração no banco de produção, sem flags de produção, Stripe ou deploy não autorizados. Confundir XP/conquistas com proficiência continua proibido.
+
+---
+
 # CHECKPOINT PRIORITÁRIO — 28/11/2026 — Moderação comunitária implementada e integrada
 
 **Ler este bloco primeiro.** PR #125 (rascunho), branch `feat/exam-writing-catalog`. O fundador autorizou execução substancial autônoma sem confirmações repetidas; não trocar de conversa nem mandar relatórios vazios. O detalhamento dos requisitos de liberação está em `docs/COMMUNITY-MODERATION-LAB-RELEASE-GATE.md`.
