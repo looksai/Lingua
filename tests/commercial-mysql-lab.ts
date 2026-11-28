@@ -1,5 +1,6 @@
 import {publishAchievement,revokeAchievement} from "../server/community-achievement-share-lab";
 import {reportCommunityPublication,actionCommunityReport} from "../server/community-report-lab";
+import {communityPublicationReports} from "../drizzle/community-safety-draft";
 import {GAMIFICATION_POLICY_VERSION} from "../shared/gamification-contract";
 import {setCommunityPublicationRestriction,communityInteractionAllowed,setCommunityBlock} from "../server/community-safety-lab";
 import {communityCommercialLab} from "../server/community-commercial-lab";
@@ -292,6 +293,20 @@ try{
  assert.ok((await mine()).items.length>=1);
  assert.ok((await caller(ids[0],"user").commercialLab.myCommunityReportsExport({accountId:ids[0]})).reports.length>=1);
  await assert.rejects(authorizedFeed(),{code:"FORBIDDEN"});
+ // Export a bounded window and explicitly report truncation without mixing accounts.
+ const syntheticRows=Array.from({length:1001},(_,i)=>({
+   reporterId:ids[0],ownerId:ids[1],achievementId,
+   publishedAtMs:now+1000000+i,reason:"other" as const,
+   status:"dismissed" as const,createdAtMs:now+1000000+i,
+ }));
+ await a.insert(communityPublicationReports).values(syntheticRows);
+ const bounded=await caller(ids[0],"user").commercialLab.myCommunityReportsExport({accountId:ids[0]});
+ assert.equal(bounded.complete,false);
+ assert.equal(bounded.reports.length,1000);
+ assert.ok(bounded.reports.every(row=>row.ownerId===ids[1] && row.reason==="other"));
+ const restricted=await caller(ids[1],"user").commercialLab.myCommunityReportsExport({accountId:ids[1]});
+ assert.equal(restricted.reports.length,0);
+ console.log("PASS report export maximum, truncation and subject isolation");
  console.log("PASS expired reporter history without feed access");
  console.log("PASS admin issue, student redemption, plan boundaries, expiry, concurrent promotion lifecycle and audit rollback");
  console.log("PASS referral concurrency, self-referral, expiry and conversion metrics");
