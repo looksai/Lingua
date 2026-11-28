@@ -1,3 +1,5 @@
+import {XP_RULES} from "./gamification-contract";
+const WEEKLY_MAX=7*Object.values(XP_RULES).reduce((sum,r)=>sum+r.xp*r.dailyLimit,0);
 export type RankingCandidate={memberId:number;active:boolean;optedIn:boolean;weeklyXp:number};
 // Server must supply owner-scoped, verified weekly totals and current membership.
 export function weeklyParticipationRanking(candidates:readonly RankingCandidate[],limit=20){
@@ -6,7 +8,7 @@ export function weeklyParticipationRanking(candidates:readonly RankingCandidate[
  const eligible=candidates.filter(c=>{
   if(!Number.isSafeInteger(c.memberId)||c.memberId<=0||seen.has(c.memberId))throw Error("Invalid or duplicate ranking member");
   seen.add(c.memberId);
-  return c.active===true&&c.optedIn===true&&Number.isSafeInteger(c.weeklyXp)&&c.weeklyXp>0&&c.weeklyXp<=5250;
+  return c.active===true&&c.optedIn===true&&Number.isSafeInteger(c.weeklyXp)&&c.weeklyXp>0&&c.weeklyXp<=WEEKLY_MAX;
  }).sort((a,b)=>b.weeklyXp-a.weeklyXp||a.memberId-b.memberId);
  let rank=0,previous=-1;
  return eligible.slice(0,limit).map((c,i)=>{
