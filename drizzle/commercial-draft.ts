@@ -36,3 +36,13 @@ export const commercialAdminAudit=mysqlTable("commercialAdminAudit",{
  targetCode:varchar("targetCode",{length:40}).notNull(),
  occurredAtMs:bigint("occurredAtMs",{mode:"number"}).notNull(),
 },t=>({actorTime:index("commercial_audit_actor_time").on(t.actorId,t.occurredAtMs)}));
+
+export const commercialCashEntries=mysqlTable("commercialCashEntries",{
+ id:int("id").autoincrement().primaryKey(),
+ sourceKey:varchar("sourceKey",{length:180}).notNull().unique(),
+ currency:mysqlEnum("currency",["BRL","USD","EUR"]).notNull(),
+ kind:mysqlEnum("kind",["subscription","advertising","partner","refund","ai-cost","commission","operating-expense"]).notNull(),
+ minorUnits:bigint("minorUnits",{mode:"number"}).notNull(),
+ settledAtMs:bigint("settledAtMs",{mode:"number"}).notNull(),
+ recordedAtMs:bigint("recordedAtMs",{mode:"number"}).notNull(),
+},t=>({period:index("commercial_cash_period").on(t.settledAtMs,t.id)}));
