@@ -3,7 +3,11 @@ import {trpc} from "@/lib/trpc";
 import {COUPON_VALIDITY_PRESETS} from "../../../shared/admin-coupon-policy";
 export function AdminPromotions(){
  const [code,setCode]=useState(""),[plan,setPlan]=useState<"lingua-premium"|"community-premium">("lingua-premium"),[kind,setKind]=useState("percent"),[currency,setCurrency]=useState<"BRL"|"USD"|"EUR">("BRL"),[amount,setAmount]=useState("10"),[days,setDays]=useState("3"),[date,setDate]=useState(""),[uses,setUses]=useState("1"),[revocation,setRevocation]=useState("");
- const issue=trpc.adminLab.issuePromotion.useMutation(),revoke=trpc.adminLab.revokePromotion.useMutation();
+ const [beforeId,setBeforeId]=useState<number|undefined>(undefined);
+ const utils=trpc.useUtils();
+ const inventory=trpc.adminLab.promotions.useQuery({beforeId},{retry:false});
+ const refresh=()=>{void utils.adminLab.promotions.invalidate();};
+ const issue=trpc.adminLab.issuePromotion.useMutation({onSuccess:refresh}),revoke=trpc.adminLab.revokePromotion.useMutation({onSuccess:refresh});
  const minor=/^\d+(\.\d{1,2})?$/.test(amount)?Math.round(Number(amount)*100):NaN;
  const expiry=Date.parse(date)+86400000;
  const validCode=(s:string)=>/^[A-Z0-9_-]{4,40}$/.test(s);
@@ -21,5 +25,7 @@ export function AdminPromotions(){
  <button className="academy-primary" disabled={!valid||issue.isPending}>Emitir promoção</button></form>
  {issue.error&&<p role="alert">Não foi possível emitir a promoção.</p>}{issue.data&&<p role="status">Promoção {issue.data.code} emitida. Vencimento: {new Date(issue.data.expiresAtMs).toISOString()}</p>}
  <form className="flex flex-wrap gap-3 items-end" onSubmit={e=>{e.preventDefault();if(validCode(revocation)&&!revoke.isPending&&window.confirm("Impedir novos resgates desta promoção?"))revoke.mutate({code:revocation});}}><label>Revogar promoção<input className="block border rounded p-2" value={revocation} onChange={e=>setRevocation(e.target.value.toUpperCase())}/></label><button className="academy-secondary" disabled={!validCode(revocation)||revoke.isPending}>Revogar</button></form>
- {revoke.error&&<p role="alert">Não foi possível revogar.</p>}{revoke.data&&<p role="status">Solicitação processada.</p>}</section>;
+ {revoke.error&&<p role="alert">Não foi possível revogar.</p>}{revoke.data&&<p role="status">Solicitação processada.</p>}<h3 className="text-lg font-semibold mt-6">Promoções emitidas</h3>
+ {inventory.isPending&&<p role="status">Carregando promoções...</p>}{inventory.isError&&<p role="alert">Inventário indisponível.</p>}
+ {inventory.data&&<><div className="overflow-x-auto"><table className="w-full text-left"><thead><tr>{["Código","Plano","Desconto","Vencimento UTC","Resgates","Situação"].map(v=><th key={v} scope="col" className="p-2">{v}</th>)}</tr></thead><tbody>{inventory.data.items.map(c=><tr key={c.id} className="border-t"><td className="p-2">{c.code}</td><td className="p-2">{c.plan}</td><td className="p-2">{c.discountKind==="percent"?c.discountValue/100+"%":(c.currency??"")+" "+(c.discountValue/100).toFixed(2)}</td><td className="p-2">{new Date(c.redeemUntilMs).toISOString()}</td><td className="p-2">{c.uses}/{c.maxUses}</td><td className="p-2">{c.revokedAtMs!==null?"Revogado":c.redeemUntilMs<=inventory.data.asOfMs?"Vencido":c.redeemFromMs>inventory.data.asOfMs?"Agendado":c.uses>=c.maxUses?"Esgotado":"Disponível"}</td></tr>)}</tbody></table></div>{inventory.data.items.length===0&&<p>Nenhuma promoção nesta página.</p>}<div className="flex gap-3"><button className="academy-secondary" disabled={beforeId===undefined} onClick={()=>setBeforeId(undefined)}>Primeira página</button><button className="academy-secondary" disabled={inventory.data.nextBeforeId===null} onClick={()=>setBeforeId(inventory.data?.nextBeforeId??undefined)}>Próxima página</button></div></>}</section>;
 }
