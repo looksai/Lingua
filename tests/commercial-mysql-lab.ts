@@ -240,7 +240,9 @@ try{
  await reportCommunityPublication(a,ids[0],{...reportInput,publishedAtMs:previousPublishedAt});
  const previousReportId=(await admin.communityReports({status:"pending"})).items[0].id;
  await revokeAchievement(a,ids[1],achievementId,previousPublishedAt);
+ assert.deepEqual((await profile()).achievements,[],"Revoked individual share must not remain visible on member profile");
  await publishAchievement(b,ids[1],achievementId,previousPublishedAt);
+ assert.deepEqual((await profile()).achievements,[{id:achievementId,title:ACHIEVEMENTS[0].title}]);
  const [repostedRows]=await pools[0].query<mysql.RowDataPacket[]>("SELECT publishedAtMs,revokedAtMs FROM gamificationShares WHERE userId=? AND achievementId=?",[ids[1],achievementId]);
  assert.ok(Number(repostedRows[0].publishedAtMs)>previousPublishedAt);
  assert.equal(repostedRows[0].revokedAtMs,null);
