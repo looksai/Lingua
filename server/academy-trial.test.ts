@@ -21,6 +21,6 @@ describe("Academy 15-day trial",()=>{
     expect(academyTrialStatus(new Date(NaN),enabled,start)).toEqual({kind:"unavailable"});
     expect(academyTrialStatus(createdAt,enabled,start-1)).toEqual({kind:"unavailable"});
   });
-  it.each(["onboarding.me","learning.review","placement.generate","speech.transcribe","tutor.reply","tutor.neuralEnglish","tutor.memorySave"])("gates %s",path=>expect(trialGatedPath(path)).toBe(true));
-  it.each(["auth.me","auth.trialStatus","auth.signIn","partnerEvents.mine","tutor.memoryDelete","tutor.memoryList","tutor.memoryClear","tutor.revokeCatalogConsent","placement.clear","learning.removeItem"])("preserves %s",path=>expect(trialGatedPath(path)).toBe(false));
+  it.each(["onboarding.me","learning.review","placement.generate","speech.transcribe","tutor.reply","tutor.neuralEnglish","tutor.memorySave","exams.start","exams.submit","exams.saveGoal","exams.history"])("gates %s",path=>expect(trialGatedPath(path)).toBe(true));
+  it.each(["auth.me","auth.trialStatus","auth.signIn","partnerEvents.mine","tutor.memoryDelete","tutor.memoryList","tutor.memoryClear","tutor.revokeCatalogConsent","placement.clear","learning.removeItem","exams.privacyStatus","exams.privacyExport","exams.privacyClear"])("preserves %s",path=>expect(trialGatedPath(path)).toBe(false));
 });

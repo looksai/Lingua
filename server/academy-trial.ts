@@ -19,5 +19,5 @@ export function academyTrialStatus(createdAt: Date|undefined, env:NodeJS.Process
 export function trialGatedPath(path:string):boolean{
   const [scope]=path.split(".");
   if(!["onboarding","learning","placement","speech","tutor","exams"].includes(scope))return false;
-  return !["tutor.memoryList","tutor.memoryDelete","tutor.memoryClear","tutor.revokeCatalogConsent","placement.clear","learning.removeItem"].includes(path);
+  return !["tutor.memoryList","tutor.memoryDelete","tutor.memoryClear","tutor.revokeCatalogConsent","placement.clear","learning.removeItem","exams.privacyStatus","exams.privacyExport","exams.privacyClear"].includes(path);
 }

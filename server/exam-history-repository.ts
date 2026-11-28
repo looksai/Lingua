@@ -1,6 +1,6 @@
-import {and,desc,eq} from "drizzle-orm";
+import {and,desc,eq,lt} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
-import {examGoals as goals,examCompletedActivities as activities} from "../drizzle/exam-history-draft";
+import {examGoals as goals,examCompletedActivities as activities,examActiveAttempts as active} from "../drizzle/exam-history-draft";
 import {examGoalInput,completedExamActivity,type ExamGoalInput,type CompletedExamActivity} from "../shared/exam-history-contract";
 
 function requireOwner(owner:number){if(!Number.isSafeInteger(owner)||owner<=0||owner>2147483647)throw Error("Invalid exam history owner");}
@@ -36,4 +36,15 @@ export async function clearExamHistory(db:MySql2Database,owner:number){
   await tx.delete(activities).where(eq(activities.userId,owner));
   await tx.delete(goals).where(eq(goals.userId,owner));
  });
+}
+
+/** Owner-only access independent of commercial entitlement. Bounded keyset pages. */
+export async function exportExamHistoryPage(db:MySql2Database,owner:number,beforeId:number|null){
+ requireOwner(owner);
+ if(beforeId!==null&&(!Number.isSafeInteger(beforeId)||beforeId<=0||beforeId>2147483647))throw Error("Invalid export cursor");
+ const goal=await readExamGoal(db,owner);
+ const [attempt]=await db.select({attemptId:active.attemptId,variant:active.variant,skill:active.skill,mode:active.mode,exerciseId:active.exerciseId,contentVersion:active.contentVersion,deadlineMs:active.deadlineMs}).from(active).where(eq(active.userId,owner)).limit(1);
+ const rows=await db.select().from(activities).where(and(eq(activities.userId,owner),beforeId===null?undefined:lt(activities.id,beforeId))).orderBy(desc(activities.id)).limit(51);
+ const items=rows.slice(0,50).map(({id,userId,...data})=>data);
+ return {goal,activeAttempt:attempt??null,activities:items,nextCursor:rows.length>50?rows[49]!.id:null};
 }

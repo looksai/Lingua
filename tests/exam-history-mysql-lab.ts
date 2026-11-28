@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import {randomUUID} from "node:crypto";
+import {readFile} from "node:fs/promises";
 import mysql from "mysql2/promise";
 import {drizzle} from "drizzle-orm/mysql2";
 import {eq} from "drizzle-orm";
 import {users} from "../drizzle/schema";
-import {saveExamGoal,readExamGoal,recordCompletedExamActivity,recentExamActivities,clearExamHistory} from "../server/exam-history-repository";
+import {saveExamGoal,readExamGoal,recordCompletedExamActivity,recentExamActivities,clearExamHistory,exportExamHistoryPage} from "../server/exam-history-repository";
 import {createDurableExamEngine} from "../server/exam-durable-engine";
 import type {CompletedExamActivity} from "../shared/exam-history-contract";
 const LAB_URL="mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab";
@@ -12,6 +14,8 @@ const pools=[mysql.createPool(LAB_URL),mysql.createPool(LAB_URL)];
 const [a,b]=pools.map(client=>drizzle({client}));
 const ids:number[]=[];
 try{
+ const sql=await readFile(new URL("../drizzle/manual-review/exam-history-v1.sql",import.meta.url),"utf8");
+ for(const statement of sql.split(";").map(x=>x.trim()).filter(Boolean))await pools[0].query(statement);
  for(const openId of ["exam-history-lab-a","exam-history-lab-b"]){
   await a.insert(users).values({openId});
   const [row]=await a.select({id:users.id}).from(users).where(eq(users.openId,openId));
@@ -62,6 +66,16 @@ try{
  assert.deepEqual(await recentExamActivities(a,one),[]);
  assert.equal(await readExamGoal(a,one),null);
  assert.equal((await recentExamActivities(a,two)).length,1);
+ for(let i=0;i<51;i++)await recordCompletedExamActivity(a,one,{...activity,attemptId:randomUUID()});
+ const export1=await exportExamHistoryPage(b,one,null);
+ assert.equal(export1.activities.length,50);assert.ok(export1.nextCursor);
+ const export2=await exportExamHistoryPage(a,one,export1.nextCursor);
+ assert.equal(export2.activities.length,1);assert.equal(export2.nextCursor,null);
+ assert.ok(!export1.activities.some(x=>x.attemptId===activity.attemptId));
+ assert.equal((await exportExamHistoryPage(a,two,null)).activities.length,1);
+ await first.clear(one);
+ assert.deepEqual((await exportExamHistoryPage(b,one,null)).activities,[]);
+ console.log("PASS privacy export: pagination, owner isolation and deletion");
  console.log("PASS durable exam attempts: restart/resume, concurrent replay, expiry, replacement and deletion barrier");
  console.log("PASS exam history: durable goals, concurrent idempotency, ownership, invalid metadata, isolated deletion");
 }finally{for(const id of ids)await a.delete(users).where(eq(users.id,id));await Promise.all(pools.map(p=>p.end()));}
