@@ -311,6 +311,7 @@ try{
     await page.getByRole("button",{name:"Já tenho conta"}).click();
     await page.getByRole("button",{name:"Tenho um convite"}).click();
     assert.equal(await code.inputValue(),"");
+    assert.equal(await page.getByLabel("Senha",{exact:true}).inputValue(),"","Switching auth modes must not retain the previous password");
     await fit(page);
   });
   await test("Beta invite sign-up rejects wrong token and enters authenticated onboarding",375,"invite",async(page,calls)=>{
