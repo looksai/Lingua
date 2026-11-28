@@ -91,3 +91,6 @@ O CSLE atual (3.18.20, com checkpoints sintéticos aprovados) é uma versão bá
 ## Fase 16 — catálogo Writing ampliado
 - 12 tarefas originais no total (6 Academic e 6 General), organizadas em três pares por variante. Novas tabelas fictícias, ensaios de vantagens/desvantagens, causas/soluções e opinião, cartas com diferentes destinatários. Prática individual ou seleção de um par antes de iniciar a sequência; conteúdo copiado para a sessão, sem trocar conjunto durante a tentativa. Autoavaliação específica por enunciado, sem nota. A escolha de conjunto não garante que o aluno nunca o tenha praticado.
 - Catálogo v2, IDs existentes preservados, sem dados pessoais, persistência, alteração de CSLE ou infraestrutura. Validação editorial humana e qualidade de avaliação ainda pendentes.
+
+## Fase 17 — catálogo Speaking ampliado
+- 12 prompts originais, quatro por parte, IDs anteriores preservados. Seis novas atividades sobre alimentação, leitura, ajuda, mudanças pessoais, voluntariado e hábitos. Preparação de 60 segundos e prática de 120 segundos na Part 2; demais tempos mantidos. Sequência oral existente permanece fixa; seleção de conjuntos e simulados integrados são próximos passos. Sem avaliação acústica, nota, envio de áudio ou alteração de infraestrutura. Revisão editorial e CI pendentes.
