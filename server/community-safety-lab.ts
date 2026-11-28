@@ -1,7 +1,9 @@
 import {and,eq,inArray,or} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
+import {gamificationShares} from "../drizzle/gamification-draft";
+import {ACHIEVEMENTS} from "../shared/gamification-achievements";
 import {users} from "../drizzle/schema";
-import {communityBlocks,communityModerationAudit,communityRestrictions} from "../drizzle/community-safety-draft";
+import {communityBlocks,communityModerationAudit,communityRestrictions,communityPublicationRestrictions,communityPublicationAudit} from "../drizzle/community-safety-draft";
 
 function checkMember(id:number){
   if(!Number.isSafeInteger(id)||id<=0||id>2147483647)throw Error("Invalid member");
@@ -41,4 +43,20 @@ export async function setCommunityRestriction(db:MySql2Database,actor:number,tar
     await tx.insert(communityRestrictions).values({userId:target,suspended}).onDuplicateKeyUpdate({set:{suspended}});
     await tx.insert(communityModerationAudit).values({actorId:actor,targetId:target,suspended,occurredAtMs:Date.now()});
   });
+}
+
+ // Trusted administrative caller only. Serialize against publish/revoke using the owner lock.
+export async function setCommunityPublicationRestriction(db:MySql2Database,actor:number,owner:number,achievementId:string,hidden:boolean){
+ checkMember(actor);checkMember(owner);
+ if(!ACHIEVEMENTS.some(a=>a.id===achievementId))throw Error("Unknown achievement");
+ await db.transaction(async tx=>{
+  const [member]=await tx.select({id:users.id}).from(users).where(eq(users.id,owner)).for("update");
+  if(!member)throw Error("Unknown member");
+  const [share]=await tx.select({id:gamificationShares.id}).from(gamificationShares).where(and(eq(gamificationShares.userId,owner),eq(gamificationShares.achievementId,achievementId))).for("update");
+  if(!share)throw Error("Unknown publication");
+  const [current]=await tx.select().from(communityPublicationRestrictions).where(and(eq(communityPublicationRestrictions.ownerId,owner),eq(communityPublicationRestrictions.achievementId,achievementId))).for("update");
+  if((current?.hidden??false)===hidden)return;
+  await tx.insert(communityPublicationRestrictions).values({ownerId:owner,achievementId,hidden}).onDuplicateKeyUpdate({set:{hidden}});
+  await tx.insert(communityPublicationAudit).values({actorId:actor,ownerId:owner,achievementId,hidden,occurredAtMs:Date.now()});
+ });
 }
