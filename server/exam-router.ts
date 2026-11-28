@@ -2,6 +2,9 @@ import { z } from "zod";
 import {eq} from "drizzle-orm";
 import {learnerProfiles} from "../drizzle/schema";
 import {getDb} from "./db";
+import {createDurableExamEngine} from "./exam-durable-engine";
+import {readExamGoal,recentExamActivities} from "./exam-history-repository";
+import {examGoalInput} from "../shared/exam-history-contract";
 import {paidTutorAllowed,freeTutorAllowed,tutorMode,withTutorBudget} from "./tutor-budget";
 import {createSelectedTutor} from "./tutor-provider-selector";
 import {calCatalogTutorSessions} from "./cal-catalog-runtime";
@@ -16,8 +19,14 @@ import { EXAM_MODES,EXAM_SKILLS,IELTS_VARIANTS,EXAM_CATALOG } from "../shared/ex
 function requireAccess(email:string|null|undefined){
  if(!examAccess(email))throw new TRPCError({code:"FORBIDDEN",message:"Preparação disponível para contas autorizadas no piloto Premium."});
 }
+export function durableExamEnabled(env:NodeJS.ProcessEnv=process.env){return env.LINGUA_EXAM_DURABLE_ENABLED==="true";}
+async function historyDb(){if(!durableExamEnabled())throw new TRPCError({code:"PRECONDITION_FAILED",message:"Histórico permanente ainda indisponível."});const db=await getDb();if(!db)throw new TRPCError({code:"PRECONDITION_FAILED",message:"Histórico temporariamente indisponível."});return db;}
 export const examRouter=router({
- overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const,feedbackProvider:examAccess(ctx.user.email)&&writingFeedbackEnabled()&&(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email))?tutorMode():null};}),
+ overview:protectedProcedure.query(({ctx})=>{ctx.res.setHeader("Cache-Control","private, no-store");return {plan:examAccess(ctx.user.email),catalog:EXAM_CATALOG,pilot:true as const,durable:Boolean(examAccess(ctx.user.email))&&durableExamEnabled(),feedbackProvider:examAccess(ctx.user.email)&&writingFeedbackEnabled()&&(paidTutorAllowed(ctx.user.email)||freeTutorAllowed(ctx.user.email))?tutorMode():null};}),
+ history:protectedProcedure.query(async({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");const db=await historyDb();return {goal:await readExamGoal(db,ctx.user.id),activities:await recentExamActivities(db,ctx.user.id)};}),
+ resume:protectedProcedure.query(async({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");return createDurableExamEngine(await historyDb()).resume(ctx.user.id);}),
+ saveGoal:protectedProcedure.input(examGoalInput).mutation(async({ctx,input})=>{checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-goal:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");await createDurableExamEngine(await historyDb()).saveGoal(ctx.user.id,input);return {saved:true as const};}),
+ clearHistory:protectedProcedure.input(z.object({confirm:z.literal(true)}).strict()).mutation(async({ctx})=>{checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-clear:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");await createDurableExamEngine(await historyDb()).clear(ctx.user.id);return {cleared:true as const};}),
  speakingPrompts:protectedProcedure.query(({ctx})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");return {version:SPEAKING_VERSION,prompts:SPEAKING_PROMPTS,criteria:SPEAKING_CRITERIA};}),
  writingFeedback:protectedProcedure.input(z.object({variant:z.enum(IELTS_VARIANTS),taskId:z.string().max(80),text:z.string().trim().min(1).max(8000),consent:z.literal(true)}).strict()).mutation(async({ctx,input})=>{
   checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-writing-feedback:"+ctx.user.id);
@@ -37,14 +46,14 @@ export const examRouter=router({
  writingTasks:protectedProcedure.input(z.object({variant:z.enum(IELTS_VARIANTS)}).strict()).query(({ctx,input})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");return writingTasks(input.variant);}),
  writingReview:protectedProcedure.input(z.object({taskId:z.string().max(80),text:z.string().trim().min(1).max(20000)}).strict()).mutation(({ctx,input})=>{checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-writing:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");const review=reviewWriting(input.taskId,input.text);if(!review)throw new TRPCError({code:"NOT_FOUND",message:"Atividade indisponível."});return review;}),
  exercises:protectedProcedure.input(z.object({variant:z.enum(IELTS_VARIANTS),skill:z.enum(EXAM_SKILLS)})).query(({ctx,input})=>{requireAccess(ctx.user.email);ctx.res.setHeader("Cache-Control","private, no-store");return examExercises(input.variant,input.skill);}),
- start:protectedProcedure.input(z.object({variant:z.enum(IELTS_VARIANTS),mode:z.enum(EXAM_MODES),skill:z.enum(EXAM_SKILLS).default("reading"),exerciseId:z.string().max(80).optional()}).strict()).mutation(({ctx,input})=>{
+ start:protectedProcedure.input(z.object({variant:z.enum(IELTS_VARIANTS),mode:z.enum(EXAM_MODES),skill:z.enum(EXAM_SKILLS).default("reading"),exerciseId:z.string().max(80).optional()}).strict()).mutation(async({ctx,input})=>{
   checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-start:"+ctx.user.id);
   ctx.res.setHeader("Cache-Control","private, no-store");
-  return examEngine.start(ctx.user.id,input.variant,input.mode,input.skill,input.exerciseId);
+  return (durableExamEnabled()?createDurableExamEngine(await historyDb()):examEngine).start(ctx.user.id,input.variant,input.mode,input.skill,input.exerciseId);
  }),
- submit:protectedProcedure.input(z.object({attemptId:z.uuid(),answers:z.record(z.string().max(24),z.string().max(120)).refine(v=>Object.keys(v).length<=4)}).strict()).mutation(({ctx,input})=>{
+ submit:protectedProcedure.input(z.object({attemptId:z.uuid(),answers:z.record(z.string().max(24),z.string().max(120)).refine(v=>Object.keys(v).length<=4)}).strict()).mutation(async({ctx,input})=>{
   checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);rateLimit("exam-submit:"+ctx.user.id);
   ctx.res.setHeader("Cache-Control","private, no-store");
-  return examEngine.submit(ctx.user.id,input.attemptId,input.answers);
+  return (durableExamEnabled()?createDurableExamEngine(await historyDb()):examEngine).submit(ctx.user.id,input.attemptId,input.answers);
  })
 });
