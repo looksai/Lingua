@@ -5,8 +5,8 @@ import {TRPCError} from "@trpc/server";
 import {z} from "zod";
 import {users} from "../drizzle/schema";
 import {examGoals as goals,examCompletedActivities as completed,examActiveAttempts as active} from "../drizzle/exam-history-draft";
-import {EXAM_MODES,EXAM_PILOT_DURATION_MS,EXAM_PRACTICE_DURATION_MS,IELTS_ADAPTER_VERSION,type ExamMode,type ExamSkill,type IeltsVariant,type ExamResult} from "../shared/exam-contract";
-import {gradeExamSet,publicExamAttempt,resolveExamSet} from "./exam-engine";
+import {EXAM_MODES,type ExamMode,type ExamSkill,type IeltsVariant,type ExamResult} from "../shared/exam-contract";
+import {gradeExamSet,publicExamAttempt,resolveExamSet,examVersion,examDuration} from "./exam-engine";
 import {examGoalInput,type ExamGoalInput} from "../shared/exam-history-contract";
 
 const receiptSchema=z.object({correct:z.number().int().min(0).max(40),total:z.number().int().min(1).max(40),mode:z.enum(EXAM_MODES),version:z.string().min(1).max(80),items:z.array(z.object({id:z.string(),correct:z.boolean(),expected:z.string(),explanation:z.string()}).strict()).max(40)}).strict().refine(r=>r.total===r.items.length&&r.correct===r.items.filter(i=>i.correct).length);
@@ -21,10 +21,10 @@ export function createDurableExamEngine(db:MySql2Database,clock=Date.now){
  return {
   async start(owner:number,variant:IeltsVariant,mode:ExamMode,skill:ExamSkill="reading",exerciseId?:string){
    if(skill==="listening"&&mode==="timed")throw new TRPCError({code:"BAD_REQUEST",message:"Listening cronometrado ainda não disponível."});
-   const set=resolveExamSet(variant,skill,exerciseId);
+   const set=resolveExamSet(variant,skill,exerciseId,mode);
    return db.transaction(async tx=>{
     await lockOwner(tx,owner);
-    const now=clock(),attempt=publicExamAttempt(randomUUID(),variant,mode,set,now+(mode==="timed"?EXAM_PILOT_DURATION_MS:EXAM_PRACTICE_DURATION_MS));
+    const now=clock(),attempt=publicExamAttempt(randomUUID(),variant,mode,set,now+examDuration(set,mode));
     const value={attemptId:attempt.id,variant,skill,mode,exerciseId:set.id,contentVersion:attempt.version,deadlineMs:attempt.deadline};
     await tx.insert(active).values({userId:owner,...value}).onDuplicateKeyUpdate({set:value});
     return attempt;
@@ -34,8 +34,10 @@ export function createDurableExamEngine(db:MySql2Database,clock=Date.now){
    return db.transaction(async tx=>{
     await lockOwner(tx,owner);
     const [row]=await tx.select().from(active).where(eq(active.userId,owner)).limit(1);
-    if(!row||clock()>=row.deadlineMs||row.contentVersion!==IELTS_ADAPTER_VERSION)return null;
-    return publicExamAttempt(row.attemptId,row.variant,row.mode,resolveExamSet(row.variant,row.skill,row.exerciseId),row.deadlineMs);
+    if(!row||clock()>=row.deadlineMs)return null;
+    const set=resolveExamSet(row.variant,row.skill,row.exerciseId,row.mode);
+    if(row.contentVersion!==examVersion(set))return null;
+    return publicExamAttempt(row.attemptId,row.variant,row.mode,set,row.deadlineMs);
    });
   },
   async submit(owner:number,id:string,answers:Record<string,string>):Promise<ExamResult>{
@@ -51,8 +53,9 @@ export function createDurableExamEngine(db:MySql2Database,clock=Date.now){
     const [row]=await tx.select().from(active).where(and(eq(active.userId,owner),eq(active.attemptId,id))).limit(1);
     if(!row)throw missing();
     const now=clock();
-    if(now>=row.deadlineMs||row.contentVersion!==IELTS_ADAPTER_VERSION)throw new TRPCError({code:"PRECONDITION_FAILED",message:"Atividade expirada ou atualizada. Inicie outra."});
-    const result=gradeExamSet(resolveExamSet(row.variant,row.skill,row.exerciseId),row.mode,row.contentVersion,answers);
+    const set=resolveExamSet(row.variant,row.skill,row.exerciseId,row.mode);
+    if(now>=row.deadlineMs||row.contentVersion!==examVersion(set))throw new TRPCError({code:"PRECONDITION_FAILED",message:"Atividade expirada ou atualizada. Inicie outra."});
+    const result=gradeExamSet(set,row.mode,row.contentVersion,answers);
     await tx.insert(completed).values({userId:owner,attemptId:id,variant:row.variant,skill:row.skill,mode:row.mode,exerciseId:row.exerciseId,contentVersion:row.contentVersion,correct:result.correct,total:result.total,completedAtMs:now,receiptJson:JSON.stringify(receiptSchema.parse(result))});
     await tx.delete(active).where(eq(active.userId,owner));
     return result;
