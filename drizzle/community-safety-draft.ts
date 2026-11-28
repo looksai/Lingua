@@ -1,4 +1,4 @@
-import {bigint,boolean,int,mysqlTable,primaryKey,varchar} from "drizzle-orm/mysql-core";
+import {bigint,boolean,int,mysqlTable,primaryKey,varchar,mysqlEnum,unique,index} from "drizzle-orm/mysql-core";
 import {users} from "./schema";
 
 export const communityBlocks=mysqlTable("communityBlocks",{
@@ -34,3 +34,17 @@ export const communityPublicationAudit=mysqlTable("communityPublicationAudit",{
  hidden:boolean("hidden").notNull(),
  occurredAtMs:bigint("occurredAtMs",{mode:"number"}).notNull(),
 });
+
+ // Lab-only reports: one report per reporter and publication revision.
+export const communityPublicationReports=mysqlTable("communityPublicationReports",{
+ id:int("id").autoincrement().primaryKey(),
+ reporterId:int("reporterId").notNull().references(()=>users.id),
+ ownerId:int("ownerId").notNull().references(()=>users.id),
+ achievementId:varchar("achievementId",{length:80}).notNull(),
+ publishedAtMs:bigint("publishedAtMs",{mode:"number"}).notNull(),
+ reason:mysqlEnum("reason",["spam","harassment","inappropriate","other"]).notNull(),
+ status:mysqlEnum("status",["pending","dismissed","actioned"]).notNull().default("pending"),
+ createdAtMs:bigint("createdAtMs",{mode:"number"}).notNull(),
+ resolvedAtMs:bigint("resolvedAtMs",{mode:"number"}),
+ resolvedBy:int("resolvedBy").references(()=>users.id),
+},t=>[unique("community_report_revision").on(t.reporterId,t.ownerId,t.achievementId,t.publishedAtMs),index("community_report_queue").on(t.status,t.id)]);
