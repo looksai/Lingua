@@ -64,3 +64,27 @@ describe("Expanded original content",()=>{
   expect(engine.submit(1,a.id,{l11:"Saturday",l12:"9:30",l13:"A notebook",l14:"£12"}).correct).toBe(4);
  });
 });
+
+describe("Extended Reading mock",()=>{
+ it.each(["ielts-academic","ielts-general"] as const)("uses distinct original sections and no answers in %s",variant=>{
+  const e=createExamEngine(()=>1000);
+  const a=e.start(1,variant,"timed","reading","reading-mock-v1");
+  expect(a.deadline).toBe(1000+15*60*1000);
+  expect(a.version).toBe("ielts-reading-mock-v1-2026-11-28");
+  expect(a.exercise.sections).toHaveLength(3);
+  expect(a.exercise.questions).toHaveLength(12);
+  expect(a.exercise.sections!.flatMap(s=>s.questionIds)).toEqual(a.exercise.questions.map(q=>q.id));
+  expect(new Set(a.exercise.questions.map(q=>q.id)).size).toBe(12);
+  expect(a.exercise.questions.every(q=>!Object.hasOwn(q,"expected")&&!Object.hasOwn(q,"explanation"))).toBe(true);
+  expect(()=>e.submit(2,a.id,{})).toThrow("Atividade indisponível");
+  const result=e.submit(1,a.id,{});
+  expect(result.total).toBe(12);expect(result.correct).toBe(0);
+  expect(e.submit(1,a.id,{})).toEqual(result);
+ });
+ it("rejects practice and enforces deadline",()=>{
+  let now=1000;const e=createExamEngine(()=>now);
+  expect(()=>e.start(1,"ielts-academic","practice","reading","reading-mock-v1")).toThrow("Atividade incompatível");
+  const a=e.start(1,"ielts-academic","timed","reading","reading-mock-v1");now=a.deadline;
+  expect(()=>e.submit(1,a.id,{})).toThrow("O tempo terminou");
+ });
+});
