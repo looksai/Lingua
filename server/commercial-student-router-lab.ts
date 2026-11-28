@@ -26,7 +26,7 @@ export const commercialStudentRouterLab=router({
    before:z.object({publishedAtMs:z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),id:z.number().int().positive().max(2147483647)}).strict().optional()
  }).strict()).query(async({ctx,input})=>{
    confirmAccount(input.accountId,ctx.user.id);
-   rateLimit("community-feed:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
+   rateLimit("community-feed:"+ctx.user.id,Date.now(),40);ctx.res.setHeader("Cache-Control","private, no-store");
    const db=await dbForLab();
    // No public URL or external moderation provider: in-lab block/suspension/publication checks
    // are enforced by readCommunityAchievementFeed in addition to this callback.
@@ -39,7 +39,7 @@ export const commercialStudentRouterLab=router({
  }).strict()).query(async({ctx,input})=>{
    confirmAccount(input.accountId,ctx.user.id);
    ctx.res.setHeader("Cache-Control","private, no-store");
-   rateLimit("community-own-reports:"+ctx.user.id);
+   rateLimit("community-own-reports:"+ctx.user.id,Date.now(),40);
    const db=await dbForLab();
    const rows=await db.select({
      id:communityPublicationReports.id,ownerId:communityPublicationReports.ownerId,
