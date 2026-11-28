@@ -8,6 +8,7 @@ import {users} from "../drizzle/schema";
 import {saveExamGoal,readExamGoal,recordCompletedExamActivity,recentExamActivities,clearExamHistory,exportExamHistoryPage} from "../server/exam-history-repository";
 import {purgeExpiredExamDataForOwner} from "../server/exam-retention-repository";
 import {examRetentionCutoffs} from "../shared/exam-retention";
+import {inspectExamSchema} from "../server/exam-schema-preflight";
 import {createDurableExamEngine} from "../server/exam-durable-engine";
 import type {CompletedExamActivity} from "../shared/exam-history-contract";
 const LAB_URL="mysql://partner_lab:partner_lab@127.0.0.1:33316/partner_lab";
@@ -16,8 +17,15 @@ const pools=[mysql.createPool(LAB_URL),mysql.createPool(LAB_URL)];
 const [a,b]=pools.map(client=>drizzle({client}));
 const ids:number[]=[];
 try{
+ assert.equal((await inspectExamSchema(pools[0])).status,"absent");
  const sql=await readFile(new URL("../drizzle/manual-review/exam-history-v1.sql",import.meta.url),"utf8");
  for(const statement of sql.split(";").map(x=>x.trim()).filter(Boolean))await pools[0].query(statement);
+ assert.deepEqual(await inspectExamSchema(pools[1]),{status:"compatible",issues:[]});
+ await pools[0].query("ALTER TABLE examGoals ADD COLUMN incompatibleLabColumn int NULL");
+ assert.equal((await inspectExamSchema(pools[1])).status,"incompatible");
+ await pools[0].query("ALTER TABLE examGoals DROP COLUMN incompatibleLabColumn");
+ assert.equal((await inspectExamSchema(pools[1])).status,"compatible");
+ console.log("PASS read-only exam preflight: absent, compatible and schema drift detected");
  for(const openId of ["exam-history-lab-a","exam-history-lab-b"]){
   await a.insert(users).values({openId});
   const [row]=await a.select({id:users.id}).from(users).where(eq(users.openId,openId));
