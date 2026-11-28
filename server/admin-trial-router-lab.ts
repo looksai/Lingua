@@ -1,3 +1,4 @@
+import {readAdminReferralMetrics} from "./admin-referral-metrics-lab";
 import {readAdminCommercialMetrics} from "./admin-commercial-metrics-lab";
 import {readRealizedCashLab} from "./admin-finance-repository-lab";
 import {readContractedMrrLab} from "./admin-recurring-repository-lab";
@@ -18,6 +19,10 @@ async function labDb(){
 }
 // Deliberately not mounted until administrative audit and isolated SQL tests exist.
 export const adminTrialRouterLab=router({
+ referrals:adminProcedure.query(async({ctx})=>{
+ ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-referrals:"+ctx.user.id);
+ return readAdminReferralMetrics(await labDb());
+ }),
  advertising:adminProcedure.query(async({ctx})=>{
  ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-advertising:"+ctx.user.id);
  return readAdminAdMetrics(await labDb());
