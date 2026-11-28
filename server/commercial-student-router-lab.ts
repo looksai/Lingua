@@ -34,6 +34,25 @@ export const commercialStudentRouterLab=router({
    catch{throw new TRPCError({code:"FORBIDDEN",message:"Não foi possível consultar o feed da comunidade."});}
  }),
 
+ myCommunityReportsExport:protectedProcedure.input(z.object({accountId}).strict()).query(async({ctx,input})=>{
+   confirmAccount(input.accountId,ctx.user.id);
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   rateLimit("community-own-report-export:"+ctx.user.id);
+   const db=await dbForLab();
+   // Bounded data portability: explicitly flag truncation rather than claiming a full export.
+   // The ordinary paginated endpoint remains available to retrieve older records.
+   const rows=await db.select({
+     id:communityPublicationReports.id,ownerId:communityPublicationReports.ownerId,
+     achievementId:communityPublicationReports.achievementId,
+     publishedAtMs:communityPublicationReports.publishedAtMs,
+     reason:communityPublicationReports.reason,status:communityPublicationReports.status,
+     createdAtMs:communityPublicationReports.createdAtMs,
+     resolvedAtMs:communityPublicationReports.resolvedAtMs,
+   }).from(communityPublicationReports)
+     .where(eq(communityPublicationReports.reporterId,ctx.user.id))
+     .orderBy(desc(communityPublicationReports.id)).limit(1001);
+   return {version:1 as const,accountId:ctx.user.id,exportedAtMs:Date.now(),complete:rows.length<=1000,reports:rows.slice(0,1000)};
+ }),
  myCommunityReports:protectedProcedure.input(z.object({
    accountId,beforeId:z.number().int().positive().max(2147483647).optional(),
  }).strict()).query(async({ctx,input})=>{
