@@ -418,6 +418,45 @@ try{
     await oralSet.selectOption("set-1");
     await page.getByText("Question 1",{exact:true}).waitFor();await fit(page);
   },"speaking-sequence");
+  await test("integrated Speaking records completion and releases local clips",375,"closed",async(page,calls)=>{
+    await page.addInitScript(()=>{
+      window.__qaMicStopped=0;
+      const revoke=URL.revokeObjectURL.bind(URL);window.__qaRevoked=0;
+      URL.revokeObjectURL=(url)=>{window.__qaRevoked++;revoke(url);};
+      Object.defineProperty(navigator.mediaDevices,"getUserMedia",{configurable:true,value:async()=>({getTracks:()=>[{stop:()=>window.__qaMicStopped++}]})});
+      Object.defineProperty(window,"MediaRecorder",{configurable:true,value:class{
+        constructor(){this.state="inactive";this.mimeType="audio/webm";}
+        start(){this.state="recording";}
+        stop(){if(this.state!=="recording")return;this.state="inactive";queueMicrotask(()=>{this.ondataavailable?.({data:new Blob(["qa audio"],{type:this.mimeType})});this.onstop?.();});}
+      }});
+    });
+    await page.goto(base);
+    await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:"Prática integrada",exact:true}).click();
+    for(let i=0;i<3;i++)await page.getByRole("button",{name:"Pular etapa",exact:true}).click();
+    await page.getByRole("button",{name:"Abrir Speaking",exact:true}).click();
+    const oralSet=page.getByLabel("Conjunto oral");
+    await oralSet.selectOption("set-2");
+    for(let i=6;i<=10;i++){
+      await page.getByText("Question "+i,{exact:true}).waitFor();
+      await page.getByRole("button",{name:"Gravar resposta"}).click();
+      await page.getByRole("button",{name:"Encerrar gravação"}).click();
+      await page.getByText("Resposta gravada. A revisão será exibida ao final.").waitFor();
+      assert.equal(await page.locator("audio").count(),0);
+      assert.equal(await oralSet.isDisabled(),true);
+      await page.getByRole("button",{name:i===10?"Concluir sequência":"Próxima pergunta"}).click();
+    }
+    await page.getByText("5 respostas gravadas. Nenhuma nota atribuída.").waitFor();
+    assert.equal(await page.locator("audio").count(),5);
+    assert.equal(await page.evaluate(()=>window.__qaMicStopped),5);
+    assert.ok(!calls.some(c=>/transcribe|speech|speakingReview/.test(c)));
+    await page.getByRole("button",{name:"Registrar etapa no roteiro"}).click();
+    await page.getByText("Speaking: Prática concluída, sem nota",{exact:true}).waitFor();
+    assert.equal(await page.locator("audio").count(),0);
+    assert.equal(await page.evaluate(()=>window.__qaRevoked),5);
+    await fit(page);
+  },"speaking-sequence");
   await test("durable exam goal, resume and history deletion (synthetic API)",375,"closed",async(page,calls)=>{
     await page.goto(base);
     await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
