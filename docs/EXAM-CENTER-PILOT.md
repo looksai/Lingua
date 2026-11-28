@@ -37,3 +37,9 @@ Decisão do fundador: um centro independente, compartilhado por Lingua Premium e
 - Repositório por usuário autenticado, chave única (usuário, tentativa), primeira gravação imutável, leitura recente limitada, exclusão isolada e cascata na exclusão de conta. O repositório não recebe totais do cliente em nenhuma rota; ainda não está conectado.
 - Laboratório MySQL descartável testa persistência entre pools, concorrência, replay, validação e isolamento. Não foi alterado o journal de produção, o Render ou o MySQL existente.
 - Antes da integração: revisão da migração no banco existente, transação de submissão com resultado autoritativo, política de tentativas persistentes e recuperação após reinício, exclusão serializada com submissão e invalidação de tentativas pendentes, retenção, interface de objetivo/histórico e testes de ponta a ponta. CSLE recebe apenas propostas autorizadas, jamais certificação automática.
+
+## Fase 7 — ciclo durável em laboratório
+- Tentativa ativa por conta, retomada após reinício, prazo e versão de conteúdo verificados no servidor. Versão não suportada exige nova tentativa. Uma nova tentativa substitui a ativa anterior.
+- Transações serializadas pelo registro do usuário: início, conclusão, objetivo e exclusão. Correção, recibo imutável e metadados são gravados juntos. Reenvios retornam o primeiro recibo sem nova avaliação. Exclusão invalida também a tentativa ativa, impedindo reenvio de recriar histórico.
+- O recibo contém somente correção por item, gabarito e explicações editoriais; não guarda alternativas escolhidas, redação ou áudio. Sem nota de proficiência.
+- Esta implementação continua em laboratório; não há rotas novas nem migração aplicada. Antes de ligar: validar laboratório, preparar migration revisada, política de retenção e interface; utilizar exclusivamente o novo motor nas rotas persistentes, nunca os métodos de laboratório sem bloqueio do usuário. Nenhuma alteração de infraestrutura.
