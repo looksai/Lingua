@@ -16,7 +16,11 @@ export async function publishAchievement(db:MySql2Database,userId:number,achieve
   const share=prepareAchievementShare(userId,achievementId,awards,nowMs);
   const [existing]=await tx.select().from(shares).where(and(eq(shares.userId,userId),eq(shares.achievementId,achievementId))).for("update");
   if(existing&&existing.revokedAtMs===null)return;
-  await tx.insert(shares).values({userId,achievementId,publishedAtMs:share.publishedAtMs,revokedAtMs:null}).onDuplicateKeyUpdate({set:{publishedAtMs:share.publishedAtMs,revokedAtMs:null}});
+  // Publication revisions must be strictly increasing, even across rapid revoke/re-publish
+  // in the same millisecond. Otherwise an old report could moderate a new publication.
+  const publishedAtMs=existing?Math.max(share.publishedAtMs,existing.publishedAtMs+1):share.publishedAtMs;
+  if(!Number.isSafeInteger(publishedAtMs))throw Error("Publication revision exhausted");
+  await tx.insert(shares).values({userId,achievementId,publishedAtMs,revokedAtMs:null}).onDuplicateKeyUpdate({set:{publishedAtMs,revokedAtMs:null}});
  });
 }
 export async function revokeAchievement(db:MySql2Database,userId:number,achievementId:AchievementId,nowMs=Date.now()){
