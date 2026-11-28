@@ -1,3 +1,4 @@
+import {academyAdmissionMode} from "./academy-admission";
 import {inspectBetaInvitations} from "./academy-beta-invite-ops";
 import {actionCommunityReport} from "./community-report-lab";
 import {communityPublicationAudit,communityPublicationReports} from "../drizzle/community-safety-draft";
@@ -132,12 +133,13 @@ export const adminTrialRouterLab=router({
   ctx.res.setHeader("Cache-Control","private, no-store");
   rateLimit("admin-academy-invite-summary:"+ctx.user.id,Date.now(),60);
   await labDb();
+  const admissionMode=academyAdmissionMode();
   const raw=process.env.ACADEMY_INVITATIONS_JSON;
-  if(!raw)return {configured:false as const};
+  if(!raw)return {configured:false as const,admissionMode};
   try{
    const {total,active,expired,availableSlots}=inspectBetaInvitations(raw);
-   return {configured:true as const,total,active,expired,availableSlots};
-  }catch{return {configured:false as const};}
+   return {configured:true as const,admissionMode,total,active,expired,availableSlots};
+  }catch{return {configured:false as const,admissionMode};}
  }),
  metrics:adminProcedure.query(async({ctx})=>{
  ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-commercial-metrics:"+ctx.user.id);
