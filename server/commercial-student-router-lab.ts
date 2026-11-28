@@ -1,3 +1,4 @@
+import {readCommunityAchievementFeed} from "./community-feed-repository-lab";
 import {reportCommunityPublication} from "./community-report-lab";
 import {and,asc,eq,gt} from "drizzle-orm";
 import {communityBlocks} from "../drizzle/community-safety-draft";
@@ -20,6 +21,19 @@ function confirmAccount(accountId:number|undefined, userId:number) {
 const accountId=z.number().int().positive();
 
 export const commercialStudentRouterLab=router({
+ achievementFeed:protectedProcedure.input(z.object({
+   accountId,limit:z.number().int().min(1).max(20).default(10),
+   before:z.object({publishedAtMs:z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),id:z.number().int().positive().max(2147483647)}).strict().optional()
+ }).strict()).query(async({ctx,input})=>{
+   confirmAccount(input.accountId,ctx.user.id);
+   rateLimit("community-feed:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
+   const db=await dbForLab();
+   // No public URL or external moderation provider: in-lab block/suspension/publication checks
+   // are enforced by readCommunityAchievementFeed in addition to this callback.
+   try{return await readCommunityAchievementFeed(db,ctx.user.id,async()=>true,input.limit,input.before);}
+   catch{throw new TRPCError({code:"FORBIDDEN",message:"Não foi possível consultar o feed da comunidade."});}
+ }),
+
  reportPublication:protectedProcedure.input(z.object({accountId,ownerId:z.number().int().positive().max(2147483647),achievementId:z.string().min(1).max(80),publishedAtMs:z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),reason:z.enum(["spam","harassment","inappropriate","other"])}).strict()).mutation(async({ctx,input})=>{
    confirmAccount(input.accountId,ctx.user.id);checkRequestOrigin(ctx.req);
    rateLimit("community-report:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
