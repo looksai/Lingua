@@ -1,3 +1,6 @@
+import GamificationProfile from "../components/GamificationProfile";
+import {trpc} from "@/lib/trpc";
+import {PRIVATE_GAMIFICATION} from "../../../shared/gamification-profile";
 import { ArrowRight, BookOpen, BriefcaseBusiness, GraduationCap, Plane, Laptop, MessageSquare, ListChecks, Target, Compass, Sparkles, Sprout, ChartNoAxesColumnIncreasing, Star } from "lucide-react";
 import "./academy-study.css";
 
@@ -19,6 +22,7 @@ const paths=[
  {name:"Inglês em Tecnologia",description:"Vocabulário e comunicação no trabalho.",art:"technology",Icon:Laptop}
 ];
 export default function StudyCampus(p:Props){
+ const participation=trpc.learning.gamificationPreview.useQuery(undefined,{retry:false});
  return <div className="academy-study">
   <section className="study-hero"><div><p className="study-kicker">LINGUA · SEU ESPAÇO DE APRENDIZAGEM</p><h1>Estudar</h1><span className="study-gold-line"/><p>Evolua no seu inglês com caminhos personalizados, prática real e o apoio de {p.tutorName}, seu tutor de IA.</p></div></section>
   <div className="study-top-grid">
@@ -28,6 +32,7 @@ export default function StudyCampus(p:Props){
    </section>
    <section className="study-progress" aria-labelledby="study-progress-title"><div className="study-heading"><Target size={24}/><h2 id="study-progress-title" tabIndex={-1}>Meu progresso</h2></div><div className="study-metrics"><div><strong>{Math.min(p.responses,5)}/5</strong><span>Respostas iniciais</span></div><div><strong>{p.savedCount===null?"—":p.savedCount}</strong><span>Itens salvos*</span></div></div><progress max={5} value={Math.min(p.responses,5)} aria-label="Respostas iniciais registradas"/><p className="study-note">*Até 100 itens carregados. Não representa nível de domínio.</p></section>
   </div>
+  {participation.data?<GamificationProfile profile={participation.data} privacy={PRIVATE_GAMIFICATION} preview/>:<p role="status" className="study-note">{participation.isLoading?"Carregando progresso de participação…":"Progresso de participação indisponível."}</p>}
   <section aria-labelledby="study-specializations"><div className="study-heading"><GraduationCap size={26}/><div><h2 id="study-specializations">Trilhas de especialização</h2><p>Inglês aplicado aos seus objetivos reais.</p></div></div><div className="study-specializations">{paths.map(({name,description,art,Icon})=><button type="button" className={"study-specialization study-art-"+art} key={art} onClick={()=>p.onUnavailable(name)}><div><Icon size={22}/><h3>{name}</h3><p>{description}</p><small>Em preparação</small></div></button>)}</div></section>
   <div className="study-bottom-grid">
    <section><div className="study-heading"><Sparkles size={25}/><div><h2 id="study-plan-title" tabIndex={-1}>Seu próximo passo</h2><p>De acordo com seu plano atual.</p></div></div><article className="study-recommendation"><div className="study-recommendation-art" aria-hidden="true"/><div><p className="study-kicker">{p.placementReady?"PLANO PROVISÓRIO":"PLANO EXPLORATÓRIO"}</p><h3>{p.planTitle}</h3><p>{p.objective}</p><button className="academy-primary" onClick={p.canStartPlacement?p.onPlacement:p.onTutor}>{p.canStartPlacement?"Descobrir por onde começar":"Conversar com meu tutor"} <ArrowRight size={16}/></button></div></article></section>
