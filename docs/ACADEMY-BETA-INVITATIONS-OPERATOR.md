@@ -36,12 +36,16 @@ pnpm exec tsx scripts/academy-beta-preflight.ts
 
 Retorno `ready=true` significa apenas que os mínimos locais foram identificados: admissão em modo `invite`, trial explicitamente ativado, pelo menos um convite vigente, segredo com ao menos 32 bytes e uma conexão de banco configurada. Em `issues`, `blocker` exige correção e resulta em código de saída 1. `warning` registra limitações de escala e convites expirados. **A verificação não testa conectividade, integridade do banco, entrega de convites, distribuição do rate limiter nem aprova implantação**; as aprovações abaixo continuam obrigatórias.
 
+## Consulta de capacidade no painel administrativo
+
+O painel experimental `/admin` mostra apenas totais redigidos de convites emitidos, vigentes, vencidos e posições disponíveis no lote de 20. Esta consulta exige sessão com papel `admin` e a flag administrativa do laboratório. **O painel não emite nem revela credenciais**. Um convite vigente não significa que a conta foi criada, que o aluno acessou o curso ou que houve pagamento. Se a configuração de convites estiver ausente/inválida, as métricas ficam indisponíveis em vez de inventar zeros.
+
 ## Homologação obrigatória antes de convidar pessoas
 
 1. Usar e-mails e tokens sintéticos em MySQL descartável e no laboratório HTTP, em modo `invite`; confirmar convite ausente, errado, expirado e de outro e-mail negados antes de qualquer escrita.
 2. Concorrência: duas tentativas de cadastro com mesmo convite deixam somente uma conta, uma credencial e sessão válida; conferir status HTTP e que senha/hash não vazam.
 3. Login permanece disponível após fechar inscrições. O fim do trial impede tutor/curso, não impede sessão, privacidade, histórico, exportação ou exclusão autorizada.
-4. Revisar **screenshot** e experiência do visitante (landing/login), convite, onboarding e passagem ao Campus em 320, 375, 768, 1024, 1440 e 1672 px com Chromium isolado.
+4. Revisar **screenshot** e experiência do visitante (landing/login), convite, onboarding e passagem ao Campus em 320, 375, 768, 1024, 1440 e 1672 px com Chromium isolado. O cenário sintético de cadastro deve rejeitar código errado, aceitar código autorizado, confirmar checkbox de feedback de IA desligado por padrão, salvar perfil sem consentimento de IA e permitir pular a triagem sem forjar evidências.
 5. Validar os quatro workflows da PR e o estado da integração comercial. Nenhum pagamento ou conversão é presumido por um convite.
 6. Obter aprovação de rollout/staging, limites compartilhados de taxa, política de privacidade e acesso antes de usar e-mails de alunos reais.
 
