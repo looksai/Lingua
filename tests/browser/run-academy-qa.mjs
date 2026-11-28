@@ -39,6 +39,16 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
+      if(fixture==="writing-authorized"){
+        const answer=payload=>({result:{data:{json:payload}}});
+        if(name==="exams.overview")return answer({plan:"lingua",catalog:[],pilot:true});
+        if(name==="exams.writingTasks")return answer([{id:"qa-writing",variant:"ielts-academic",kind:1,title:"QA library visits",prompt:"Summarise the table.",minimumWords:150,recommendedMinutes:20,table:{caption:"QA fictional data",headers:["Library","Visits"],rows:[["Northbank","42"]]},reviewQuestions:["Did I include an overview?"]}]);
+        if(name==="exams.writingReview"){
+          const input=(url.searchParams.has("batch")?JSON.parse(route.request().postData()||"{}")[String(names.indexOf(name))]:JSON.parse(route.request().postData()||"{}"))?.json??{};
+          assert.equal(input.taskId,"qa-writing");assert.equal(input.text,"The library received forty two visits.");
+          return answer({version:"qa",taskId:input.taskId,wordCount:7,minimumWords:150,minimumMet:false,criteria:[{id:"task",name:"Cumprimento da tarefa",description:"Relevância"}],reviewQuestions:["Did I include an overview?"],assessment:"self-review-only"});
+        }
+      }
       if(fixture==="exam-authorized"){
         const answer=payload=>({result:{data:{json:payload}}});
         const input=(url.searchParams.has("batch")?JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}")[String(names.indexOf(name))]:JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}"))?.json??{};
@@ -288,6 +298,19 @@ try{
     await page.getByText("The bus leaves at nine.",{exact:true}).waitFor();
     assert.ok(calls.includes("exams.submit"));await fit(page);
   },"exam-authorized");
+  await test("authorized writing task and guided self-review (synthetic API)",375,"closed",async(page,calls)=>{
+    await page.goto(base);
+    await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Lingua Premium").waitFor();
+    await page.getByRole("button",{name:/Writing Produção de textos/}).click();
+    await page.getByRole("heading",{name:"Treinamento de Writing"}).waitFor();
+    await page.getByText("QA fictional data").waitFor();
+    await page.getByLabel("Seu texto em inglês").fill("The library received forty two visits.");
+    await page.getByRole("button",{name:"Conferir texto e abrir autoavaliação"}).click();
+    await page.getByText("7 palavras · Abaixo do mínimo.",{exact:false}).waitFor();
+    await page.getByText("Did I include an overview?").waitFor();
+    assert.ok(calls.includes("exams.writingReview"));await fit(page);
+  },"writing-authorized");
   await test("approved sponsor placement clearly identified",1440,"closed",async(page)=>{
     await page.goto(base);const slot=page.getByRole("region",{name:"Destaques patrocinados"});
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
@@ -315,5 +338,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?25:21));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?26:22));
 }finally{await browser.close();}
