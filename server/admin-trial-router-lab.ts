@@ -1,6 +1,7 @@
 import {readAdminCommercialMetrics} from "./admin-commercial-metrics-lab";
 import {readRealizedCashLab} from "./admin-finance-repository-lab";
 import {readContractedMrrLab} from "./admin-recurring-repository-lab";
+import {readAdminAdMetrics} from "./admin-ad-metrics-lab";
 import {z} from "zod";
 import {and,eq,isNull} from "drizzle-orm";
 import {TRPCError} from "@trpc/server";
@@ -17,6 +18,10 @@ async function labDb(){
 }
 // Deliberately not mounted until administrative audit and isolated SQL tests exist.
 export const adminTrialRouterLab=router({
+ advertising:adminProcedure.query(async({ctx})=>{
+ ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-advertising:"+ctx.user.id);
+ return readAdminAdMetrics(await labDb());
+ }),
  recurring:adminProcedure.query(async({ctx})=>{
  ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-recurring:"+ctx.user.id);
  return readContractedMrrLab(await labDb());
