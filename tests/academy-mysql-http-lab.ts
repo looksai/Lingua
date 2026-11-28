@@ -167,7 +167,8 @@ try {
   process.env.LINGUA_EXAM_PILOT_ACCOUNTS=JSON.stringify({[emailB]:"community"});
   assert.equal((await rpc("exams.saveItinerary",{...save,consent:false},cookieB)).status,400);
   const receipt=good(await rpc("exams.saveItinerary",save,cookieB));
-  assert.equal(good(await rpc("exams.itinerary",undefined,cookieB,true)).saved.revision,receipt.revision);
+  assert.equal((await rpc("exams.itinerary",{accountId:a.id},cookieB,true)).status,403);
+  assert.equal(good(await rpc("exams.itinerary",{accountId:b.id},cookieB,true)).saved.revision,receipt.revision);
   process.env.LINGUA_EXAM_ITINERARY_ENABLED="false";
   assert.equal((await rpc("exams.saveItinerary",save,cookieB)).status,412);
   await pool.execute("UPDATE commercialSubscriptions SET status='cancelled' WHERE userId=?",[b.id]);

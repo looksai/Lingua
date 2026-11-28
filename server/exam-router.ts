@@ -31,11 +31,12 @@ function verifyAccount(expected:number|undefined,actual:number){
  if(expected!==undefined && expected!==actual)throw new TRPCError({code:"FORBIDDEN",message:"Sua sessão mudou. Recarregue a página."});
 }
 export const examRouter=router({
- itinerary:protectedProcedure.query(async({ctx})=>{
+ itinerary:protectedProcedure.input(z.object({accountId:z.number().int().positive()}).strict()).query(async({ctx,input})=>{
+   verifyAccount(input.accountId,ctx.user.id);
    requireAccess(ctx.user.email);
    ctx.res.setHeader("Cache-Control","private, no-store");
    if(process.env.LINGUA_EXAM_ITINERARY_ENABLED!=="true")throw new TRPCError({code:"PRECONDITION_FAILED"});
-   return {accountId:ctx.user.id,saved:await readItinerary(await historyDb(),ctx.user.id)};
+   return {saved:await readItinerary(await historyDb(),ctx.user.id)};
  }),
  saveItinerary:protectedProcedure.input(saveItineraryInput).mutation(async({ctx,input})=>{
    checkRequestOrigin(ctx.req);requireAccess(ctx.user.email);

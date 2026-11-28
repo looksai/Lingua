@@ -43,7 +43,7 @@ function PrivateExperience({ email, userId, exams }: { email: string; userId: nu
       </nav>
       {logout.error && <p role="alert">Não foi possível sair. Tente novamente.</p>}
     </header>
-    <ExamCampus/>
+    <ExamCampus accountId={userId}/>
   </main>;
   return <><div className="academy-trial-strip" hidden={access.data.trial.kind !== "active"}>{access.data.trial.kind === "active" ? `Período gratuito · ${access.data.trial.remainingDays} dia(s) restantes` : null}</div><LearningExperience email={email}/></>;
 }

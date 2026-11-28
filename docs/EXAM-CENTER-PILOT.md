@@ -94,3 +94,11 @@ O CSLE atual (3.18.20, com checkpoints sintéticos aprovados) é uma versão bá
 
 ## Fase 17 — catálogo Speaking ampliado
 - 12 prompts originais, quatro por parte, IDs anteriores preservados. Seis novas atividades sobre alimentação, leitura, ajuda, mudanças pessoais, voluntariado e hábitos. Preparação de 60 segundos e prática de 120 segundos na Part 2; demais tempos mantidos. Sequência oral existente permanece fixa; seleção de conjuntos e simulados integrados são próximos passos. Sem avaliação acústica, nota, envio de áudio ou alteração de infraestrutura. Revisão editorial e CI pendentes.
+
+## Roteiro integrado salvo pelo aluno
+
+O botão de salvar registra uma cópia pessoal por conta, com a variante IELTS e até quatro situações de etapa em ordem. O aluno pode substituir a cópia ou retomá-la em outro dispositivo. Reiniciar o roteiro local não altera a cópia da conta. Acertos, mídia, respostas e rascunhos não integram esse marcador.
+
+A gravação exige piloto de exames, benefício aplicável, histórico durável e `LINGUA_EXAM_ITINERARY_ENABLED=true`. A extensão aditiva está em `drizzle/manual-review/exam-itinerary-v1.sql`. Executar o preflight com a flag no ambiente de inspeção exige a extensão compatível na base de histórico. O laboratório MySQL aplica o SQL após o schema anterior e testa ambos.
+
+Com acesso a dados via histórico durável ou `LINGUA_EXAM_PRIVACY_ENABLED`, o aluno pode exportar, excluir o marcador isoladamente ou apagar todos os dados de exames em `/exam-privacy`, inclusive após sair do piloto ou perder o plano. O desligamento da gravação não elimina cópias existentes. A limpeza por proprietário usa o prazo do histórico e a data da última gravação. O laboratório não agenda a limpeza em produção.

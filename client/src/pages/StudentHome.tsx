@@ -209,7 +209,7 @@ export default function StudentHome({ snapshot, email }: { snapshot: Snapshot; e
 
 
       </div>}
-      {view === "exams" && <ExamCampus/>}
+      {view === "exams" && <ExamCampus accountId={profile.userId}/>}
       {view === "study" && <StudyCampus tutorName={profile.tutorName} planTitle={placement.data?.plan?.title??plan.title} objective={plan.objective} responses={recorded} savedCount={items.isError||items.isLoading?null:items.data?.length??null} placementReady={Boolean(placement.data?.plan)} canStartPlacement={Boolean(placement.data&&!placement.data.plan)} onRead={()=>setView("read")} onReview={()=>setView("review")} onTutor={openTutor} onPlan={()=>openStudySection("study-plan-title")} onPlacement={()=>{setRequestPlacement(true);openTutor();}} onUnavailable={unavailable}/>}
       {(view==="read"||view==="review")&&<div className="academy-study-breadcrumb"><button type="button" onClick={()=>setView("study")}><BookOpen size={16}/>Estudar</button><ChevronRight size={14} aria-hidden="true"/><span aria-current="page">{view==="read"?"Ler e praticar":"Revisões espaçadas"}</span></div>}
       {view === "read" && <>

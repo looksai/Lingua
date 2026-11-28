@@ -9,7 +9,7 @@ import "./academy-exams.css";
 import ExamWritingPractice from "./ExamWritingPractice";
 import ExamSpeakingPractice from "./ExamSpeakingPractice";
 
-export default function ExamCampus(){
+export default function ExamCampus({accountId}:{accountId:number}){
  const overview=trpc.exams.overview.useQuery(undefined,{retry:false});
  const start=trpc.exams.start.useMutation();
  const submit=trpc.exams.submit.useMutation();
@@ -105,7 +105,7 @@ export default function ExamCampus(){
   </>}
   {section==="goal"&&<section className="exam-panel"><div className="exam-heading"><Target/><h2>Meu objetivo</h2></div><label>Exame<select value={variant} disabled={busy} onChange={e=>{setVariant(e.target.value as IeltsVariant);setExerciseId("");setAttempt(null);setResult(null);setAnswers({});}}><option value="ielts-academic">IELTS Academic</option><option value="ielts-general">IELTS General Training</option></select></label><label>Meta de pontuação (opcional)<select value={goal} onChange={e=>setGoal(e.target.value)}><option value="">A definir</option>{Array.from({length:19},(_,i)=>(i/2).toFixed(1)).map(v=><option key={v} value={v}>{v}</option>)}</select></label><label>Data planejada (opcional)<input type="date" value={date} onChange={e=>setDate(e.target.value)}/></label>{durable?<><p className="exam-muted">Salve seu objetivo para consultá-lo em outros acessos. A meta não é uma nota medida.</p>{history.data?.goal&&<button className="academy-secondary" disabled={busy} onClick={()=>{const g=history.data!.goal!;setVariant(g.variant);setGoal(g.targetBandHalfSteps===null?"":(g.targetBandHalfSteps/2).toFixed(1));setDate(g.targetDate??"");setAttempt(null);setResult(null);setAnswers({});setExerciseId("");}}>Carregar objetivo salvo</button>}<button className="academy-primary" disabled={busy} onClick={()=>void persistGoal()}>Salvar objetivo</button></>:<p className="exam-muted">Objetivo mantido nesta sessão da página, ainda sem armazenamento permanente.</p>}<button className="academy-primary" disabled={busy} onClick={()=>go("training")}>Ir ao treinamento <ArrowRight size={16}/></button></section>}
   {section==="integrated"&&<section className="exam-panel">{allowed?<ExamIntegratedPractice key={variant} session={integratedSession} onChange={next=>{if(busy)return;integratedAttempt.current=null;setItinerary(next);}} onOpen={openIntegratedStage}/>:<p>Prática integrada disponível para membros autorizados do piloto.</p>}</section>}
-  {section==="integrated" && allowed && overview.data?.itinerary && <ExamItineraryBookmark session={integratedSession} onRestore={saved=>{
+  {section==="integrated" && allowed && overview.data?.itinerary && <ExamItineraryBookmark accountId={accountId} session={integratedSession} onRestore={saved=>{
     stopAudio();integratedAttempt.current=null;setLocalStage(null);setAttempt(null);setAnswers({});setResult(null);setExerciseId("");setVariant(saved.variant);setItinerary(saved);
   }}/>}
 

@@ -87,6 +87,13 @@ async function test(name,width,mode,body,fixture="public"){
       if(fixture==="bookmark"){
         const answer=json=>({result:{data:{json}}});
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true,itinerary:true});
+        if(name==="exams.privacyStatus")return answer({enabled:true,accountId,itineraryRevision:savedItinerary?.revision??null});
+        if(name==="exams.privacyRemoveItinerary"){
+          const body=JSON.parse(route.request().postData());
+          const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body).json;
+          assert.deepEqual(input,{accountId,revision:savedItinerary.revision});
+          savedItinerary=null;return answer({removed:true});
+        }
         if(name==="exams.itinerary")return answer({accountId,saved:savedItinerary});
         if(name==="exams.saveItinerary"){
           const body=JSON.parse(route.request().postData());
@@ -534,6 +541,16 @@ try{
     await page.getByRole("button",{name:"Retomar roteiro salvo"}).click();
     await page.getByRole("button",{name:"Abrir Reading"}).waitFor();
     assert.equal(calls.filter(name=>name==="exams.saveItinerary").length,1);
+    await page.getByRole("link",{name:"Exportar ou excluir meus dados de exames"}).click();
+    const remove=page.getByRole("button",{name:"Excluir somente meu roteiro salvo"});
+    page.once("dialog",dialog=>dialog.dismiss());
+    await remove.click();
+    assert.ok(!calls.includes("exams.privacyRemoveItinerary"));
+    page.once("dialog",dialog=>dialog.accept());
+    await remove.click();
+    await page.getByText("Roteiro salvo excluído.",{exact:true}).waitFor();
+    await remove.waitFor({state:"detached"});
+    assert.ok(!calls.includes("exams.privacyClear"));
     await fit(page);
   },"bookmark");
   await test("integrated itinerary retains objective result and distinguishes skipped stages",375,"closed",async(page,calls)=>{

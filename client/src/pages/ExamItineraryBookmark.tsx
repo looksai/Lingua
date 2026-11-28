@@ -2,12 +2,13 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { INTEGRATED_STAGES, INTEGRATED_VERSION, type IntegratedSession } from "@shared/exam-integrated-contract";
 
-export default function ExamItineraryBookmark({session,onRestore}:{
+export default function ExamItineraryBookmark({accountId,session,onRestore}:{
+  accountId:number;
   session:IntegratedSession;
   onRestore:(session:IntegratedSession)=>void;
 }) {
   const utils=trpc.useUtils();
-  const query=trpc.exams.itinerary.useQuery(undefined,{retry:false,refetchOnWindowFocus:false,staleTime:0,gcTime:0});
+  const query=trpc.exams.itinerary.useQuery({accountId},{retry:false,refetchOnWindowFocus:false,staleTime:0,gcTime:0});
   const save=trpc.exams.saveItinerary.useMutation();
   const [notice,setNotice]=useState("");
   const stored=query.data?.saved;
@@ -16,7 +17,7 @@ export default function ExamItineraryBookmark({session,onRestore}:{
     if(!query.data || query.isFetching || save.isPending || !bookmark.statuses.length)return;
     setNotice("");
     try{
-      await save.mutateAsync({accountId:query.data.accountId,consent:true,expectedRevision:stored?.revision??null,bookmark});
+      await save.mutateAsync({accountId,consent:true,expectedRevision:stored?.revision??null,bookmark});
       await utils.exams.itinerary.invalidate();
       setNotice("Roteiro salvo na sua conta.");
     }catch{
