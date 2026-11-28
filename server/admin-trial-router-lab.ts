@@ -1,3 +1,4 @@
+import {communityPublicationAudit} from "../drizzle/community-safety-draft";
 import {ACHIEVEMENTS} from "../shared/gamification-achievements";
 import {setCommunityPublicationRestriction,setCommunityRestriction} from "./community-safety-lab";
 import {readAdminReferralMetrics} from "./admin-referral-metrics-lab";
@@ -26,6 +27,13 @@ export const adminTrialRouterLab=router({
    ctx.res.setHeader("Cache-Control","private, no-store");
    await setCommunityRestriction(await labDb(),ctx.user.id,input.targetId,input.suspended);
    return {processed:true};
+ }),
+ communityPublicationAudit:adminProcedure.input(z.object({beforeId:z.number().int().positive().max(2147483647).optional()}).strict()).query(async({ctx,input})=>{
+   ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-community-audit:"+ctx.user.id);
+   const db=await labDb();
+   const rows=await db.select().from(communityPublicationAudit).where(input.beforeId===undefined?undefined:lt(communityPublicationAudit.id,input.beforeId)).orderBy(desc(communityPublicationAudit.id)).limit(51);
+   const items=rows.slice(0,50);
+   return {items,nextBeforeId:rows.length>50?items[49].id:null};
  }),
  setCommunityPublicationHidden:adminProcedure.input(z.object({ownerId:z.number().int().positive().max(2147483647),achievementId:z.string().max(80).refine(id=>ACHIEVEMENTS.some(a=>a.id===id)),hidden:z.boolean()}).strict()).mutation(async({ctx,input})=>{
    checkRequestOrigin(ctx.req);rateLimit("admin-community-publication:"+ctx.user.id);
