@@ -20,6 +20,7 @@ async function test(name,width,mode,body,fixture="public"){
   const page=await context.newPage();
   const errors=[],calls=[],broken=[];
   let accountId=9001;
+  let savedItinerary=null;
   let redeemed=false;
   let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
@@ -82,6 +83,18 @@ async function test(name,width,mode,body,fixture="public"){
         if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
         if(name==="exams.start"){assert.equal(input.exerciseId,"listening-extended-v1");assert.equal(input.skill,"listening");assert.equal(input.mode,"practice");return answer({id:"00000000-0000-4000-8000-000000000001",variant:"ielts-academic",mode:"practice",version:"listening-qa",deadline:Date.now()+1800000,exercise:{id:"listening-extended-v1",skill:"listening",title:"Listening extended fixture",passage:"",questions,sections:[0,1,2].map(i=>({title:"Audio "+(i+1),passage:"Original fictional audio script "+(i+1),questionIds:questions.slice(i*4,i*4+4).map(q=>q.id)}))}});}
         if(name==="exams.submit"){assert.equal(Object.keys(input.answers).length,12);return answer({correct:12,total:12,mode:"practice",version:"listening-qa",items:questions.map(q=>({id:q.id,correct:true,expected:"Yes",explanation:"Synthetic correction."}))});}
+      }
+      if(fixture==="bookmark"){
+        const answer=json=>({result:{data:{json}}});
+        if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true,itinerary:true});
+        if(name==="exams.itinerary")return answer({accountId,saved:savedItinerary});
+        if(name==="exams.saveItinerary"){
+          const body=JSON.parse(route.request().postData());
+          const input=(url.searchParams.has("batch")?body[String(names.indexOf(name))]:body).json;
+          assert.deepEqual(input,{accountId,consent:true,expectedRevision:null,bookmark:{version:"ielts-integrated-practice-v1-2026-11-28",variant:"ielts-academic",statuses:["skipped"]}});
+          savedItinerary={revision:"00000000-0000-4000-8000-000000000001",savedAtMs:Date.now(),bookmark:input.bookmark};
+          return answer({revision:savedItinerary.revision});
+        }
       }
       if(fixture==="reading-mock"){
         const answer=payload=>({result:{data:{json:payload}}});
@@ -508,6 +521,21 @@ try{
     assert.equal(await page.locator(".exam-panel select").filter({has:page.locator('option[value="qa-new"]')}).inputValue(),"qa-new");
     assert.ok(!calls.includes("exams.start"));await fit(page);
   },"exam-proposals");
+  await test("itinerary persists only on explicit save and resumes after reload",375,"closed",async(page,calls)=>{
+    await page.goto(base+"/exams");
+    const integrated=page.getByRole("button",{name:"Prática integrada",exact:true});
+    await integrated.click();
+    await page.getByRole("button",{name:"Pular etapa"}).click();
+    assert.ok(!calls.includes("exams.saveItinerary"));
+    await page.getByRole("button",{name:"Salvar roteiro na minha conta"}).click();
+    await page.getByText("Roteiro salvo na sua conta.",{exact:true}).waitFor();
+    await page.reload();await integrated.click();
+    await page.getByRole("button",{name:"Abrir Listening"}).waitFor();
+    await page.getByRole("button",{name:"Retomar roteiro salvo"}).click();
+    await page.getByRole("button",{name:"Abrir Reading"}).waitFor();
+    assert.equal(calls.filter(name=>name==="exams.saveItinerary").length,1);
+    await fit(page);
+  },"bookmark");
   await test("integrated itinerary retains objective result and distinguishes skipped stages",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
     await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();

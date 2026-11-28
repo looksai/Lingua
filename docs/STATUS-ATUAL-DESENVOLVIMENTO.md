@@ -2,6 +2,14 @@
 
 Este checkpoint prevalece sobre todos os avisos históricos abaixo. Fundador autorizou desenvolvimento, auditoria e testes autônomos, em blocos substanciais, sem pedir OK repetidamente. Academy Beta e fidelidade visual continuam prioridades; administração comercial é frente complementar, não substitui Academy, exames, gamificação ou comunidade.
 
+## Continuação — marcador pessoal do roteiro integrado
+
+O head inicial foi `560ad674`, com P0, MySQL, Chromium isolado e lives aprovados. Na continuação, o aluno autorizado do piloto pode salvar por ação explícita um único roteiro na conta e retomá-lo após recarregar, inclusive em outra sessão. A cópia guarda variante, versão e situação das etapas, com data e revisão. Não contém acertos, textos nem gravações. Não constitui evidência pedagógica. Os resultados objetivos existentes seguem seu próprio fluxo.
+
+O recurso depende do histórico durável e da nova flag `LINGUA_EXAM_ITINERARY_ENABLED=true`, desligada por padrão. O SQL aditivo em `drizzle/manual-review/exam-itinerary-v1.sql` destina-se ao laboratório e à revisão antes de qualquer rollout. O preflight valida a extensão quando presente e a exige quando a flag estiver ativa sobre a base existente. Exportação, exclusão e limpeza por prazo incluem a cópia mesmo com a flag de gravação desligada. A UI permite rever a cópia antes de substituir. A gravação compara revisões sob lock do proprietário.
+
+A cobertura inclui compatibilidade com o histórico antigo, consentimento obrigatório, rejeição de dados extras, conflito entre conexões, repetição, isolamento, exportação, exclusão e retomada no Chromium. Consultar os quatro workflows do head para confirmar a execução. Continuam prioritários homologação visual da Academy, piloto convidado, moderação e bloqueios da comunidade. A implantação e o CSLE continuam sujeitos às regras abaixo.
+
 ## Atualização posterior em 28/11 — acesso do aluno, comunidade e exames
 
 Este bloco atualiza os itens 1–4 do ponto de retomada abaixo. A PR continua em draft. Em `7f43c178`, a home e o middleware passaram a usar a mesma política. O trial inicial ativo e a Academy com trial desativado conservam acesso legado independente do plano. Após vencer, Lingua Premium abre a Academy e Community Premium abre o Centro de Exames sem consultar onboarding ou tutor. A prática continua sujeita à allowlist de exames. Falha ao carregar as concessões interrompe o acesso. A visualização privada usa cache por identidade; o servidor confere a conta esperada na consulta de acesso.

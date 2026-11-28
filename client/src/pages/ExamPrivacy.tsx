@@ -21,14 +21,14 @@ export default function ExamPrivacy(){
   }catch{setNotice("Não foi possível exportar seus dados.");}
  }
  async function erase(){
-  if(!window.confirm("Excluir definitivamente seu objetivo, tentativas e histórico do Centro de Exames?"))return;
+  if(!window.confirm("Excluir definitivamente seu roteiro salvo, objetivo, tentativas e histórico do Centro de Exames?"))return;
   setNotice("");
   try{await clear.mutateAsync({confirm:true});setCursor(null);setDone(false);setNotice("Dados do Centro de Exames excluídos.");}
   catch{setNotice("Não foi possível confirmar a exclusão.");}
  }
  return <main className="academy-interior px-5 py-8"><section className="academy-state-card"><h1 className="font-display text-3xl">Privacidade do Centro de Exames</h1><p>Consulte ou exclua seus próprios registros de preparação, mesmo sem acesso Premium. Isto não exclui sua conta nem o progresso de outros módulos.</p>
  {identity.isPending?<p role="status">Confirmando sessão...</p>:identity.isError?<p role="alert">Não foi possível confirmar a sessão.</p>:!identity.data?<a className="academy-primary" href="/login">Entrar na conta</a>:status.isPending?<p role="status">Verificando disponibilidade...</p>:status.isError?<p role="alert">Não foi possível verificar a disponibilidade dos dados.</p>:!status.data?.enabled?<p>O armazenamento permanente do Centro de Exames ainda não está disponível.</p>:<>
- <p>Exporte em arquivos JSON de até 50 atividades por parte. Se houver mais registros, continue até a última parte. Alterações simultâneas podem aparecer em uma nova exportação.</p>
+ <p>A exportação inclui o roteiro integrado que você autorizou salvar. Exporte em arquivos JSON de até 50 atividades por parte. Se houver mais registros, continue até a última parte. Alterações simultâneas podem aparecer em uma nova exportação.</p>
  <button className="academy-primary" disabled={busy||done} onClick={()=>void download()}>{cursor===null?"Exportar meus dados":"Exportar próxima parte"}</button>
  {done&&<button className="academy-secondary" disabled={busy} onClick={()=>{setCursor(null);setDone(false);}}>Iniciar nova exportação</button>}
  <button className="academy-secondary" disabled={busy} onClick={()=>void erase()}>Excluir dados do Centro de Exames</button>

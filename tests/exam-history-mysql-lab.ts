@@ -1,3 +1,5 @@
+import {readItinerary,saveItinerary} from "../server/exam-itinerary-repository";
+import {INTEGRATED_VERSION} from "../shared/exam-integrated-contract";
 import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {readFile} from "node:fs/promises";
@@ -32,6 +34,27 @@ try{
   assert.ok(row);ids.push(row.id);
  }
  const [one,two]=ids;
+ // Export and clear must still work on the previous three-table schema.
+ assert.equal((await exportExamHistoryPage(a,one,null)).itinerary,null);
+ await createDurableExamEngine(a).clear(one);
+ const bookmarkSql=await readFile(new URL("../drizzle/manual-review/exam-itinerary-v1.sql",import.meta.url),"utf8");
+ assert.equal((await inspectExamSchema(pools[0],true)).status,"incompatible");
+ await pools[0].query(bookmarkSql);
+ assert.equal((await inspectExamSchema(pools[0],true)).status,"compatible");
+ const request={accountId:one,consent:true as const,expectedRevision:null,bookmark:{version:INTEGRATED_VERSION,variant:"ielts-academic",statuses:["completed"]}} as const;
+ const first=await saveItinerary(a,one,{...request,bookmark:{...request.bookmark,statuses:["completed"]}});
+ const write=(db:typeof a,status:"expired"|"skipped")=>saveItinerary(db,one,{...request,expectedRevision:first.revision,bookmark:{...request.bookmark,statuses:["completed",status]}});
+ const race=await Promise.allSettled([write(a,"expired"),write(b,"skipped")]);
+ assert.equal(race.filter(r=>r.status==="fulfilled").length,1);
+ const saved=await readItinerary(b,one);
+ assert.ok(saved);assert.equal(saved.bookmark.statuses.length,2);
+ assert.deepEqual(await saveItinerary(a,one,{...request,expectedRevision:first.revision,bookmark:saved.bookmark}),{revision:saved.revision});
+ assert.equal(await readItinerary(a,two),null);
+ assert.equal((await exportExamHistoryPage(a,one,null)).itinerary?.revision,saved.revision);
+ await createDurableExamEngine(b).clear(one);
+ assert.equal(await readItinerary(a,one),null);
+ await assert.rejects(write(a,"skipped"));
+ console.log("PASS consented itinerary, owner isolation, concurrent writes, replay, export, deletion and stale retry");
  assert.equal(await readExamGoal(a,one),null);
  await saveExamGoal(a,one,{variant:"ielts-academic",targetBandHalfSteps:14,targetDate:"2027-05-15"});
  assert.equal((await readExamGoal(b,one))?.targetBandHalfSteps,14);

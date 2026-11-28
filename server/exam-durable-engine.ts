@@ -1,3 +1,5 @@
+import {examItineraries} from "../drizzle/exam-history-draft";
+import {optionalItineraryTable} from "./exam-itinerary-repository";
 import {randomUUID} from "node:crypto";
 import {and,eq} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
@@ -68,6 +70,7 @@ export function createDurableExamEngine(db:MySql2Database,clock=Date.now){
   async clear(owner:number){
    await db.transaction(async tx=>{
     await lockOwner(tx,owner);
+    await optionalItineraryTable(async()=>{await tx.delete(examItineraries).where(eq(examItineraries.userId,owner));},undefined);
     await tx.delete(active).where(eq(active.userId,owner));
     await tx.delete(completed).where(eq(completed.userId,owner));
     await tx.delete(goals).where(eq(goals.userId,owner));

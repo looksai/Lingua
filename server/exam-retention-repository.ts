@@ -1,3 +1,5 @@
+import {examItineraries} from "../drizzle/exam-history-draft";
+import {optionalItineraryTable} from "./exam-itinerary-repository";
 import {and,eq,lte} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
 import {users} from "../drizzle/schema";
@@ -11,6 +13,7 @@ export async function purgeExpiredExamDataForOwner(db:MySql2Database,owner:numbe
  return db.transaction(async tx=>{
   const [user]=await tx.select({id:users.id}).from(users).where(eq(users.id,owner)).limit(1).for("update");
   if(!user)return;
+  await optionalItineraryTable(async()=>{await tx.delete(examItineraries).where(and(eq(examItineraries.userId,owner),lte(examItineraries.savedAtMs,cutoff.history)));},undefined);
   await tx.delete(examActiveAttempts).where(and(eq(examActiveAttempts.userId,owner),lte(examActiveAttempts.deadlineMs,cutoff.attempt)));
   await tx.delete(examCompletedActivities).where(and(eq(examCompletedActivities.userId,owner),lte(examCompletedActivities.completedAtMs,cutoff.history)));
   await tx.delete(examGoals).where(and(eq(examGoals.userId,owner),lte(examGoals.updatedAtMs,cutoff.history)));
