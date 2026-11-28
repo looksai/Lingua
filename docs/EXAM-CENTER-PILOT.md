@@ -16,3 +16,8 @@ Decisão do fundador: um centro independente, compartilhado por Lingua Premium e
 4. Simulados completos por versão/modalidade, integridade, acessibilidade, modo examinador sem ajuda, calibração e incerteza. Só publicar estimativas de banda quando validadas.
 5. Integrar recomendações CSLE como propostas sem autoridade certificadora e acesso dos dois planos via fonte autoritativa de entitlements. Comunidade-only não deve exigir curso.
 6. Expandir adaptadores CELPIP, PTE, TOEFL, Cambridge e Duolingo com fontes oficiais atuais e conteúdo próprio.
+
+## Fase 2 — Reading e Listening de prática
+- Adaptador `ielts-reading-listening-v2-2026-11-28`: três conjuntos Reading por variante, dois Listening compartilhados, quatro questões por conjunto (32 questões originais distintas). Catálogo autorizado entrega identificador/título; a tentativa fica vinculada ao conjunto do servidor.
+- Listening usa somente voz em inglês marcada como local pelo navegador; sem fornecedor externo de IA acionado pela aplicação. Se nenhuma voz local existir, a atividade não inicia. A transcrição é enviada ao cliente para síntese, mas não exibida antes da correção. Não é teste protegido contra consulta nem reprodução acústica equivalente ao exame; não há Listening cronometrado nesta fase.
+- Testes unitários verificam seleção, correção e regras; QA Chromium usa API e voz sintéticas para verificar interação. Qualidade sonora em dispositivo real, variedade de sotaques, gravações próprias, persistência e avaliação calibrada permanecem pendentes.

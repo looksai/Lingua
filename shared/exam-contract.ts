@@ -8,14 +8,16 @@ export const EXAM_CATALOG = [
  {id:"cambridge",name:"Cambridge English",purpose:"Certificações de inglês",status:"planned"},
  {id:"duolingo",name:"Duolingo English Test",purpose:"Admissão acadêmica",status:"planned"},
 ] as const;
-export const IELTS_ADAPTER_VERSION="ielts-reading-v1-2026-11-27";
+export const IELTS_ADAPTER_VERSION="ielts-reading-listening-v2-2026-11-28";
 export const IELTS_VARIANTS=["ielts-academic","ielts-general"] as const;
 export type IeltsVariant=typeof IELTS_VARIANTS[number];
+export const EXAM_SKILLS=["reading","listening"] as const;
+export type ExamSkill=typeof EXAM_SKILLS[number];
 export type ExamMode="practice"|"timed";
 export const EXAM_MODES=["practice","timed"] as const;
 export const EXAM_PILOT_DURATION_MS=5*60*1000;
 export const EXAM_PRACTICE_DURATION_MS=30*60*1000;
 export type ExamQuestion={id:string;prompt:string;options:readonly string[]};
-export type ExamExercise={id:string;title:string;passage:string;questions:ExamQuestion[]};
+export type ExamExercise={id:string;title:string;passage:string;skill:ExamSkill;questions:ExamQuestion[]};
 export type ExamAttempt={id:string;variant:IeltsVariant;mode:ExamMode;version:string;deadline:number;exercise:ExamExercise};
 export type ExamResult={correct:number;total:number;mode:ExamMode;version:string;items:{id:string;correct:boolean;expected:string;explanation:string}[]};

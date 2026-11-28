@@ -39,6 +39,20 @@ async function test(name,width,mode,body,fixture="public"){
       if(name==="partnerInvites.resolve" && fixture==="live")return {result:{data:{json:{title:"Inglês para entrevistas internacionais",partnerName:"Empresa de demonstração",scheduledAt:"2026-12-01T18:00:00.000Z",canWatch:true}}}};
       if(name==="partnerEvents.mine" && fixture==="partner")return {result:{data:{json:[{id:7001,name:"Empresa de demonstração",role:"owner"}]}}};
       if(name==="partnerEvents.list" && fixture==="partner")return {result:{data:{json:[{id:8001,title:"Preparação para entrevistas",visibility:"private",status:"draft",scheduledAt:"2026-12-01T18:00:00.000Z"}]}}};
+      if(fixture==="exam-authorized"){
+        const answer=payload=>({result:{data:{json:payload}}});
+        const input=(url.searchParams.has("batch")?JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}")[String(names.indexOf(name))]:JSON.parse(route.request().postData()||url.searchParams.get("input")||"{}"))?.json??{};
+        if(name==="exams.overview")return answer({plan:"community",catalog:[],pilot:true});
+        if(name==="exams.exercises")return answer(input.skill==="listening"?[{id:"listen-qa",title:"Original listening fixture"}]:[{id:"read-qa",title:"Original reading fixture"}]);
+        if(name==="exams.start"){
+          assert.equal(input.skill,"listening");assert.equal(input.exerciseId,"listen-qa");assert.equal(input.mode,"practice");
+          return answer({id:"00000000-0000-4000-8000-000000000001",variant:"ielts-academic",mode:"practice",version:"qa",deadline:Date.now()+60000,exercise:{id:"listen-qa",skill:"listening",title:"Original listening fixture",passage:"The bus leaves at nine.",questions:[{id:"qa1",prompt:"When does the bus leave?",options:["Eight","Nine"]}]}});
+        }
+        if(name==="exams.submit"){
+          assert.equal(input.answers.qa1,"Nine");
+          return answer({correct:1,total:1,mode:"practice",version:"qa",items:[{id:"qa1",correct:true,expected:"Nine",explanation:"The speaker says nine."}]});
+        }
+      }
       if(name==="exams.overview")return {result:{data:{json:{plan:null,catalog:[],pilot:true}}}};
       if(name==="campus.sponsors")return {result:{data:{json:fixture==="sponsor"?[{id:"synthetic-campaign",sponsor:"Empresa sintética de QA",title:"Campanha sintética",description:"Apenas teste isolado.",url:"https://example.com/"}]:[]}}};
       if(name==="auth.trialStatus")return {result:{data:{json:fixture==="expired"?{kind:"expired",expiresAtMs:1700000000000,remainingDays:0}:{kind:"active",expiresAtMs:1900000000000,remainingDays:15}}}};
@@ -249,6 +263,31 @@ try{
       },fixture);
     }
   }
+  await test("authorized listening controls and answer submission (synthetic API and voice)",375,"closed",async(page,calls)=>{
+    await page.addInitScript(()=>{
+      const voice={name:"QA local English",lang:"en-GB",localService:true,voiceURI:"qa-local",default:true};
+      const synth=new EventTarget();
+      Object.assign(synth,{getVoices:()=>[voice],speaking:false,pending:false,speak:utterance=>{synth.speaking=true;window.__qaSpoken=utterance.text;},cancel:()=>{synth.speaking=false;}});
+      Object.defineProperty(window,"speechSynthesis",{value:synth,configurable:true});
+      Object.defineProperty(window,"SpeechSynthesisUtterance",{value:class{constructor(text){this.text=text;}},configurable:true});
+    });
+    await page.goto(base);
+    await page.getByRole("button",{name:"Exames de Proficiência",exact:true}).click();
+    await page.getByText("Piloto autorizado · Comunidade Premium").waitFor();
+    await page.getByRole("button",{name:/Listening Compreensão auditiva/}).click();
+    await page.locator(".exam-panel select").filter({has:page.locator('option[value="listen-qa"]')}).selectOption("listen-qa");
+    await page.getByRole("button",{name:"Iniciar prática",exact:true}).click();
+    await page.getByRole("button",{name:"Ouvir áudio"}).waitFor();
+    assert.equal(await page.getByText("The bus leaves at nine.",{exact:true}).count(),0);
+    await page.getByRole("button",{name:"Ouvir áudio"}).click();
+    assert.equal(await page.evaluate(()=>window.__qaSpoken),"The bus leaves at nine.");
+    await page.getByRole("button",{name:"Parar áudio"}).click();
+    await page.getByRole("radio",{name:"Nine",exact:true}).check();
+    await page.getByRole("button",{name:"Enviar respostas"}).click();
+    await page.getByText("Resultado: 1/1 acertos. Não corresponde a uma nota IELTS.").waitFor();
+    await page.getByText("The bus leaves at nine.",{exact:true}).waitFor();
+    assert.ok(calls.includes("exams.submit"));await fit(page);
+  },"exam-authorized");
   await test("approved sponsor placement clearly identified",1440,"closed",async(page)=>{
     await page.goto(base);const slot=page.getByRole("region",{name:"Destaques patrocinados"});
     await slot.getByText("Patrocinado · Empresa sintética de QA").waitFor();
@@ -276,5 +315,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?24:20));
+  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?25:21));
 }finally{await browser.close();}
