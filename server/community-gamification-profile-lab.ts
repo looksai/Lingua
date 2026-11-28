@@ -1,7 +1,7 @@
 import {communityPublicationRestrictions} from "../drizzle/community-safety-draft";
-import {and,eq} from "drizzle-orm";
+import {and,eq,isNull} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
-import {gamificationEvidence as evidence} from "../drizzle/gamification-draft";
+import {gamificationEvidence as evidence,gamificationShares as shares} from "../drizzle/gamification-draft";
 import {GAMIFICATION_POLICY_VERSION,type XpAward} from "../shared/gamification-contract";
 import {communityGamificationProfile} from "../shared/gamification-profile";
 import {readGamificationPrivacy} from "./gamification-privacy-lab";
@@ -26,6 +26,11 @@ export async function readCommunityGamificationProfile(db:MySql2Database,viewerI
      eq(communityPublicationRestrictions.hidden,true),
    ));
  const hidden=new Set(rowsHidden.map(r=>r.achievementId));
+ // Global privacy preference alone does not authorize a particular achievement:
+ // publishing must be explicit, and revocation must remove it from profiles.
+ const sharedRows=await db.select({achievementId:shares.achievementId}).from(shares)
+   .where(and(eq(shares.userId,ownerId),isNull(shares.revokedAtMs)));
+ const published=new Set(sharedRows.map(r=>r.achievementId));
  if(!await canView(viewerId,ownerId))throw Error("Community access required");
- return {...profile,achievements:profile.achievements.filter(a=>!hidden.has(a.id))};
+ return {...profile,achievements:profile.achievements.filter(a=>published.has(a.id)&&!hidden.has(a.id))};
 }
