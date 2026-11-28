@@ -13,7 +13,7 @@ describe("offline Academy Beta invitation operator",()=>{
   expect(issued.json).not.toContain(issued.code);
   expect(inspectBetaInvitations(issued.json,now)).toEqual({total:1,active:1,expired:0,availableSlots:19});
   expect(()=>assertAcademyAdmission("STUDENT@example.test",issued.code,{
-   ACADEMY_ADMISSION_MODE:"invite",ACAMY_ADMISSION_PLACEHOLDER:"none",ACADEMY_INVITATIONS_JSON:issued.json,
+   ACADEMY_ADMISSION_MODE:"invite",ACADEMY_INVITATIONS_JSON:issued.json,
   },now)).not.toThrow();
   expect(()=>assertAcademyAdmission("STUDENT@example.test",issued.code,{
    ACADEMY_ADMISSION_MODE:"invite",ACADEMY_INVITATIONS_JSON:issued.json,
@@ -38,10 +38,9 @@ describe("offline Academy Beta invitation operator",()=>{
  });
  it("rejects invalid operator inputs without writing or minting a working credential",()=>{
   for(const days of [0,31,1.5,NaN])expect(()=>issueBetaInvitation("[]","member@example.test",days,now,token)).toThrow();
-  for(const email of ["not-an-email","", "bob@example.test\n"]){
-   if(email==="bob@example.test\n")continue; // trailing whitespace is intentionally normalized
+  for(const email of ["not-an-email","", "missing-domain@"])
    expect(()=>issueBetaInvitation("[]",email,7,now,token)).toThrow();
-  }
+  expect(issueBetaInvitation("[]"," bob@example.test\\n ",7,now,()=> "D".repeat(43)).records[0].email).toBe("bob@example.test");
   expect(()=>issueBetaInvitation("[]","member@example.test",1,now,()=> "short")).toThrow("Invalid generated");
   expect(()=>issueBetaInvitation("[]","member@example.test",1,now,()=> "A".repeat(43)))
    .not.toThrow();
