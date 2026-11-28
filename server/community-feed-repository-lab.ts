@@ -1,8 +1,9 @@
 import {communityInteractionAllowed} from "./community-safety-lab";
 import {communityBlocks as blocks,communityRestrictions as restrictions} from "../drizzle/community-safety-draft";
-import {and,desc,eq,isNull,lt,notExists,or} from "drizzle-orm";
+import {and,desc,eq,exists,gt,gte,inArray,isNull,lt,lte,notExists,or} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
 import {gamificationShares as shares,gamificationPrivacy as privacy} from "../drizzle/gamification-draft";
+import {commercialSubscriptions as subscriptions} from "../drizzle/commercial-draft";
 import {commercialAccessLab} from "./commercial-repository-lab";
 import {achievementFeedPreview} from "./community-achievement-feed-lab";
 import {ACHIEVEMENTS} from "../shared/gamification-achievements";
@@ -20,7 +21,13 @@ export async function readCommunityAchievementFeed(db:MySql2Database,viewerId:nu
  )));
  const noSuspension=notExists(db.select({id:restrictions.userId}).from(restrictions)
    .where(and(eq(restrictions.userId,shares.userId),eq(restrictions.suspended,true))));
- const rows=await db.select().from(shares).innerJoin(privacy,and(eq(privacy.userId,shares.userId),eq(privacy.showAchievements,true))).where(and(noBlock,noSuspension,isNull(shares.revokedAtMs),before?or(lt(shares.publishedAtMs,before.publishedAtMs),and(eq(shares.publishedAtMs,before.publishedAtMs),lt(shares.id,before.id))):undefined)).orderBy(desc(shares.publishedAtMs),desc(shares.id)).limit(limit+1);
+ const now=Date.now();
+ const activeAuthor=exists(db.select({id:subscriptions.id}).from(subscriptions).where(and(
+   eq(subscriptions.userId,shares.userId),eq(subscriptions.status,"active"),
+   inArray(subscriptions.plan,["lingua-premium","community-premium"]),
+   gte(subscriptions.startsAtMs,0),lte(subscriptions.startsAtMs,now),gt(subscriptions.endsAtMs,now),
+ )));
+ const rows=await db.select().from(shares).innerJoin(privacy,and(eq(privacy.userId,shares.userId),eq(privacy.showAchievements,true))).where(and(noBlock,noSuspension,activeAuthor,isNull(shares.revokedAtMs),before?or(lt(shares.publishedAtMs,before.publishedAtMs),and(eq(shares.publishedAtMs,before.publishedAtMs),lt(shares.id,before.id))):undefined)).orderBy(desc(shares.publishedAtMs),desc(shares.id)).limit(limit+1);
  const candidates:AchievementShare[]=[];
  for(const {gamificationShares:r} of rows.slice(0,limit)){
  const achievement=ACHIEVEMENTS.find(a=>a.id===r.achievementId);
