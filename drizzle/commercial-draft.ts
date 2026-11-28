@@ -28,3 +28,11 @@ export const trialRedemptions=mysqlTable("trialRedemptions",{
  userId:int("userId").notNull().references(()=>users.id),
  redeemedAtMs:bigint("redeemedAtMs",{mode:"number"}).notNull(),
 },t=>({ownerCoupon:unique("trial_owner_coupon").on(t.couponId,t.userId)}));
+
+export const commercialAdminAudit=mysqlTable("commercialAdminAudit",{
+ id:int("id").autoincrement().primaryKey(),
+ actorId:int("actorId").notNull().references(()=>users.id),
+ action:mysqlEnum("action",["trial-issued","trial-revoked"]).notNull(),
+ targetCode:varchar("targetCode",{length:40}).notNull(),
+ occurredAtMs:bigint("occurredAtMs",{mode:"number"}).notNull(),
+},t=>({actorTime:index("commercial_audit_actor_time").on(t.actorId,t.occurredAtMs)}));
