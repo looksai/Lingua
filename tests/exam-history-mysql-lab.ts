@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {readFile} from "node:fs/promises";
 import mysql from "mysql2/promise";
 import {drizzle} from "drizzle-orm/mysql2";
 import {eq} from "drizzle-orm";
@@ -12,6 +13,8 @@ const pools=[mysql.createPool(LAB_URL),mysql.createPool(LAB_URL)];
 const [a,b]=pools.map(client=>drizzle({client}));
 const ids:number[]=[];
 try{
+ const sql=await readFile(new URL("../drizzle/manual-review/exam-history-v1.sql",import.meta.url),"utf8");
+ for(const statement of sql.split(";").map(x=>x.trim()).filter(Boolean))await pools[0].query(statement);
  for(const openId of ["exam-history-lab-a","exam-history-lab-b"]){
   await a.insert(users).values({openId});
   const [row]=await a.select({id:users.id}).from(users).where(eq(users.openId,openId));
