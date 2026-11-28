@@ -1,8 +1,5 @@
-import type {IeltsVariant} from "../shared/exam-contract";
+import {READING_MOCK_ID,type IeltsVariant} from "../shared/exam-contract";
 import type {ExamSet,ExamItem} from "./exam-content-v2";
-export const READING_MOCK_ID="reading-mock-v1";
-export const READING_MOCK_VERSION="ielts-reading-mock-v1-2026-11-28";
-export const READING_MOCK_DURATION_MS=15*60*1000;
 type Section={title:string;passage:string;questions:ExamItem[]};
 function item(id:string,prompt:string,options:string[],expected:string,explanation:string):ExamItem{return {id,prompt,options,expected,explanation};}
 const tf=["True","False","Not given"];
