@@ -1,3 +1,45 @@
+# AVISO DE RETOMADA PRIORITÁRIO — 28/11/2026
+
+Este checkpoint prevalece sobre todos os avisos históricos abaixo. Fundador autorizou desenvolvimento, auditoria e testes autônomos, em blocos substanciais, sem pedir OK repetidamente. Academy Beta e fidelidade visual continuam prioridades; administração comercial é frente complementar, não substitui Academy, exames, gamificação ou comunidade.
+
+## Estado verificável
+- PR #125 aberta, branch feat/exam-writing-catalog. Head de código verificado: 801538f6d08c9a5e9d96f179726c5d8589fcb53a. GitHub Actions desse SHA: P0, Chromium isolado, MySQL laboratório e lives públicas, todos success. Este checkpoint acrescenta apenas documentação. Verificar novamente head, main, diffs e logs antes de trabalhar. CI verde não prova cobertura de todas as funções.
+- Não houve merge, deploy, migração produtiva, ativação de flags ou contratação de infraestrutura nesta etapa. CSLE congelado; não modificar motor, contratos pedagógicos ou custos sem autorização.
+- Roadmaps: docs/ADMIN-COMMERCIAL-ROADMAP.md e docs/ROADMAP-COMERCIAL-LINGUA.md. Preservar histórico abaixo.
+
+## Inventário do trabalho (implementação experimental, não lançamento)
+| Frente | Estado | Próxima entrega |
+|---|---|---|
+| Academy visual e piloto | Trabalho anterior preservado; fidelidade final não confirmada | Comparar assets aprovados, mobile/desktop, fluxo de convite e tutor |
+| Exames | Reading/Listening 68 questões objetivas no catálogo; Writing 12 tarefas; Speaking 12 prompts; roteiro integrado e relatório sem nota oficial | Jornada contínua das quatro etapas, persistência autorizada e acesso comercial |
+| Gamificação | XP de participação, conquistas, missões, prévia de histórico de revisão, ledger e privacidade em laboratório | Integrar evidência autorizada, testes SQL concorrentes, backfill ordenado |
+| Comunidade | Reputação, compartilhamento voluntário, feed, ranking opt-in, políticas comerciais em laboratório | API/UI, moderação e autorização persistente, testes de revogação |
+| Admin | /admin experimental: usuários, empresas, ads pagos, indicações, caixa/MRR por moeda, cupons de teste e promoção | Homologação real dos endpoints e navegador, gestão individual, exportação e auditoria |
+| Cupons de teste | Emissão/lista/revogação auditadas, resgate transacional, /redeem experimental | Integrar acesso efetivo na UI e todos os módulos; testar expiração, replay e isolamento |
+| Promoções | Percentual ou valor fixo BRL/USD/EUR, emissão/lista/revogação auditadas | Checkout, reserva/resgate atômico, confirmação de pagamento e estorno |
+| Financeiro | Caixa realizado separado de MRR contratado; indicadores de ads e referrals | Ingestão autenticada/idempotente, conciliação, vínculo pagamento-titular, comissões |
+| Acesso comercial | Middleware de aprendizagem integrado no último commit | Interface e política de exames/comunidade; validar precedência do trial e flags |
+
+## Ponto exato de retomada
+1. Inspecionar server/commercial-learning-gate.ts, server/_core/trpc.ts, server/commercial-student-router-lab.ts, client/src/App.tsx, client/src/pages/CommercialTrialRedemption.tsx, server/exam-router.ts. O middleware agora consulta benefício comercial após trial expirado/indisponível quando LINGUA_COMMERCIAL_LAB_ENABLED=true. Ainda preserva acesso legado quando trial ativo/desativado. Não tratar isso como autorização comercial universal. Revisar explicitamente a precedência para assinantes Community Premium e trial ativo, e a política quando ACADEMY_TRIAL_ENABLED=false. Não enfraquecer consentimento, orçamento, limites ou allowlist de piloto sem decisão de rollout.
+2. Integrar UI: PrivateExperience em App.tsx ainda bloqueia todos após 15 dias; aluno com cupom válido não consegue entrar pela home. Criar resolução coerente de acesso autenticado, estados de carregamento/erro fail-closed, acesso exclusivo ao centro de exames/comunidade para Community Premium (sem depender de onboarding de Academy bloqueado). Não conceder curso/tutor pelo simples fato de possuir assinatura. Invalidar cache após resgate/logout e evitar dados de conta anterior. Manter /redeem acessível a conta expirada.
+3. Integrar backend e frontend do Centro de Exames e comunidade com autoridade de benefícios, preservando piloto e controles de privacidade. Testar usuários anônimos, expirados, planos distintos, revogados, falha de banco, mudança de conta e acesso direto a rotas.
+4. Verificar testes existentes e cobertura efetiva: server/admin-router-access.test.ts, server/commercial-learning-gate.test.ts, tests/commercial-mysql-lab.ts, testes browser. Conferir que os testes são descobertos e executados, não apenas que CI está verde. Acrescentar fluxo admin issue -> aluno redeem -> acesso -> expiração/revogação, promo issue/list/revoke e concorrência, audit rollback. Corrigir falhas antes de expandir.
+5. Continuar Academy visual, jornada integrada de exames, gamificação e comunidade em blocos reais. Registrar decisões e evidências, sem relatórios de intenção repetidos.
+
+## Regras comerciais aprovadas
+- Lingua Premium: curso, tutor, exames, comunidade, conquistas sociais e ranking voluntário. Community Premium: exames, comunidade, conquistas sociais e ranking; sem curso/tutor.
+- Cupons de teste: 30/60/90/120/150/180 dias contados do resgate individual, sem cobrança automática. Validade para resgatar independente: 3/7/15/30/60/90/180/365 dias ou data personalizada; 1 ano preset = 365 dias. Revogar código impede novos resgates, não cancela concessões anteriores. Revogação individual e política de múltiplos cupons ainda pendentes.
+- Promoções: percentual ou valor fixo com moeda; validade e limite de uso; não há checkout real. Definir desconto recorrente versus compra única antes de lançamento; evitar colisão de códigos entre tipos.
+- Financeiro: BRL/USD/EUR separados; caixa não é lucro contábil; MRR não é caixa recebido. Não inventar receita. Conversões precisam comprovar pagamento e titularidade; não pagar comissão sem conciliação.
+- XP não é proficiência nem reputação. Ranking opt-in, compartilhamento voluntário, dados privados por padrão. Sem IELTS band oficial ou eficácia pedagógica não comprovada.
+- Admin usa adminProcedure, flags e auditoria transacional. Rate limit atual local; falta proteção distribuída antes de lançamento. Schemas comerciais/gamificação draft não equivalem a migrations aplicadas. Não ativar flags produtivas, db:push, Stripe, Render/Aiven ou alterar CSLE nesta retomada.
+
+## Instrução operacional
+Usar GitHub de verdade; verificar conteúdo antes de editar, preferir commits coerentes e testes reais. Não alegar trabalho em segundo plano, commits, testes ou deploy sem evidência. Se conector falhar, reportar erro específico e tentar recuperação adequada; não pedir senhas. Fundador prefere entregas substanciais e autonomia. Atualizar este checkpoint ao encerrar a próxima sessão.
+
+---
+
 # AVISO DE RETOMADA — 25/11/2026
 **Prioridade do fundador: Academy Beta visual e piloto convidado. Não retomar expansão comercial antes disso.**
 - PR #104 integrada: 94d02e470fd2d5c688cbd271bbd9a38de3cef16c; P0, MySQL e Chromium verdes. Painel empresarial experimental, flags de laboratório; sem streaming real. Roadmap em docs/ROADMAP-COMERCIAL-LINGUA.md.
