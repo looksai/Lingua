@@ -1,3 +1,15 @@
+# RETOMADA MAIS RECENTE — 28/11/2026 (Academy Beta e primeiro aluno)
+
+Branch `feat/exam-writing-catalog` na PR #125. O bloco de desenvolvimento anterior integra emissão **offline** de até 20 convites com tokens aleatórios/hash-only e validade 1–30 dias, revogação, arquivo privado `0600`, leitura/auditoria redigida, preflight fail-closed, painel administrativo com capacidade de convites e testes de laboratório HTTP/MySQL. O fluxo Chromium faz Landing → convite inválido → convite correto → perfil (IA sem consentimento por padrão) → triagem adiada → Campus e gera screenshots sintéticos do percurso. O login remove erros obsoletos após correção, e alternar signin/signup elimina senha e código anterior.
+
+**Complementos após checkpoint anterior:** `adminLab.academyInviteSummary` agora informa também `admissionMode` (`invite`, `closed`, `open`); a UI mostra em linguagem clara o modo atual sem expor credenciais; MySQL e Chromium foram adaptados. `Login.tsx` limpa senha e token ao alternar modos e o Chromium valida a remoção.
+
+**Evidência conferida:** commit `20085fd` passou P0 `46183819448`, MySQL `46183819431`, Chromium `46183819550` e lives `46183819488` (4/4). Commits posteriores avançaram QA e dashboard; o último head observado antes deste checkpoint é `ad28cf1`, quatro workflows **enfileirados** e não declarados aprovados. O P0 do commit antigo `c1470b7` falhou em uma asserção de teste e foi corrigido em `20085fd`. Não confundir CI antiga com CI de HEAD.
+
+**Próximo bloco:** confirmar os quatro workflows do HEAD, corrigir qualquer falha real (foco `tests/browser/run-academy-qa.mjs`), revisar screenshots sintéticos e fidelidade visual de Academy/cadastro; só então considerar convite em staging com aprovações para implantação, acesso, custos e privacidade. A PR está em rascunho. **Nenhum deployment, migração ou ativação de produção; CSLE intacto.** Detalhes: `docs/ACADEMY-BETA-INVITATIONS-OPERATOR.md`.
+
+---
+
 # CHECKPOINT PRIORITÁRIO — 28/11/2026 — Academy Beta: operação de convites e QA de primeiro aluno
 
 **Retomada operacional:** PR #125, branch `feat/exam-writing-catalog`. Continuar desenvolvimento autônomo, com commits e testes efetivos. CSLE permanece intocado. **Nenhum deploy, migração ou ativação de flags de produção nesta sequência.** O manual seguro de operação está em `docs/ACADEMY-BETA-INVITATIONS-OPERATOR.md`.
