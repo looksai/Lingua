@@ -1,6 +1,7 @@
-import {eq} from "drizzle-orm";
+import {eq,and,isNull} from "drizzle-orm";
 import type {MySql2Database} from "drizzle-orm/mysql2";
-import {gamificationPrivacy as privacy} from "../drizzle/gamification-draft";
+import {gamificationPrivacy as privacy,gamificationShares as shares} from "../drizzle/gamification-draft";
+import {users} from "../drizzle/schema";
 import {PRIVATE_GAMIFICATION,type GamificationPrivacy} from "../shared/gamification-profile";
 function requireOwner(id:number){if(!Number.isSafeInteger(id)||id<=0||id>2147483647)throw Error("Invalid owner");}
 export async function readGamificationPrivacy(db:MySql2Database,userId:number):Promise<GamificationPrivacy>{
@@ -13,5 +14,10 @@ export async function saveGamificationPrivacy(db:MySql2Database,userId:number,in
  requireOwner(userId);
  if(!Number.isSafeInteger(nowMs)||nowMs<0||[input.showLevel,input.showAchievements,input.leaderboardOptIn].some(v=>typeof v!=="boolean"))throw Error("Invalid preferences");
  const value={showLevel:input.showLevel,showAchievements:input.showAchievements,leaderboardOptIn:input.leaderboardOptIn,updatedAtMs:nowMs};
- await db.insert(privacy).values({userId,...value}).onDuplicateKeyUpdate({set:value});
+ await db.transaction(async tx=>{
+  const [owner]=await tx.select({id:users.id}).from(users).where(eq(users.id,userId)).for("update");
+  if(!owner)throw Error("Unknown owner");
+  await tx.insert(privacy).values({userId,...value}).onDuplicateKeyUpdate({set:value});
+  if(!input.showAchievements)await tx.update(shares).set({revokedAtMs:nowMs}).where(and(eq(shares.userId,userId),isNull(shares.revokedAtMs)));
+ });
 }
