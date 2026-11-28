@@ -2,7 +2,7 @@ import {useEffect,useState} from "react";
 import type {WritingTask} from "@shared/exam-writing-contract";
 import {countWritingWords} from "@shared/exam-writing-contract";
 import {writingSequence,reviewWritingSequence,WRITING_SEQUENCE_MS} from "@shared/exam-writing-sequence";
-export default function ExamWritingSequence({tasks,allowed}:{tasks:readonly WritingTask[];allowed:boolean}){
+export default function ExamWritingSequence({tasks,allowed,onOutcome}:{tasks:readonly WritingTask[];allowed:boolean;onOutcome?:(status:"completed"|"expired"|"skipped")=>void}){
  const [setId,setSetId]=useState<NonNullable<WritingTask["setId"]>>("set-1");
  const [lockedTasks,setLockedTasks]=useState<WritingTask[]|null>(null);
  const available=(["set-1","set-2","set-3"] as const).filter(id=>writingSequence(tasks,id).length===2);
@@ -33,7 +33,7 @@ export default function ExamWritingSequence({tasks,allowed}:{tasks:readonly Writ
     <label>Seu texto em inglês<textarea lang="en" rows={12} maxLength={20000} value={drafts[task.id]??""} disabled={remaining===0} onChange={e=>{if(Date.now()<deadline)setDrafts(old=>({...old,[task.id]:e.target.value}));}}/></label>
     <p>{countWritingWords(drafts[task.id]??"")} / {task.minimumWords} palavras</p>
     <button className="academy-primary" onClick={finish}>Encerrar sequência e revisar</button>
-   </>:<><h3>Autoavaliação das duas tarefas</h3><p>Nenhuma nota atribuída. Contagem de palavras não mede qualidade linguística.</p>{reviewWritingSequence(sequence,drafts,setId).map(r=><article key={r.taskId}><h4>Task {r.kind} · {r.title}</h4><p>{r.words} palavras · {r.minimumMet?"Mínimo atingido":"Abaixo do mínimo"}</p><label>Seu texto<textarea lang="en" readOnly rows={6} value={drafts[r.taskId]??""}/></label>{r.questions.map(q=><p key={q} lang="en">{q}</p>)}</article>)}<h4>Critérios de referência</h4>{reviewWritingSequence(sequence,drafts,setId)[0]?.criteria.map(c=><p key={c.id}><strong>{c.name}</strong> — {c.description}</p>)}</>}
+   </>:<><h3>Autoavaliação das duas tarefas</h3>{onOutcome&&<button className="academy-primary" onClick={()=>onOutcome(Date.now()>=deadline?"expired":sequence.every(t=>Boolean(drafts[t.id]?.trim()))?"completed":"skipped")}>Registrar etapa no roteiro</button>}<p>Nenhuma nota atribuída. Contagem de palavras não mede qualidade linguística.</p>{reviewWritingSequence(sequence,drafts,setId).map(r=><article key={r.taskId}><h4>Task {r.kind} · {r.title}</h4><p>{r.words} palavras · {r.minimumMet?"Mínimo atingido":"Abaixo do mínimo"}</p><label>Seu texto<textarea lang="en" readOnly rows={6} value={drafts[r.taskId]??""}/></label>{r.questions.map(q=><p key={q} lang="en">{q}</p>)}</article>)}<h4>Critérios de referência</h4>{reviewWritingSequence(sequence,drafts,setId)[0]?.criteria.map(c=><p key={c.id}><strong>{c.name}</strong> — {c.description}</p>)}</>}
    <button className="academy-secondary" onClick={()=>{if(window.confirm("Descartar os dois textos desta sessão?"))reset();}}>Descartar sequência</button>
   </>}
  </div>;
