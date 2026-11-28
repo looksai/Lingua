@@ -187,6 +187,14 @@ try{
  const mine=()=>caller(ids[0],"user").commercialLab.myCommunityReports({accountId:ids[0]});
  assert.equal((await mine()).items.length,1);
  assert.equal((await mine()).items[0].reason,"spam");
+ const reportExport=await caller(ids[0],"user").commercialLab.myCommunityReportsExport({accountId:ids[0]});
+ assert.equal(reportExport.complete,true);
+ assert.equal(reportExport.reports.length,1);
+ assert.equal(reportExport.reports[0].reason,"spam");
+ assert.equal("reporterId" in reportExport.reports[0],false);
+ assert.equal("resolvedBy" in reportExport.reports[0],false);
+ await assert.rejects(student.commercialLab.myCommunityReportsExport({accountId:ids[0]}),{code:"FORBIDDEN"});
+ assert.deepEqual((await student.commercialLab.myCommunityReportsExport({accountId:ids[1]})).reports,[]);
  assert.deepEqual((await student.commercialLab.myCommunityReports({accountId:ids[1]})).items,[]);
  await assert.rejects(student.commercialLab.myCommunityReports({accountId:ids[0]}),{code:"FORBIDDEN"});
  const reportId=pending.items[0].id;
@@ -282,6 +290,7 @@ try{
  // A member retains access to their own report history after expiry, not the community feed.
  await a.update(commercialSubscriptions).set({endsAtMs:Date.now()}).where(eq(commercialSubscriptions.userId,ids[0]));
  assert.ok((await mine()).items.length>=1);
+ assert.ok((await caller(ids[0],"user").commercialLab.myCommunityReportsExport({accountId:ids[0]})).reports.length>=1);
  await assert.rejects(authorizedFeed(),{code:"FORBIDDEN"});
  console.log("PASS expired reporter history without feed access");
  console.log("PASS admin issue, student redemption, plan boundaries, expiry, concurrent promotion lifecycle and audit rollback");
