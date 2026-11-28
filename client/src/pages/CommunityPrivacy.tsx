@@ -100,8 +100,8 @@ function MyCommunityReports({accountId}:{accountId:number}){
  const exportReports=async()=>{
    const result=await portability.refetch();
    if(!result.data)return;
-   const {complete, ...document}=result.data;
-   const payload=JSON.stringify({...document,complete},null,2);
+   const {complete, ...exportData}=result.data;
+   const payload=JSON.stringify({...exportData,complete},null,2);
    const url=URL.createObjectURL(new Blob([payload],{type:"application/json"}));
    const link=document.createElement("a");link.href=url;
    link.download="lingua-denuncias-"+accountId+".json";
