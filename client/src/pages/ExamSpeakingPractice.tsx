@@ -3,9 +3,9 @@ import {Mic} from "lucide-react";
 import {trpc} from "@/lib/trpc";
 import {oralSequence,ORAL_SEQUENCE_SETS,type SpeakingPrompt} from "@shared/exam-speaking-contract";
 
-export default function ExamSpeakingPractice({allowed}:{allowed:boolean}){
+export default function ExamSpeakingPractice({allowed,onOutcome}:{allowed:boolean;onOutcome?:()=>void}){
  const catalogue=trpc.exams.speakingPrompts.useQuery(undefined,{enabled:allowed,retry:false});
- const [mode,setMode]=useState<"practice"|"sequence">("practice");
+ const [mode,setMode]=useState<"practice"|"sequence">(onOutcome?"sequence":"practice");
  const [oralSetId,setOralSetId]=useState("set-1");
  const [index,setIndex]=useState(0);
  const [clips,setClips]=useState<{task:SpeakingPrompt;url:string}[]>([]);
@@ -87,7 +87,7 @@ export default function ExamSpeakingPractice({allowed}:{allowed:boolean}){
  {phase==="between"&&<><p role="status">Resposta gravada. A revisão será exibida ao final.</p><button className="academy-primary" onClick={advance}>{index+1===sequence.length?"Concluir sequência":"Próxima pergunta"}</button></>}
  {phase==="review"&&audioUrl&&<div className="exam-writing-review"><h3>Escute sua resposta</h3><audio controls src={audioUrl}/><h3>Autoavaliação</h3>{task.review.map(q=><p key={q} lang="en">{q}</p>)}{catalogue.data?.criteria.map(c=><div key={c.name}><strong>{c.name}</strong><p>{c.description}</p></div>)}<button className="academy-secondary" onClick={clear}>Descartar e praticar novamente</button></div>}
  </>}
- {phase==="complete"&&<div className="exam-writing-review"><h3>Revisão da sequência oral</h3><p>{clips.length} respostas gravadas. Nenhuma nota atribuída.</p>{clips.map((clip,i)=><section key={clip.task.id}><h3>{i+1}. {clip.task.title}</h3><p lang="en">{clip.task.question}</p><audio controls src={clip.url}/>{clip.task.review.map(q=><p key={q} lang="en">{q}</p>)}</section>)}{catalogue.data?.criteria.map(c=><div key={c.name}><strong>{c.name}</strong><p>{c.description}</p></div>)}<button className="academy-secondary" onClick={()=>switchMode("sequence")}>Descartar e reiniciar sequência</button></div>}
+ {phase==="complete"&&<div className="exam-writing-review"><h3>Revisão da sequência oral</h3>{onOutcome&&clips.length===sequence.length&&<button className="academy-primary" onClick={onOutcome}>Registrar etapa no roteiro</button>}<p>{clips.length} respostas gravadas. Nenhuma nota atribuída.</p>{clips.map((clip,i)=><section key={clip.task.id}><h3>{i+1}. {clip.task.title}</h3><p lang="en">{clip.task.question}</p><audio controls src={clip.url}/>{clip.task.review.map(q=><p key={q} lang="en">{q}</p>)}</section>)}{catalogue.data?.criteria.map(c=><div key={c.name}><strong>{c.name}</strong><p>{c.description}</p></div>)}<button className="academy-secondary" onClick={()=>switchMode("sequence")}>Descartar e reiniciar sequência</button></div>}
  <p className="exam-muted">A gravação permanece apenas no navegador enquanto a atividade está aberta. Não é enviada ao servidor ou a uma IA. Nenhuma nota é atribuída. Ao sair, o áudio é descartado.</p>
  </>}
  </>}
