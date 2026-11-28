@@ -1,0 +1,44 @@
+import {and,eq,inArray,or} from "drizzle-orm";
+import type {MySql2Database} from "drizzle-orm/mysql2";
+import {users} from "../drizzle/schema";
+import {communityBlocks,communityModerationAudit,communityRestrictions} from "../drizzle/community-safety-draft";
+
+function checkMember(id:number){
+  if(!Number.isSafeInteger(id)||id<=0||id>2147483647)throw Error("Invalid member");
+}
+
+// Direction belongs to the member who created the block. Visibility is mutual.
+export async function setCommunityBlock(db:MySql2Database,owner:number,target:number,blocked:boolean){
+  checkMember(owner);checkMember(target);
+  if(owner===target)throw Error("Cannot block own account");
+  if(blocked){
+    await db.insert(communityBlocks).values({ownerId:owner,targetId:target}).onDuplicateKeyUpdate({set:{targetId:target}});
+  }else{
+    await db.delete(communityBlocks).where(and(eq(communityBlocks.ownerId,owner),eq(communityBlocks.targetId,target)));
+  }
+}
+
+export async function communityInteractionAllowed(db:MySql2Database,viewer:number,owner:number){
+  checkMember(viewer);checkMember(owner);
+  const [restriction]=await db.select({id:communityRestrictions.userId}).from(communityRestrictions)
+    .where(and(inArray(communityRestrictions.userId,[viewer,owner]),eq(communityRestrictions.suspended,true))).limit(1);
+  if(restriction)return false;
+  if(viewer===owner)return true;
+  const [block]=await db.select({id:communityBlocks.ownerId}).from(communityBlocks).where(or(
+    and(eq(communityBlocks.ownerId,viewer),eq(communityBlocks.targetId,owner)),
+    and(eq(communityBlocks.ownerId,owner),eq(communityBlocks.targetId,viewer)),
+  )).limit(1);
+  return !block;
+}
+
+export async function setCommunityRestriction(db:MySql2Database,actor:number,target:number,suspended:boolean){
+  checkMember(actor);checkMember(target);
+  await db.transaction(async tx=>{
+    const [owner]=await tx.select({id:users.id}).from(users).where(eq(users.id,target)).for("update");
+    if(!owner)throw Error("Unknown member");
+    const [current]=await tx.select().from(communityRestrictions).where(eq(communityRestrictions.userId,target)).for("update");
+    if((current?.suspended??false)===suspended)return;
+    await tx.insert(communityRestrictions).values({userId:target,suspended}).onDuplicateKeyUpdate({set:{suspended}});
+    await tx.insert(communityModerationAudit).values({actorId:actor,targetId:target,suspended,occurredAtMs:Date.now()});
+  });
+}

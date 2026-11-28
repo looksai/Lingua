@@ -1,3 +1,4 @@
+import {setCommunityBlock} from "./community-safety-lab";
 import {z} from "zod";
 import {TRPCError} from "@trpc/server";
 import {router,protectedProcedure} from "./_core/trpc";
@@ -16,6 +17,15 @@ function confirmAccount(accountId:number|undefined, userId:number) {
 const accountId=z.number().int().positive();
 
 export const commercialStudentRouterLab=router({
+ setCommunityBlock:protectedProcedure.input(z.object({accountId,targetId:z.number().int().positive().max(2147483647),blocked:z.boolean()}).strict()).mutation(async({ctx,input})=>{
+   confirmAccount(input.accountId,ctx.user.id);checkRequestOrigin(ctx.req);
+   rateLimit("community-block:"+ctx.user.id);ctx.res.setHeader("Cache-Control","private, no-store");
+   if(input.targetId===ctx.user.id)throw new TRPCError({code:"BAD_REQUEST"});
+   const db=await dbForLab();
+   if(input.blocked && !await commercialAccessLab(db).isActiveMember(ctx.user.id))throw new TRPCError({code:"FORBIDDEN"});
+   await setCommunityBlock(db,ctx.user.id,input.targetId,input.blocked);
+   return {processed:true};
+ }),
  communityPreferences:protectedProcedure.input(z.object({accountId}).strict()).query(async({ctx,input})=>{
    confirmAccount(input.accountId,ctx.user.id);
    ctx.res.setHeader("Cache-Control","private, no-store");

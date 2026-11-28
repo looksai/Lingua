@@ -1,3 +1,4 @@
+import {communityInteractionAllowed} from "./community-safety-lab";
 import type {MySql2Database} from "drizzle-orm/mysql2";
 import {commercialAccessLab} from "./commercial-repository-lab";
 import {readWeeklyCommunityRanking} from "./community-leaderboard-lab";
@@ -7,7 +8,7 @@ import {readCommunityGamificationProfile} from "./community-gamification-profile
 export function communityCommercialLab(db:MySql2Database,canInteract:(viewerId:number,ownerId:number)=>Promise<boolean>){
  const access=commercialAccessLab(db);
  async function canView(viewerId:number,ownerId:number){
-  try{return await access.canViewCommunityProfile(viewerId,ownerId)&&await canInteract(viewerId,ownerId);}catch{return false;}
+  try{return await access.canViewCommunityProfile(viewerId,ownerId)&&await communityInteractionAllowed(db,viewerId,ownerId)&&await canInteract(viewerId,ownerId);}catch{return false;}
  }
  return {
   profile:(viewerId:number,ownerId:number)=>readCommunityGamificationProfile(db,viewerId,ownerId,canView),

@@ -1,3 +1,4 @@
+import {setCommunityRestriction} from "./community-safety-lab";
 import {readAdminReferralMetrics} from "./admin-referral-metrics-lab";
 import {readAdminCommercialMetrics} from "./admin-commercial-metrics-lab";
 import {readRealizedCashLab} from "./admin-finance-repository-lab";
@@ -19,6 +20,12 @@ async function labDb(){
 }
 // Deliberately not mounted until administrative audit and isolated SQL tests exist.
 export const adminTrialRouterLab=router({
+ setCommunitySuspension:adminProcedure.input(z.object({targetId:z.number().int().positive().max(2147483647),suspended:z.boolean()}).strict()).mutation(async({ctx,input})=>{
+   checkRequestOrigin(ctx.req);rateLimit("admin-community-suspension:"+ctx.user.id);
+   ctx.res.setHeader("Cache-Control","private, no-store");
+   await setCommunityRestriction(await labDb(),ctx.user.id,input.targetId,input.suspended);
+   return {processed:true};
+ }),
  promotions:adminProcedure.input(z.object({beforeId:z.number().int().positive().optional()}).strict()).query(async({ctx,input})=>{
  ctx.res.setHeader("Cache-Control","private, no-store");rateLimit("admin-promotion-list:"+ctx.user.id);
  return (await labDb()).transaction(async tx=>{

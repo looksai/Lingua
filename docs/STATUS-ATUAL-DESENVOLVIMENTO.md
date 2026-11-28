@@ -2,6 +2,12 @@
 
 Este checkpoint prevalece sobre todos os avisos históricos abaixo. Fundador autorizou desenvolvimento, auditoria e testes autônomos, em blocos substanciais, sem pedir OK repetidamente. Academy Beta e fidelidade visual continuam prioridades; administração comercial é frente complementar, não substitui Academy, exames, gamificação ou comunidade.
 
+## Continuação — proteção das interações comunitárias
+
+O laboratório agora armazena bloqueios direcionais de membros. Qualquer direção impede visibilidade entre o par no perfil, feed e ranking via serviços comunitários. Remover o próprio bloqueio preserva o do outro membro. Suspensão comunitária é aplicada por admin, distinta da assinatura ou do acesso ao curso. Cada transição efetiva gera auditoria na mesma transação. A API de privacidade permite retirar o próprio bloqueio após perder o plano. O teste MySQL usa duas conexões e verifica revogação, autorizações, suspensão, auditoria e retorno da visibilidade.
+
+As tabelas são experimentais. Feed e ranking entre membros ainda não foram liberados. Pendentes UI contextual para bloquear/desbloquear, lista privada de bloqueios, fila de denúncias e decisão por publicação. Bloqueios e suspensões já são filtrados antes da paginação do feed. Antes de expor o feed, estender a mesma proteção à moderação de publicações e ao vencimento da assinatura do autor. Verificar os workflows da branch para o SHA atual.
+
 ## Continuação — marcador pessoal do roteiro integrado
 
 O head inicial foi `560ad674`, com P0, MySQL, Chromium isolado e lives aprovados. Na continuação, o aluno autorizado do piloto pode salvar por ação explícita um único roteiro na conta e retomá-lo após recarregar, inclusive em outra sessão. A cópia guarda variante, versão e situação das etapas, com data e revisão. Não contém acertos, textos nem gravações. Não constitui evidência pedagógica. Os resultados objetivos existentes seguem seu próprio fluxo.
