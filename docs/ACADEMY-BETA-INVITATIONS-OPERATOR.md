@@ -26,6 +26,16 @@ Após qualquer emissão ou revogação, a equipe deve atualizar, de forma segura
 
 O comando `audit` apresenta apenas totais (`total`, `active`, `expired`, `availableSlots`), sem tokens ou e-mails. Para reemitir uma credencial a um e-mail já convidado, revogue o registro anterior primeiro. Um convite vencido continua ocupando uma das 20 posições até ser revogado manualmente.
 
+## Pré-verificação sem escrita (staging)
+
+Após preparar a configuração **do ambiente aprovado**, rode localmente o comando abaixo. Ele não imprime URL de banco, segredo de sessão, e-mail ou código de convite:
+
+```sh
+pnpm exec tsx scripts/academy-beta-preflight.ts
+```
+
+Retorno `ready=true` significa apenas que os mínimos locais foram identificados: admissão em modo `invite`, trial explicitamente ativado, pelo menos um convite vigente, segredo com ao menos 32 bytes e uma conexão de banco configurada. Em `issues`, `blocker` exige correção e resulta em código de saída 1. `warning` registra limitações de escala e convites expirados. **A verificação não testa conectividade, integridade do banco, entrega de convites, distribuição do rate limiter nem aprova implantação**; as aprovações abaixo continuam obrigatórias.
+
 ## Homologação obrigatória antes de convidar pessoas
 
 1. Usar e-mails e tokens sintéticos em MySQL descartável e no laboratório HTTP, em modo `invite`; confirmar convite ausente, errado, expirado e de outro e-mail negados antes de qualquer escrita.
