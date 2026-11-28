@@ -19,6 +19,7 @@ async function test(name,width,mode,body,fixture="public"){
   const context=await browser.newContext({viewport:{width,height:900}});
   const page=await context.newPage();
   const errors=[],calls=[],broken=[];
+  let accountId=9001;
   let redeemed=false;
   let preferences={showLevel:false,showAchievements:false,leaderboardOptIn:false};
   let examGoal=null,examCleared=false;
@@ -31,7 +32,7 @@ async function test(name,width,mode,body,fixture="public"){
     const names=url.pathname.slice("/api/trpc/".length).split(",");
     calls.push(...names);
     const reply=names.map(name=>{
-      if(name==="auth.me")return {result:{data:{json:fixture==="public"?null:{id:9001,email:"qa-visual@synthetic.invalid",name:"Aluno de teste"}}}};
+      if(name==="auth.me")return {result:{data:{json:fixture==="public"?null:{id:accountId,email:"qa-visual@synthetic.invalid",name:"Aluno de teste"}}}};
       if(fixture!=="public"){
         const profile={userId:9001,tutorName:"Alex",tutorPersona:"welcoming",interest:"work",allowAIFeedback:0,interfaceLocale:"pt-BR",nativeLanguage:"pt",targetLanguage:"en",onboardingStatus:fixture==="diagnostic"?"started":"deferred"};
         const plan={title:"Apresentações e perguntas",objective:"Praticar mensagens curtas em inglês.",context:"comunicação profissional",reason:"Ponto de partida exploratório.",limits:"Não certifica proficiência."};
@@ -120,9 +121,9 @@ async function test(name,width,mode,body,fixture="public"){
       }
       if(name==="commercialLab.communityPreferences")return {result:{data:{json:{member:redeemed,preferences}}}};
       if(name==="auth.learningAccess"){
-        const trialEnded=["expired","community","premium","coupon"].includes(fixture);
+        const trialEnded=accountId!==9001 || ["expired","community","premium","coupon"].includes(fixture);
         const course=!trialEnded || fixture==="premium";
-        return {result:{data:{json:{trial:{kind:trialEnded?"expired":"active",expiresAtMs:1900000000000,remainingDays:trialEnded?0:15},course,tutor:course,exams:fixture!=="expired" && (fixture!=="coupon" || redeemed),community:redeemed || fixture==="community" || fixture==="premium"}}}};
+        return {result:{data:{json:{trial:{kind:trialEnded?"expired":"active",expiresAtMs:1900000000000,remainingDays:trialEnded?0:15},course,tutor:course,exams:accountId===9001 && fixture!=="expired" && (fixture!=="coupon" || redeemed),community:redeemed || fixture==="community" || fixture==="premium"}}}};
       }
       if(name==="auth.registrationMode")return {result:{data:{json:mode}}};
       if(name==="learning.gamificationPreview")return {result:{data:{json:{scope:"review-history-preview",totalXp:30,level:1,xpIntoLevel:30,xpPerLevel:250,achievements:[],missions:[]}}}};
@@ -131,7 +132,7 @@ async function test(name,width,mode,body,fixture="public"){
     return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify(url.searchParams.has("batch")?reply:reply[0])});
   });
   try{
-    await body(page,calls);
+    await body(page,calls,()=>{accountId=9002;});
     assert.deepEqual(errors,[],"uncaught browser errors");
     assert.deepEqual(broken,[],"failed approved assets");
     passed++;
@@ -657,6 +658,14 @@ try{
     await page.goto(base);await page.locator(".academy-welcome").waitFor();
     assert.ok(calls.includes("onboarding.me"));
   },"premium");
+  await test("switching identity drops the previous learner workspace",375,"closed",async(page,calls,switchAccount)=>{
+    await page.goto(base);await page.locator(".academy-welcome").waitFor();
+    switchAccount();
+    await page.evaluate(()=>window.dispatchEvent(new Event("visibilitychange")));
+    await page.getByRole("heading",{name:"Seus 15 dias gratuitos terminaram."}).waitFor();
+    assert.equal(await page.locator(".academy-welcome").count(),0);
+    assert.ok(calls.filter(name=>name==="auth.me").length>=2);
+  },"student");
   await test("expired trial does not load learner profile",375,"closed",async(page,calls)=>{
     await page.goto(base);await page.getByRole("heading",{name:"Seus 15 dias gratuitos terminaram."}).waitFor();
     assert.ok(!calls.includes("onboarding.me"));await fit(page);
@@ -696,5 +705,5 @@ try{
       },"live");
     }
   }
-  console.log("Academy Chromium: "+passed+"/"+(process.env.LINGUA_QA_EXPERIMENTAL_ROUTES==="1"?33:29));
+  console.log("Academy Chromium: "+passed+" scenarios passed");
 }finally{await browser.close();}

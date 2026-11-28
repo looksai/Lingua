@@ -133,7 +133,37 @@ try {
   assert.deepEqual(good(await rpc("tutor.memoryList",undefined,cookieA,true)),[]);
   pass("explicit memory consent, private retrieval and owner-only deletion");
   assert.equal((await rpc("onboarding.me",undefined,"",true)).status,401);
-  console.log("Academy MySQL HTTP lab: "+passed+"/7");
+  // Continue the invited learner's real session across the end of the free period.
+  process.env.ACADEMY_TRIAL_ENABLED="true";
+  process.env.LINGUA_COMMERCIAL_LAB_ENABLED="true";
+  process.env.LINGUA_ADMIN_LAB_ENABLED="true";
+  const status=(cookie:string,userId:number)=>rpc("auth.learningAccess",{userId},cookie,true);
+  assert.equal(good(await status(cookieB,b.id)).trial.kind,"active");
+  assert.equal((await status(cookieA,b.id)).status,403);
+  assert.equal((await status("",b.id)).status,401);
+  assert.equal(good(await rpc("tutor.capabilities",undefined,cookieB,true)).chat,false);
+  await pool.execute("UPDATE users SET createdAt=DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 16 DAY) WHERE id=?",[b.id]);
+  assert.equal(good(await status(cookieB,b.id)).course,false);
+  const coupon={code:"HTTP"+suffix.toUpperCase(),plan:"community-premium",days:30,validity:{kind:"days",days:3},maxUses:1};
+  assert.equal((await rpc("adminLab.issue",coupon,cookieB)).status,403);
+  await pool.execute("UPDATE users SET role='admin' WHERE id=?",[a.id]);
+  good(await rpc("adminLab.issue",coupon,cookieA));
+  const redeem=(cookie:string,accountId:number)=>rpc("commercialLab.redeemTrial",{code:coupon.code,accountId},cookie);
+  assert.equal((await redeem(cookieB,a.id)).status,403);
+  assert.equal(good(await redeem(cookieB,b.id)).status,"granted");
+  const activated=good(await status(cookieB,b.id));
+  assert.equal(activated.exams,true);assert.equal(activated.course,false);
+  assert.equal(good(await rpc("exams.overview",undefined,cookieB,true)).plan,null);
+  assert.equal((await rpc("tutor.capabilities",undefined,cookieB,true)).status,403);
+  assert.equal((await rpc("onboarding.me",undefined,cookieB,true)).status,403);
+  good(await rpc("adminLab.revoke",{code:coupon.code},cookieA));
+  assert.equal(good(await status(cookieB,b.id)).community,true);
+  await pool.execute("UPDATE commercialSubscriptions SET status='cancelled' WHERE userId=?",[b.id]);
+  assert.equal(good(await status(cookieB,b.id)).exams,false);
+  assert.equal((await rpc("exams.overview",undefined,cookieB,true)).status,403);
+  good(await rpc("exams.privacyStatus",undefined,cookieB,true));
+  pass("invitation and real session through trial, commercial redemption, pilot boundaries and withdrawal");
+  console.log("Academy MySQL HTTP lab: "+passed+" scenarios passed");
 } finally {
   await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));
   await pool.end();
