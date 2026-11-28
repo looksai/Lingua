@@ -95,8 +95,29 @@ function BlockedMembers({accountId}:{accountId:number}){
 function MyCommunityReports({accountId}:{accountId:number}){
  const [beforeId,setBeforeId]=useState<number>();
  const reports=trpc.commercialLab.myCommunityReports.useQuery({accountId,beforeId},{retry:false,gcTime:0});
+ const portability=trpc.commercialLab.myCommunityReportsExport.useQuery({accountId},{enabled:false,retry:false,gcTime:0});
+ const [partialExport,setPartialExport]=useState(false);
+ const exportReports=async()=>{
+   const result=await portability.refetch();
+   if(!result.data)return;
+   const {complete, ...document}=result.data;
+   const payload=JSON.stringify({...document,complete},null,2);
+   const url=URL.createObjectURL(new Blob([payload],{type:"application/json"}));
+   const link=document.createElement("a");link.href=url;
+   link.download="lingua-denuncias-"+accountId+".json";
+   document.body.append(link);link.click();link.remove();
+   window.setTimeout(()=>URL.revokeObjectURL(url),1000);
+   setPartialExport(!complete);
+ };
  return <div className="my-4 grid gap-3">
   <p className="text-sm">Consulte apenas as denúncias enviadas pela sua conta, inclusive após o término do acesso à comunidade. A moderação é realizada pela equipe.</p>
+  <div className="grid gap-2">
+    <button type="button" className="academy-secondary justify-self-start" disabled={portability.isFetching} onClick={()=>void exportReports()}>
+      {portability.isFetching?"Preparando arquivo...":"Exportar minhas denúncias (JSON)"}
+    </button>
+    {portability.isError&&<p role="alert">Não foi possível exportar suas denúncias.</p>}
+    {partialExport&&<p role="alert">O arquivo contém os mil registros mais recentes. Consulte as páginas anteriores para acessar denúncias mais antigas.</p>}
+  </div>
   {reports.isPending&&<p role="status">Consultando suas denúncias...</p>}
   {reports.isError&&<p role="alert">Não foi possível consultar suas denúncias. <button type="button" onClick={()=>void reports.refetch()}>Tentar novamente</button></p>}
   {reports.data&&!reports.isError&&<>
