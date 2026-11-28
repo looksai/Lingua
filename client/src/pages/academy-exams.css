@@ -21,3 +21,5 @@
 .academy-exams .exam-plan-banner p{font-size:13px;color:#475569}
 .academy-exams .exam-plan-banner button{justify-self:start}
 @media(max-width:680px){.academy-exams .exam-hero{background-position: center,75% center,center}.academy-exams .exam-plan-banner{grid-template-columns:minmax(0,1fr)}.academy-exams .exam-plan-art{min-height:100px}}
+
+.academy-exams textarea{width:100%;max-width:100%;resize:vertical;border:1px solid #cbd5e1;padding:12px;border-radius:8px;font-weight:400;line-height:1.6}.academy-exams .exam-passage table{border-collapse:collapse;margin-top:12px;width:100%;font-size:13px}.academy-exams .exam-passage th,.academy-exams .exam-passage td{padding:8px;border:1px solid #cbd5e1;text-align:left}.academy-exams .exam-writing-review{display:grid;gap:10px;background:#f6f1e4;border-radius:10px;padding:14px}.academy-exams textarea:focus-visible{outline:2px solid #bd923e}
